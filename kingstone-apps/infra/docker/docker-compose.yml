@@ -10,7 +10,7 @@ services:
       MYSQL_USER: kingstone
       MYSQL_PASSWORD: kingstone
     ports:
-      - "3306:3306"
+      - "3307:3306"
     command: --default-authentication-plugin=mysql_native_password
     volumes:
       - mysql_data:/var/lib/mysql
