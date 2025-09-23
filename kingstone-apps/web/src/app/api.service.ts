@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  base = 'http://localhost:3000';
+  base = '/api';
 
   async crearUsuario(body: { email: string; nombre: string; password: string }) {
     const r = await fetch(`${this.base}/usuarios`, {
