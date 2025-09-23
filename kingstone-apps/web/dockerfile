@@ -1,18 +1,18 @@
-# --- Etapa 1: Build Angular con pnpm + Nx ---
+﻿# --- Etapa 1: Build Angular con pnpm + Nx ---
 FROM node:20-bullseye AS builder
 RUN corepack enable
 WORKDIR /workspace
 
-# Manifiestos del monorepo (raíz)
+# Manifiestos del monorepo (raÃ­z)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml nx.json tsconfig.base.json ./
 
-# Código del frontend
+# CÃ³digo del frontend
 COPY web/ web/
 
 # Instalar deps (monorepo)
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
-# Build de la app web (producción)
+# Build de la app web (producciÃ³n)
 RUN pnpm nx build web
 
 # Normalizar carpeta de salida (dist/apps/web o dist/web)
@@ -20,7 +20,7 @@ RUN mkdir -p /webdist && \
     if [ -d "dist/apps/web" ]; then cp -r dist/apps/web/* /webdist/; \
     else cp -r dist/web/* /webdist/; fi
 
-# --- Etapa 2: Nginx sirviendo estáticos y haciendo proxy a /api ---
+# --- Etapa 2: Nginx sirviendo estÃ¡ticos y haciendo proxy a /api ---
 FROM nginx:1.27-alpine AS runtime
 WORKDIR /usr/share/nginx/html
 

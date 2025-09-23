@@ -1,24 +1,36 @@
-import { Injectable } from '@angular/core';
+// web/src/app/api.service.ts
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+
+export interface UsuarioCreate {
+  email: string;
+  nombre: string;
+  password: string;
+}
+
+export interface Usuario {
+  id: number;
+  email: string;
+  nombre: string;
+  createdAt: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  base = '/api';
+  private http = inject(HttpClient);
+  // si te marcaba error en "base = '/api';", usa readonly y tipa el string:
+  private readonly base: string = '/api';
 
-  async crearUsuario(body: { email: string; nombre: string; password: string }) {
-    const r = await fetch(`${this.base}/usuarios`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
+  health(): Observable<{ ok: boolean }> {
+    return this.http.get<{ ok: boolean }>(`${this.base}/health`);
   }
 
-  async listarUsuarios() {
-    const r = await fetch(`${this.base}/usuarios`);
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
+  crearUsuario(body: UsuarioCreate): Observable<Usuario> {
+    return this.http.post<Usuario>(`${this.base}/usuarios`, body);
+  }
+
+  listarUsuarios(): Observable<Usuario[]> {
+    return this.http.get<Usuario[]>(`${this.base}/usuarios`);
   }
 }
-
-
