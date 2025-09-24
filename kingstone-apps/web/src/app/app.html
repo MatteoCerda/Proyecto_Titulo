@@ -1,14 +1,4 @@
 <mat-toolbar color="primary">Kingstone</mat-toolbar>
-
-<div class="p-6 space-y-4">
-  <form (submit)="registrar($event)" class="flex gap-2 flex-wrap">
-    <input class="border p-2" placeholder="email" [(ngModel)]="email" name="email" />
-    <input class="border p-2" placeholder="nombre" [(ngModel)]="nombre" name="nombre" />
-    <input class="border p-2" type="password" placeholder="password" [(ngModel)]="password" name="password" />
-    <button mat-raised-button color="primary">Crear</button>
-  </form>
-
-  <button mat-stroked-button (click)="cargar()">Listar</button>
-
-  <pre>{{ usuarios | json }}</pre>
+<div class="p-6">
+  <router-outlet></router-outlet>
 </div>
