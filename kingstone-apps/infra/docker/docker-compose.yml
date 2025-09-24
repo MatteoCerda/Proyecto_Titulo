@@ -34,6 +34,30 @@ services:
       - mysql
     restart: unless-stopped
 
+  api:
+    build:
+      context: ../../          # ← contexto: la carpeta raíz del monorepo (kingstone-apps)
+      dockerfile: api/Dockerfile
+    env_file:
+      - ../../api/.env.docker
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../../                 # raíz del monorepo
+      dockerfile: web/Dockerfile
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "4200:80"
+    restart: unless-stopped
+
   n8n:
     image: n8nio/n8n:latest
     container_name: kingstone-n8n

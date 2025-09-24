@@ -1,46 +1,27 @@
-# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# caches y artefactos
+.pnpm-store/
+node_modules/
+dist/
+coverage/
+workspace_modules/
+.nx/
+.angular/
 
-# compiled output
-dist
-tmp
-out-tsc
+# web/api específicos
+web/dist/
+web/node_modules/
+api/dist/
+api/node_modules/
 
-# dependencies
-node_modules
+# envs / docker
+infra/docker/*.env
+.env
+.env.*
+!.env.example
 
-# IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-
-# IDE - VSCode
+# IDE / SO
 .vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
 !.vscode/extensions.json
-
-# misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
-testem.log
-/typings
-
-# System Files
+!.vscode/settings.json
 .DS_Store
 Thumbs.db
-
-.nx/cache
-.nx/workspace-data
-.cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
-
-.angular
