@@ -1,0 +1,28 @@
+<ion-header>
+  <ion-toolbar><ion-title>Crear cuenta</ion-title></ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <form (ngSubmit)="onSubmit()">
+    <ion-item>
+      <ion-label position="floating">Nombre completo</ion-label>
+      <ion-input type="text" [(ngModel)]="fullName" name="fullName" required></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-label position="floating">Email</ion-label>
+      <ion-input type="email" [(ngModel)]="email" name="email" required></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-label position="floating">Contraseña</ion-label>
+      <ion-input type="password" [(ngModel)]="password" name="password" required></ion-input>
+    </ion-item>
+
+    <ion-button expand="block" class="ion-margin-top" type="submit" [disabled]="loading">
+      {{ loading ? 'Creando...' : 'Crear cuenta' }}
+    </ion-button>
+
+    <ion-button fill="clear" expand="block" (click)="goLogin()">¿Ya tienes cuenta? Inicia sesión</ion-button>
+  </form>
+</ion-content>

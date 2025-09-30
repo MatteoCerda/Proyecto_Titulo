@@ -1,0 +1,7 @@
+{
+  "name": "kingstone",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}
