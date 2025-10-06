@@ -2,9 +2,8 @@ import { CanMatchFn, Router } from '@angular/router';
 import { inject } from '@angular/core';
 import { AuthService } from './auth.service';
 
-export const roleGuard = (role: string): CanMatchFn => () => {
+export const guestGuard: CanMatchFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
-  const current = auth.getRole();
-  return current === role ? true : router.createUrlTree(['/redir']);
+  return auth.isAuthenticated() ? router.createUrlTree(['/redir']) : true;
 };

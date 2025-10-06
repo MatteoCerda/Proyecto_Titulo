@@ -8,3 +8,4 @@ import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
   template: `<ion-app><ion-router-outlet></ion-router-outlet></ion-app>`
 })
 export class AppComponent {}
+export class MainLayoutComponent {}
