@@ -1,33 +1,40 @@
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { IonicModule } from '@ionic/angular';
-import { Router } from '@angular/router';
-import { AuthService } from '../../services/auth';
+import { Component, inject, signal } from '@angular/core';
+import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { IonContent, IonItem, IonLabel, IonInput, IonButton, IonImg } from '@ionic/angular/standalone';
+import { Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../core/auth.service';
 
 @Component({
-  selector: 'app-login',
-  templateUrl: './login.page.html',
   standalone: true,
-  imports: [CommonModule, FormsModule, IonicModule],
+  selector: 'app-login',
+  imports: [IonContent, IonItem, IonLabel, IonInput, IonButton, IonImg, ReactiveFormsModule, RouterLink],
+  templateUrl: './login.page.html',
+  styleUrls: ['./login.page.scss']
 })
 export class LoginPage {
-  email = '';
-  password = '';
-  loading = false;
+  private fb = inject(FormBuilder);
+  private auth = inject(AuthService);
+  private router = inject(Router);
 
-  constructor(private auth: AuthService, private router: Router) {}
+  loading = signal(false);
+  form = this.fb.group({
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', Validators.required],
+  });
 
-  onSubmit() {
-    if (!this.email || !this.password) return;
-    this.loading = true;
-    this.auth.login(this.email, this.password).subscribe({
-      next: () => { this.loading = false; this.router.navigateByUrl('/home'); },
-      error: () => { this.loading = false; alert('Credenciales inválidas'); }
-    });
+  async onSubmit() {
+    if (this.form.invalid) return;
+    this.loading.set(true);
+    try {
+      const { email, password } = this.form.value;
+      await this.auth.login(email!, password!);
+      this.router.navigateByUrl('/redir', { replaceUrl: true });
+    } finally {
+      this.loading.set(false);
+    }
   }
 
-  goRegister() {
-    this.router.navigateByUrl('/register');
+  entrarComoInvitado() {
+    this.router.navigateByUrl('/home', { replaceUrl: true });
   }
 }

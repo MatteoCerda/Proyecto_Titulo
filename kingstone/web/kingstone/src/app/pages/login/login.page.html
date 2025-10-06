@@ -1,21 +1,31 @@
-<ion-header>
-  <ion-toolbar><ion-title>Ingreso</ion-title></ion-toolbar>
-</ion-header>
+<ion-content class="login" fullscreen>
+  <div class="box">
+    <h1 class="title">Bienvenido a Kingston Estampados</h1>
 
-<ion-content class="ion-padding">
-  <form (ngSubmit)="onSubmit()">
-    <ion-item>
-      <ion-label position="floating">Email</ion-label>
-      <ion-input type="email" [(ngModel)]="email" name="email" required></ion-input>
-    </ion-item>
-    <ion-item>
-      <ion-label position="floating">Contraseña</ion-label>
-      <ion-input type="password" [(ngModel)]="password" name="password" required></ion-input>
-    </ion-item>
-    <ion-button expand="block" class="ion-margin-top" type="submit" [disabled]="loading">
-      {{ loading ? 'Entrando...' : 'Entrar' }}
+    <!-- Logo (coloca el archivo en src/assets/kingston-estampados.png) -->
+    <ion-img src="assets/kingston-estampados.png" alt="logo" class="logo"></ion-img>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <ion-item>
+        <ion-label position="stacked">Email</ion-label>
+        <ion-input type="email" formControlName="email"></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="stacked">Contraseña</ion-label>
+        <ion-input type="password" formControlName="password"></ion-input>
+      </ion-item>
+
+      <ion-button expand="block" class="ion-margin-top"
+                  [disabled]="form.invalid || loading()" type="submit">
+        Ingresar
+      </ion-button>
+    </form>
+
+    <div class="divider">o</div>
+
+    <ion-button fill="outline" expand="block" (click)="entrarComoInvitado()">
+      Entrar sin iniciar sesión
     </ion-button>
-
-    <ion-button fill="clear" expand="block" (click)="goRegister()">Crear cuenta</ion-button>
-  </form>
+  </div>
 </ion-content>
