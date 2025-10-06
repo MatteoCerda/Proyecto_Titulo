@@ -8,11 +8,16 @@
     "src/main.ts"
   ],
   "include": [
-    "src/**/*.ts",
+    "src/main.ts",
+    "src/polyfills.ts",       
+    "src/app/app.routes.ts",
+    "src/app/**/*.ts",
     "src/**/*.d.ts"
   ],
   "exclude": [
     "src/test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "src/app/**/*.spec.ts"
   ]
 }
+

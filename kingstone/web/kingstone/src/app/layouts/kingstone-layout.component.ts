@@ -1,72 +1,75 @@
-import { Component, inject } from '@angular/core';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
-import { AuthService } from '../core/auth.service';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonIcon } from '@ionic/angular/standalone';
+import { RouterOutlet, RouterLink } from '@angular/router';
+import { IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonFooter } from '@ionic/angular/standalone';
 
 @Component({
+  selector: 'app-kingstone-layout',
   standalone: true,
-  selector: 'app-main-layout',
-  imports: [CommonModule, RouterOutlet, RouterLink, IonIcon],
+  imports: [
+    CommonModule,
+    RouterOutlet,
+    RouterLink,
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonContent,
+    IonFooter,
+    IonButtons,
+    IonButton,
+    IonIcon
+  ],
   template: `
-    <!-- Header -->
-    <header class="header">
-      <div class="header__logo" routerLink="/inicio">
-        <img src="assets/kingstone-logo.png" alt="Kingstone Estampados" />
-      </div>
-
-      <div class="header__search">
-        <input type="text" placeholder="Busca en toda la tienda..." />
-        <ion-icon name="search-outline"></ion-icon>
-      </div>
-
-      <nav class="header__menu">
-        <a routerLink="/login" *ngIf="!auth.isAuthenticated()">Iniciar sesión</a>
-        <a routerLink="/cliente/mis-pedidos" *ngIf="role==='CLIENT'">Mis pedidos</a>
-        <a routerLink="/operador/pedidos" *ngIf="role==='OPERATOR'">Gestión de pedidos</a>
-        <a routerLink="/admin/usuarios" *ngIf="role==='ADMIN'">Administrar usuarios</a>
-        <a (click)="logout()" *ngIf="auth.isAuthenticated()">Cerrar sesión</a>
-      </nav>
-    </header>
-
-    <!-- Contenido de la página -->
-    <main class="content">
-      <router-outlet></router-outlet>
-    </main>
-
-    <!-- Footer -->
-    <footer class="footer">
-      <div class="footer__cols">
-        <div>
-          <h3>Kingstone Estampados</h3>
-          <p>Tu centro de personalización textil y vinilos.</p>
-        </div>
-        <div>
-          <h4>Enlaces</h4>
-          <ul>
-            <li><a routerLink="/inicio">Inicio</a></li>
-            <li><a routerLink="/cliente/mis-pedidos">Mis pedidos</a></li>
-            <li><a routerLink="/contacto">Contacto</a></li>
-          </ul>
-        </div>
-        <div>
-          <h4>Redes</h4>
-          <p>Instagram | Facebook | WhatsApp</p>
+  <!-- === HEADER === -->
+  <ion-header class="ks-header">
+    <ion-toolbar class="ks-toolbar">
+      <div class="ks-header-left">
+        <img src="assets/icon/kingstone-estampados.png" alt="Kingstone logo" class="ks-logo" />
+        <div class="ks-search">
+          <input type="text" placeholder="Busca en toda la tienda..." />
+          <ion-icon name="search-outline"></ion-icon>
         </div>
       </div>
-      <div class="footer__bottom">© {{ year }} Kingston Estampados — Todos los derechos reservados.</div>
-    </footer>
+
+      <div class="ks-header-right">
+        <a routerLink="/login" class="ks-action">
+          <ion-icon name="person-outline"></ion-icon> Iniciar sesión
+        </a>
+        <a routerLink="/tracking" class="ks-action">
+          <ion-icon name="bus-outline"></ion-icon> Tracking
+        </a>
+        <a routerLink="/carrito" class="ks-action">
+          <ion-icon name="cart-outline"></ion-icon> Tu carro (0)
+        </a>
+      </div>
+    </ion-toolbar>
+  </ion-header>
+
+  <!-- === CONTENIDO === -->
+  <ion-content class="ks-main-content" fullscreen>
+    <router-outlet></router-outlet>
+  </ion-content>
+
+  <!-- === FOOTER === -->
+  <ion-footer class="ks-footer">
+    <div class="ks-footer-content">
+      <div class="ks-footer-section">
+        <p><strong>Horario de atención:</strong></p>
+        <p>Lunes a viernes 10:00 a 19:00</p>
+        <p>Sábado 10:30 a 15:00</p>
+      </div>
+      <div class="ks-footer-section">
+        <p><strong>Canal de ayuda:</strong></p>
+        <p>+56 9 8641 2218</p>
+      </div>
+      <div class="ks-footer-section">
+        <p>Loreto 216, Recoleta</p>
+        <p>Toesca 2760, Santiago Centro</p>
+      </div>
+    </div>
+  </ion-footer>
   `,
-  styleUrls: ['./main-layout.component.scss']
+  styleUrls: ['./kingstone-layout.component.scss']
 })
-export class MainLayoutComponent {
-  private router = inject(Router);
-  auth = inject(AuthService);
-  role = this.auth.getRole();
-  year = new Date().getFullYear();
+export class KingstoneLayoutComponent {}
 
-  logout() {
-    this.auth.logout();
-    this.router.navigateByUrl('/inicio');
-  }
-}
