@@ -1,0 +1,25 @@
+.home::part(scroll) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+}
+
+.hero {
+  text-align: center;
+  padding: 24px;
+}
+
+.hero-logo {
+  width: 160px;
+  display: block;
+  margin: 0 auto 12px;
+}
+
+.cta {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
