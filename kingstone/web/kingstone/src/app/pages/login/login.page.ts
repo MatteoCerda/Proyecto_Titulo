@@ -35,6 +35,6 @@ export class LoginPage {
   }
 
   entrarComoInvitado() {
-    this.router.navigateByUrl('/home', { replaceUrl: true });
+    this.router.navigateByUrl('/inicio', { replaceUrl: true });
   }
 }

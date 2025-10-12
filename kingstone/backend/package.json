@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "kingstone-api",
   "version": "1.0.0",
   "scripts": {
@@ -9,6 +9,7 @@
     "prisma:migrate": "prisma migrate dev --name init"
   },
   "dependencies": {
+    "zod": "^3.23.8",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -27,3 +28,5 @@
     "typescript": "^5.4.5"
   }
 }
+
+

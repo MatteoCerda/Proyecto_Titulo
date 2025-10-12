@@ -1,7 +1,13 @@
-/* Centrar el contenido del ion-content (sólo esta página) */
+/* Tema claro para la página de login */
 :host {
-  --ion-background-color: #0f0f10; /* opcional: fondo oscuro */
-  color: #fff;
+  --ion-background-color: #ffffff;
+  color: #0f172a;
+}
+
+ion-content.login {
+  --background: #ffffff !important;
+  --padding-top: 16px;
+  --padding-bottom: 16px;
 }
 
 .login::part(scroll) {
@@ -11,14 +17,28 @@
   min-height: 100%;
 }
 
+.login-wrap {
+  width: 100%;
+  max-width: 980px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.login-left { display: flex; align-items: center; justify-content: center; }
+.login-left .logo { width: 220px; max-width: 90%; height: auto; }
+
 .box {
   width: 100%;
-  max-width: 380px;
-  background: rgba(255,255,255,0.03);
-  backdrop-filter: blur(2px);
-  border-radius: 16px;
+  max-width: 520px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb; /* slate-200 */
+  border-radius: 14px;
   padding: 24px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  box-shadow: 0 6px 20px rgba(2, 6, 23, 0.06);
+  margin: 12px; /* evita contacto con header/footer */
 }
 
 .title {
@@ -39,4 +59,54 @@
   text-align: center;
   opacity: .7;
   margin: 12px 0;
+}
+
+/* Inputs en estilo claro */
+ion-item {
+  --background: #f2f4f7; /* gray-100 */
+  --color: #0f172a;
+  --border-color: transparent;
+  --highlight-color-focused: #0c4a6e;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+ion-label { color: #0f172a; opacity: 0.9; }
+ion-input { --placeholder-color: #64748b; color: #0f172a; }
+
+/* Link recuperar contraseña */
+.recover { text-align: right; margin: 2px 2px 8px; }
+.recover-link {
+  color: #0c4a6e;
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: underline;
+}
+.recover-link:hover { opacity: .9; }
+
+/* Botones: azul del header */
+ion-button {
+  --background: #0c4a6e;
+  --border-radius: 10px;
+  --color: #ffffff; /* color del texto */
+  color: #ffffff;   /* refuerzo */
+  font-weight: 700;
+}
+ion-button[fill="outline"] {
+  --color: #0c4a6e;
+  --border-color: #0c4a6e;
+  --border-width: 1.5px;
+}
+
+/* Estado deshabilitado con buen contraste */
+ion-button[disabled] {
+  --background: #7aa0b5; /* azul grisáceo */
+  --color: #ffffff;
+  opacity: 1; /* evita dejar el texto casi invisible */
+}
+
+/* Responsive: apilar en pantallas pequeñas */
+@media (max-width: 900px) {
+  .login-wrap { grid-template-columns: 1fr; gap: 16px; }
+  .box { max-width: 420px; margin: 12px auto; }
+  .login-left .logo { width: 180px; }
 }

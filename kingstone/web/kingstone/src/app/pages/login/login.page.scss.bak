@@ -1,0 +1,43 @@
+/* Centrar el contenido del ion-content (sólo esta página) */
+:host {
+  --ion-background-color: #0f0f10; /* opcional: fondo oscuro */
+  color: #fff;
+}
+
+.login::part(scroll) {
+  display: flex;
+  align-items: center;   /* vertical */
+  justify-content: center; /* horizontal */
+  min-height: 100%;
+}
+
+.box {
+  width: 100%;
+  max-width: 380px;
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(2px);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+
+.title {
+  text-align: center;
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+
+.logo {
+  width: 180px;
+  display: block;
+  margin: 8px auto 24px;
+}
+
+.divider {
+  text-align: center;
+  opacity: .7;
+  margin: 12px 0;
+}
+

@@ -9,6 +9,7 @@ export const routes: Routes = [
       { path: '', redirectTo: 'inicio', pathMatch: 'full' },
       { path: 'inicio', loadComponent: () => import('./pages/home/home.page').then(m => m.HomePage) },
       { path: 'login', loadComponent: () => import('./pages/login/login.page').then(m => m.LoginPage) },
+      { path: 'recuperar', loadComponent: () => import('./pages/forgot/forgot-password.page').then(m => m.ForgotPasswordPage) },
       { path: 'registro', loadComponent: () => import('./pages/register/register.page').then(m => m.RegisterPage) },
       { path: 'admin', loadComponent: () => import('./pages/admin/dashboard.page').then(m => m.DashboardPage) },
       { path: 'cliente', loadComponent: () => import('./pages/cliente/mis-pedidos.page').then(m => m.MisPedidosPage) },

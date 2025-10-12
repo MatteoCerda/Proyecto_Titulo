@@ -1,13 +1,12 @@
 import { NgModule } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { LoginPage } from './login.page';
 
+// Módulo liviano que delega a un componente standalone
 @NgModule({
   imports: [
-    // el propio componente standalone
-    LoginPage,
-    // y el router para esta ruta
-    RouterModule.forChild([{ path: '', component: LoginPage }]),
+    RouterModule.forChild([
+      { path: '', loadComponent: () => import('./login.page').then(m => m.LoginPage) },
+    ]),
   ],
 })
 export class LoginPageModule {}

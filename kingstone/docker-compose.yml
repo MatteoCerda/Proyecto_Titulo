@@ -1,5 +1,4 @@
-version: '3.9'
-services:
+﻿services:
   db:
     image: mysql:8.0
     container_name: kingstone_db
@@ -22,5 +21,23 @@ services:
     depends_on:
       - db
 
+  api:
+    build:
+      context: ./backend
+    container_name: kingstone_api
+    environment:
+      DATABASE_URL: mysql://king:stone@db:3306/kingstone
+      SHADOW_DATABASE_URL: mysql://king:stone@db:3306/kingstone_shadow
+      JWT_SECRET: Duoc2025
+      JWT_EXPIRES_IN: 1d
+      PORT: 3000
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+
 volumes:
   db_data:
+
+

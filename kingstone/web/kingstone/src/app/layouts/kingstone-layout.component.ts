@@ -1,7 +1,15 @@
-import { Component } from '@angular/core';
+﻿import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, RouterLink } from '@angular/router';
-import { IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonFooter } from '@ionic/angular/standalone';
+import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import {
+  IonContent,
+  IonHeader,
+  IonToolbar,
+  IonFooter,
+  IonIcon,
+  IonBadge,
+  IonSearchbar,
+} from '@ionic/angular/standalone';
 
 @Component({
   selector: 'app-kingstone-layout',
@@ -10,66 +18,154 @@ import { IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, Ion
     CommonModule,
     RouterOutlet,
     RouterLink,
+    RouterLinkActive,
     IonHeader,
     IonToolbar,
-    IonTitle,
     IonContent,
     IonFooter,
-    IonButtons,
-    IonButton,
-    IonIcon
+    IonIcon,
+    IonBadge,
+    IonSearchbar,
   ],
   template: `
   <!-- === HEADER === -->
-  <ion-header class="ks-header">
-    <ion-toolbar class="ks-toolbar">
-      <div class="ks-header-left">
-        <img src="assets/icon/kingstone-estampados.png" alt="Kingstone logo" class="ks-logo" />
-        <div class="ks-search">
-          <input type="text" placeholder="Busca en toda la tienda..." />
-          <ion-icon name="search-outline"></ion-icon>
+  <ion-header class="ks-header" style="--background:#0c4a6e; --ion-background-color:#0c4a6e; color:#ffffff;">
+    <!-- Barra principal -->
+    <ion-toolbar class="ks-toolbar" style="--background:#0c4a6e; --ion-toolbar-background:#0c4a6e; color:#ffffff;">
+      <div class="ks-bar">
+        <!-- Izquierda: logo -->
+        <a class="ks-logo-wrap" routerLink="/">
+          <img src="assets/kingston-estampados.png" alt="Kingstone logo" class="ks-logo" />
+        </a>
+
+        <!-- Centro: menÃº -->
+        <nav class="ks-nav" style="color:#ffffff;">
+          <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
+          <a routerLink="/productos" routerLinkActive="active">Productos</a>
+          <a routerLink="/crea-tu-diseno" routerLinkActive="active">Crea tu dise&ntilde;o</a>
+          <a routerLink="/contacto" routerLinkActive="active">Cont&aacute;ctanos</a>
+        </nav>
+
+        <!-- Derecha: iconos -->
+        <div class="ks-actions" style="color:#ffffff;">
+          <button type="button" class="icon-btn" aria-label="Buscar" (click)="toggleSearch()">
+            <ion-icon src="/svg/search-outline.svg"></ion-icon>
+          </button>
+
+
+          <a routerLink="/login" class="icon-btn" aria-label="Cuenta">
+            <ion-icon src="/svg/person-outline.svg"></ion-icon>
+          </a>
         </div>
       </div>
+    </ion-toolbar>
 
-      <div class="ks-header-right">
-        <a routerLink="/login" class="ks-action">
-          <ion-icon name="person-outline"></ion-icon> Iniciar sesión
-        </a>
-        <a routerLink="/tracking" class="ks-action">
-          <ion-icon name="bus-outline"></ion-icon> Tracking
-        </a>
-        <a routerLink="/carrito" class="ks-action">
-          <ion-icon name="cart-outline"></ion-icon> Tu carro (0)
-        </a>
-      </div>
+    <!-- Barra de bÃºsqueda desplegable -->
+    <ion-toolbar *ngIf="showSearch" class="ks-toolbar-search">
+      <ion-searchbar
+        placeholder="Busca en toda la tienda..."
+        showCancelButton="always"
+        (ionCancel)="showSearch = false"
+        (ionClear)="showSearch = false"
+        (keyup.escape)="showSearch = false"
+        (ionChange)="onSearch($event)"
+      >
+      </ion-searchbar>
     </ion-toolbar>
   </ion-header>
 
   <!-- === CONTENIDO === -->
-  <ion-content class="ks-main-content" fullscreen>
+  <ion-content class="ks-main-content">
     <router-outlet></router-outlet>
   </ion-content>
 
   <!-- === FOOTER === -->
-  <ion-footer class="ks-footer">
-    <div class="ks-footer-content">
-      <div class="ks-footer-section">
-        <p><strong>Horario de atención:</strong></p>
-        <p>Lunes a viernes 10:00 a 19:00</p>
-        <p>Sábado 10:30 a 15:00</p>
+<ion-footer class="ks-footer" style="--background:#0c4a6e; --ion-background-color:#0c4a6e; background:#0c4a6e; color:#ffffff;">
+  <div class="ks-footer-wrap" style="color:#ffffff;">
+    <!-- Columna izquierda: logo + datos -->
+    <div class="ks-footer-left">
+      <img class="ks-footer-logo" src="assets/kingston-estampados.png" alt="Kingstone logo" />
+
+      <div class="ks-footer-item">
+        <ion-icon name="location-outline"></ion-icon>
+        <div>
+          <strong>Ubicaci&oacute;n:</strong>
+          <div>Loreto 216, Recoleta</div>
+          <div>Toesca 2760, Santiago Centro</div>
+        </div>
       </div>
-      <div class="ks-footer-section">
-        <p><strong>Canal de ayuda:</strong></p>
-        <p>+56 9 8641 2218</p>
+
+      <div class="ks-footer-item">
+        <ion-icon name="information-circle-outline"></ion-icon>
+        <div>
+          <strong>Horarios de atenci&oacute;n:</strong>
+          <div>Lunes a viernes 10:00 AM a 7:00 PM</div>
+          <div>S&aacute;bado 10:30 AM a 3:00 PM</div>
+        </div>
       </div>
-      <div class="ks-footer-section">
-        <p>Loreto 216, Recoleta</p>
-        <p>Toesca 2760, Santiago Centro</p>
+
+      <div class="ks-footer-item">
+        <ion-icon name="mail-outline"></ion-icon>
+        <div>
+          <strong>Correo:</strong>
+          <a href="mailto:kingstone.estampados@gmail.com">kingstone.estampados@gmail.com</a>
+        </div>
       </div>
     </div>
-  </ion-footer>
+
+    <!-- Columna centro: Env&iacute;os/retiros -->
+    <div class="ks-footer-middle">
+      <p><strong>Retiros en nuestro taller</strong></p>
+      <p><strong>Delivery en RM</strong></p>
+      <p><strong>Env&iacute;os a regiones</strong></p>
+      <ul>
+        <li>Starken</li>
+      </ul>
+    </div>
+
+    <!-- Columna derecha: redes -->
+    <div class="ks-footer-right">
+      <div class="ks-socials">
+        <a aria-label="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/56986412218">
+          <ion-icon name="logo-whatsapp"></ion-icon>
+        </a>
+        <a aria-label="Facebook" target="_blank" rel="noopener" href="https://facebook.com/tu_pagina">
+          <ion-icon name="logo-facebook"></ion-icon>
+        </a>
+        <a aria-label="Instagram" target="_blank" rel="noopener" href="https://instagram.com/tu_pagina">
+          <ion-icon name="logo-instagram"></ion-icon>
+        </a>
+      </div>
+    </div>
+  </div>
+</ion-footer>
   `,
   styleUrls: ['./kingstone-layout.component.scss']
 })
-export class KingstoneLayoutComponent {}
+export class KingstoneLayoutComponent {
+  showSearch = false;
+  cartCount = 0; // TODO: conecta tu servicio de carrito
+
+  toggleSearch() {
+    this.showSearch = !this.showSearch;
+  }
+
+  onSearch(ev: any) {
+    const q = (ev?.detail?.value ?? '').trim();
+    // TODO: dispara tu bÃºsqueda global aquÃ­
+    // console.log('buscar:', q);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
 

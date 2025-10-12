@@ -34,4 +34,39 @@
 
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
-@import "@ionic/angular/css/palettes/dark.system.css";
+/* Desactivamos el dark mode del sistema para usar colores claros */
+/* @import "@ionic/angular/css/palettes/dark.system.css"; */
+
+/* Forzamos base clara para contenido */
+:root {
+  color-scheme: light;
+  --ion-background-color: #ffffff;
+  --ion-text-color: #0f172a; /* slate-900 */
+}
+
+html, body, ion-app, ion-content {
+  background: var(--ion-background-color) !important;
+  color: var(--ion-text-color);
+}
+
+/* Refuerzo de color para header y footer del layout */
+ion-header.ks-header,
+ion-header.ks-header ion-toolbar {
+  --background: #0c4a6e !important;
+  --ion-toolbar-background: #0c4a6e !important;
+  background: #0c4a6e !important;
+  color: #ffffff !important;
+}
+
+ion-footer.ks-footer {
+  --background: #0c4a6e !important;
+  background: #0c4a6e !important;
+  color: #ffffff !important;
+}
+
+/* Forzar visibilidad de enlaces e iconos del header sobre fondo azul */
+ion-header.ks-header .ks-nav { display: flex !important; visibility: visible !important; opacity: 1 !important; }
+ion-header.ks-header .ks-nav a { color: #ffffff !important; opacity: 1 !important; text-decoration: none; }
+ion-header.ks-header .ks-actions .icon-btn { color: #ffffff !important; }
+ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important; opacity: 1 !important; }
+ion-header.ks-header a, ion-header.ks-header button { color: #ffffff !important; }

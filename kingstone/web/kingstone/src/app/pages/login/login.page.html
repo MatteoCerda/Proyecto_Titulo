@@ -1,32 +1,41 @@
-<ion-content class="login" fullscreen>
-  <div class="box">
-    <h1 class="title">Bienvenido a Kingston Estampados</h1>
+<ion-content class="login">
+  <div class="login-wrap">
+    <!-- Izquierda: logo/branding -->
+    <div class="login-left">
+      <ion-img src="assets/kingston-estampados.png" alt="logo" class="logo"></ion-img>
+    </div>
 
-    <!-- Logo (coloca el archivo en src/assets/kingston-estampados.png) -->
-    <ion-img src="assets/kingston-estampados.png" alt="logo" class="logo"></ion-img>
+    <!-- Derecha: formulario -->
+    <div class="login-right box">
+      <h1 class="title">Iniciar sesión</h1>
 
-    <form [formGroup]="form" (ngSubmit)="onSubmit()">
-      <ion-item>
-        <ion-label position="stacked">Email</ion-label>
-        <ion-input type="email" formControlName="email"></ion-input>
-      </ion-item>
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="form">
+        <ion-item>
+          <ion-label position="stacked">Correo electrónico</ion-label>
+          <ion-input type="email" formControlName="email"></ion-input>
+        </ion-item>
 
       <ion-item>
         <ion-label position="stacked">Contraseña</ion-label>
-        <ion-input type="password" formControlName="password"></ion-input>
+        <ion-input type="password" formControlName="password" placeholder="Ingresa tu contraseña"></ion-input>
       </ion-item>
+
+      <div class="recover">
+        <a routerLink="/recuperar" class="recover-link">¿Olvidaste tu contraseña?</a>
+      </div>
 
       <ion-button expand="block" class="ion-margin-top"
                   [disabled]="form.invalid || loading()" type="submit">
-        Ingresar
+        Iniciar sesión
       </ion-button>
-      <ion-button routerLink="/registro" expand="block" fill="outline">Registrarse</ion-button>
-    </form>
+        <ion-button routerLink="/registro" expand="block" fill="outline">Registrarse</ion-button>
+      </form>
 
-    <div class="divider">o</div>
+      <div class="divider">o</div>
 
-    <ion-button fill="outline" expand="block" (click)="entrarComoInvitado()">
-      Entrar sin iniciar sesión
-    </ion-button>
+      <ion-button fill="outline" expand="block" (click)="entrarComoInvitado()">
+        Entrar sin iniciar sesión
+      </ion-button>
+    </div>
   </div>
 </ion-content>
