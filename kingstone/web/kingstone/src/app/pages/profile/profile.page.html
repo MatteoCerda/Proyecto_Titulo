@@ -1,0 +1,42 @@
+<ion-content class="ion-padding">
+  <h1>Mi Perfil</h1>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <ion-list lines="full">
+      <ion-item>
+        <ion-label position="stacked">Correo electrónico</ion-label>
+        <ion-input type="email" formControlName="email"></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="stacked">Nombre completo</ion-label>
+        <ion-input type="text" formControlName="fullName" placeholder="Tu nombre"></ion-input>
+      </ion-item>
+    </ion-list>
+
+    <ion-button expand="block" class="ion-margin-top" type="submit" [disabled]="form.invalid || loading()">
+      Guardar cambios
+    </ion-button>
+  </form>
+
+  <h2 class="ion-margin-top">Cambiar contraseña</h2>
+  <form [formGroup]="passForm" (ngSubmit)="onSubmitPassword()">
+    <ion-list lines="full">
+      <ion-item>
+        <ion-label position="stacked">Contraseña actual</ion-label>
+        <ion-input type="password" formControlName="currentPassword" placeholder="Tu contraseña actual"></ion-input>
+      </ion-item>
+      <ion-item>
+        <ion-label position="stacked">Nueva contraseña</ion-label>
+        <ion-input type="password" formControlName="newPassword" placeholder="Mínimo 6 caracteres"></ion-input>
+      </ion-item>
+      <ion-item>
+        <ion-label position="stacked">Confirmar nueva contraseña</ion-label>
+        <ion-input type="password" formControlName="confirmNewPassword" placeholder="Repite la nueva contraseña"></ion-input>
+      </ion-item>
+    </ion-list>
+    <ion-button expand="block" class="ion-margin-top" type="submit" [disabled]="passForm.invalid || loading()">
+      Actualizar contraseña
+    </ion-button>
+  </form>
+</ion-content>

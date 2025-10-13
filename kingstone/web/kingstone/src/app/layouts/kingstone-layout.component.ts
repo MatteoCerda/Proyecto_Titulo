@@ -1,4 +1,4 @@
-﻿import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import {
@@ -10,6 +10,7 @@ import {
   IonBadge,
   IonSearchbar,
 } from '@ionic/angular/standalone';
+import { AuthService } from '../core/auth.service';
 
 @Component({
   selector: 'app-kingstone-layout',
@@ -38,7 +39,7 @@ import {
           <img src="assets/kingston-estampados.png" alt="Kingstone logo" class="ks-logo" />
         </a>
 
-        <!-- Centro: menÃº -->
+        <!-- Centro: menú -->
         <nav class="ks-nav" style="color:#ffffff;">
           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
           <a routerLink="/productos" routerLinkActive="active">Productos</a>
@@ -53,14 +54,14 @@ import {
           </button>
 
 
-          <a routerLink="/login" class="icon-btn" aria-label="Cuenta">
+          <a [routerLink]="auth.isAuthenticated() ? '/perfil' : '/login'" class="icon-btn" aria-label="Cuenta">
             <ion-icon src="/svg/person-outline.svg"></ion-icon>
           </a>
         </div>
       </div>
     </ion-toolbar>
 
-    <!-- Barra de bÃºsqueda desplegable -->
+    <!-- Barra de búsqueda desplegable -->
     <ion-toolbar *ngIf="showSearch" class="ks-toolbar-search">
       <ion-searchbar
         placeholder="Busca en toda la tienda..."
@@ -89,7 +90,7 @@ import {
       <div class="ks-footer-item">
         <ion-icon name="location-outline"></ion-icon>
         <div>
-          <strong>Ubicaci&oacute;n:</strong>
+          <strong>Ubicación:</strong>
           <div>Loreto 216, Recoleta</div>
           <div>Toesca 2760, Santiago Centro</div>
         </div>
@@ -98,9 +99,9 @@ import {
       <div class="ks-footer-item">
         <ion-icon name="information-circle-outline"></ion-icon>
         <div>
-          <strong>Horarios de atenci&oacute;n:</strong>
+          <strong>Horarios de atención:</strong>
           <div>Lunes a viernes 10:00 AM a 7:00 PM</div>
-          <div>S&aacute;bado 10:30 AM a 3:00 PM</div>
+          <div>Sábado 10:30 AM a 3:00 PM</div>
         </div>
       </div>
 
@@ -113,11 +114,11 @@ import {
       </div>
     </div>
 
-    <!-- Columna centro: Env&iacute;os/retiros -->
+    <!-- Columna centro: Envíos/retiros -->
     <div class="ks-footer-middle">
       <p><strong>Retiros en nuestro taller</strong></p>
       <p><strong>Delivery en RM</strong></p>
-      <p><strong>Env&iacute;os a regiones</strong></p>
+      <p><strong>Envíos a regiones</strong></p>
       <ul>
         <li>Starken</li>
       </ul>
@@ -143,6 +144,7 @@ import {
   styleUrls: ['./kingstone-layout.component.scss']
 })
 export class KingstoneLayoutComponent {
+  auth = inject(AuthService);
   showSearch = false;
   cartCount = 0; // TODO: conecta tu servicio de carrito
 
@@ -152,10 +154,11 @@ export class KingstoneLayoutComponent {
 
   onSearch(ev: any) {
     const q = (ev?.detail?.value ?? '').trim();
-    // TODO: dispara tu bÃºsqueda global aquÃ­
+    // TODO: dispara tu búsqueda global aquí
     // console.log('buscar:', q);
   }
 }
+
 
 
 
