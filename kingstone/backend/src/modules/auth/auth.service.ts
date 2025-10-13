@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import type { RegisterDTO, LoginDTO, JwtPayload } from './auth.types';
 import crypto from 'crypto';
 
@@ -21,7 +21,9 @@ export async function login(dto: LoginDTO) {
   if (!ok) throw new Error('INVALID_CREDENTIALS');
 
   const payload: JwtPayload = { sub: user.id, email: user.email, role: user.role };
-  const token = jwt.sign(payload, process.env.JWT_SECRET as string, { expiresIn: process.env.JWT_EXPIRES_IN || '1d' });
+  const opts: SignOptions = { expiresIn: (process.env.JWT_EXPIRES_IN as any) || '1d' };
+  const secret = process.env.JWT_SECRET as string;
+  const token = jwt.sign(payload, secret, opts);
   return { token, user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role } };
 }
 
