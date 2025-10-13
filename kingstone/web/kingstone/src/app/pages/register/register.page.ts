@@ -1,7 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonicModule } from '@ionic/angular';
+import { IonicModule, ToastController } from '@ionic/angular';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth';
 
@@ -17,16 +17,27 @@ export class RegisterPage {
   password = '';
   loading = false;
 
+  private toast = inject(ToastController);
+
   constructor(private auth: AuthService, private router: Router) {}
 
   onSubmit() {
     if (!this.fullName || !this.email || !this.password) return;
     this.loading = true;
     this.auth.register(this.fullName, this.email, this.password).subscribe({
-      next: () => {
-        // tras registrar, inicia sesión automáticamente y va a /home
+      next: async () => {
+        // Burbuja por creación de usuario
+        const t = await this.toast.create({
+          message: 'Haz creado usuario existosamente',
+          duration: 2000,
+          position: 'top',
+          color: 'success'
+        });
+        await t.present();
+
+        // Tras registrar, inicia sesión automáticamente y va a /inicio
         this.auth.login(this.email, this.password).subscribe({
-          next: () => { this.loading = false; this.router.navigateByUrl('/home'); },
+          next: () => { this.loading = false; this.router.navigateByUrl('/inicio'); },
           error: () => { this.loading = false; alert('Error al iniciar sesión tras registro'); }
         });
       },
@@ -41,3 +52,4 @@ export class RegisterPage {
     this.router.navigateByUrl('/login');
   }
 }
+

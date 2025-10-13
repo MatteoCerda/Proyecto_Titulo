@@ -3,6 +3,7 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { IonContent, IonItem, IonLabel, IonInput, IonButton, IonImg } from '@ionic/angular/standalone';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
+import { ToastController } from '@ionic/angular';
 
 @Component({
   standalone: true,
@@ -15,6 +16,7 @@ export class LoginPage {
   private fb = inject(FormBuilder);
   private auth = inject(AuthService);
   private router = inject(Router);
+  private toast = inject(ToastController);
 
   loading = signal(false);
   form = this.fb.group({
@@ -28,7 +30,16 @@ export class LoginPage {
     try {
       const { email, password } = this.form.value;
       await this.auth.login(email!, password!);
-      this.router.navigateByUrl('/redir', { replaceUrl: true });
+      // Mostrar burbuja de mensaje
+      const t = await this.toast.create({
+        message: 'Haz iniciado sesión',
+        duration: 2000,
+        position: 'top',
+        color: 'success'
+      });
+      await t.present();
+      // Redirigir a página de inicio
+      this.router.navigateByUrl('/inicio', { replaceUrl: true });
     } finally {
       this.loading.set(false);
     }
