@@ -14,8 +14,9 @@ export class AuthService {
       .pipe(tap(res => { localStorage.setItem(this.tokenKey, res.token); localStorage.setItem('auth.token', res.token); }));
   }
 
-  register(fullName: string, email: string, password: string) {
-    return this.http.post(`${this.api}/auth/register`, { fullName, email, password });
+  register(fullName: string, email: string, password: string, extra?: any) {
+    const payload = { fullName, email, password, ...(extra || {}) };
+    return this.http.post(`${this.api}/auth/register`, payload);
   }
 
   get token() { return localStorage.getItem(this.tokenKey); }

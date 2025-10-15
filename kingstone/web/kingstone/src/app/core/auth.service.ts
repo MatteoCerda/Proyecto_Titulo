@@ -52,6 +52,16 @@ export class AuthService {
     return true;
   }
 
+  async getClientProfile() {
+    const res = await firstValueFrom(this.http.get<{ profile: any }>(`${this.api}/me/profile`));
+    return res.profile || null;
+  }
+
+  async updateClientProfile(data: { rut?: string; nombre_contacto?: string; telefono?: string; direccion?: string; comuna?: string; ciudad?: string; }) {
+    const res = await firstValueFrom(this.http.put<{ profile: any }>(`${this.api}/me/profile`, data));
+    return res.profile;
+  }
+
   logout() {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem('ks_token');

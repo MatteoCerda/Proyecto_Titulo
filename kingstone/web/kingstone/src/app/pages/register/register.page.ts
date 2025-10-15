@@ -15,6 +15,13 @@ export class RegisterPage {
   fullName = '';
   email = '';
   password = '';
+  // Campos de perfil
+  rut = '';
+  nombre_contacto = '';
+  telefono = '';
+  direccion = '';
+  comuna = '';
+  ciudad = '';
   loading = false;
 
   private toast = inject(ToastController);
@@ -24,7 +31,15 @@ export class RegisterPage {
   onSubmit() {
     if (!this.fullName || !this.email || !this.password) return;
     this.loading = true;
-    this.auth.register(this.fullName, this.email, this.password).subscribe({
+    const extra = {
+      rut: this.rut || undefined,
+      nombre_contacto: this.nombre_contacto || this.fullName,
+      telefono: this.telefono || undefined,
+      direccion: this.direccion || undefined,
+      comuna: this.comuna || undefined,
+      ciudad: this.ciudad || undefined,
+    };
+    this.auth.register(this.fullName, this.email, this.password, extra).subscribe({
       next: async () => {
         // Burbuja por creación de usuario
         const t = await this.toast.create({

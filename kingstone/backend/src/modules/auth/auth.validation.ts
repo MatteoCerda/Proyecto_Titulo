@@ -4,7 +4,13 @@ import type { RegisterDTO, LoginDTO } from './auth.types';
 const register = z.object({
   email: z.string().email(),
   password: z.string().min(6),
-  fullName: z.string().min(2)
+  fullName: z.string().min(2),
+  rut: z.string().max(15).optional(),
+  nombre_contacto: z.string().max(150).optional(),
+  telefono: z.string().max(30).optional(),
+  direccion: z.string().max(200).optional(),
+  comuna: z.string().max(80).optional(),
+  ciudad: z.string().max(80).optional(),
 });
 
 const login = z.object({ email: z.string().email(), password: z.string().min(1) });

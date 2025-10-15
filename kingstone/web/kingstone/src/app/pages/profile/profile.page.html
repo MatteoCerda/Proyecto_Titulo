@@ -12,10 +12,31 @@
         <ion-label position="stacked">Nombre completo</ion-label>
         <ion-input type="text" formControlName="fullName" placeholder="Tu nombre"></ion-input>
       </ion-item>
+      <!-- Campos de perfil de cliente -->
+      <ion-item>
+        <ion-label position="stacked">RUT</ion-label>
+        <ion-input type="text" [formControl]="clientForm.controls.rut"></ion-input>
+      </ion-item>
+      <ion-item>
+        <ion-label position="stacked">Teléfono</ion-label>
+        <ion-input type="tel" [formControl]="clientForm.controls.telefono"></ion-input>
+      </ion-item>
+      <ion-item>
+        <ion-label position="stacked">Dirección</ion-label>
+        <ion-input type="text" [formControl]="clientForm.controls.direccion"></ion-input>
+      </ion-item>
+      <ion-item>
+        <ion-label position="stacked">Comuna</ion-label>
+        <ion-input type="text" [formControl]="clientForm.controls.comuna"></ion-input>
+      </ion-item>
+      <ion-item>
+        <ion-label position="stacked">Ciudad</ion-label>
+        <ion-input type="text" [formControl]="clientForm.controls.ciudad"></ion-input>
+      </ion-item>
     </ion-list>
 
     <ion-button expand="block" class="ion-margin-top" type="submit" [disabled]="form.invalid || loading()">
-      Guardar cambios
+      Guardar perfil
     </ion-button>
   </form>
 

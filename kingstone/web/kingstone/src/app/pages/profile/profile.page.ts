@@ -23,6 +23,14 @@ export class ProfilePage {
     email: [{ value: '', disabled: true }, [Validators.required, Validators.email]],
     fullName: ['', [Validators.required, Validators.minLength(2)]],
   });
+  clientForm = this.fb.group({
+    rut: [''],
+    nombre_contacto: [''],
+    telefono: [''],
+    direccion: [''],
+    comuna: [''],
+    ciudad: [''],
+  });
   passForm = this.fb.group({
     currentPassword: ['', [Validators.required, Validators.minLength(6)]],
     newPassword: ['', [Validators.required, Validators.minLength(6)]],
@@ -34,6 +42,17 @@ export class ProfilePage {
     try {
       const me = await this.auth.getMe();
       this.form.patchValue({ email: me?.email || this.auth.getEmail(), fullName: me?.fullName || '' });
+      const profile = await this.auth.getClientProfile();
+      if (profile) {
+        this.clientForm.patchValue({
+          rut: profile.rut || '',
+          nombre_contacto: profile.nombre_contacto || this.form.value.fullName || '',
+          telefono: profile.telefono || '',
+          direccion: profile.direccion || '',
+          comuna: profile.comuna || '',
+          ciudad: profile.ciudad || '',
+        });
+      }
     } finally {
       this.loading.set(false);
     }
@@ -45,8 +64,20 @@ export class ProfilePage {
     try {
       const { fullName } = this.form.getRawValue();
       await this.auth.updateProfile(fullName!);
+      const profile = this.clientForm.value;
+      await this.auth.updateClientProfile({
+        rut: profile.rut || undefined,
+        // Si no especifica nombre de contacto, usamos el nombre completo
+        nombre_contacto: (profile.nombre_contacto && profile.nombre_contacto.trim().length > 0)
+          ? profile.nombre_contacto
+          : (fullName || undefined),
+        telefono: profile.telefono || undefined,
+        direccion: profile.direccion || undefined,
+        comuna: profile.comuna || undefined,
+        ciudad: profile.ciudad || undefined,
+      });
       const t = await this.toast.create({
-        message: 'Datos personales actualizados',
+        message: 'Perfil actualizado',
         duration: 2000,
         position: 'top',
         color: 'success'
