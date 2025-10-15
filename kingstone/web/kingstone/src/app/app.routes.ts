@@ -21,17 +21,20 @@ export const routes: Routes = [
     ]
   },
   // Área de administración con su propio layout y header
-  {
-    path: 'admin',
-    canMatch: [roleGuard('ADMIN')],
-    loadComponent: () => import('./layouts/admin-layout.component').then(m => m.AdminLayoutComponent),
-    children: [
+      {
+        path: 'admin',
+        canMatch: [roleGuard('ADMIN')],
+        loadComponent: () => import('./layouts/admin-layout.component').then(m => m.AdminLayoutComponent),
+        children: [
       { path: '', redirectTo: 'inicio', pathMatch: 'full' },
       { path: 'inicio', loadComponent: () => import('./pages/admin/dashboard.page').then(m => m.DashboardPage) },
           { path: 'usuarios', loadComponent: () => import('./pages/admin/usuarios-roles.page').then(m => m.AdminUsuariosRolesPage) },
           { path: 'usuarios/:id', loadComponent: () => import('./pages/admin/user-detail.page').then(m => m.AdminUserDetailPage) },
       { path: 'catalogo', loadComponent: () => import('./pages/admin/catalogo-precio.page').then(m => m.AdminCatalogoPrecioPage) },
-      { path: 'reportes', loadComponent: () => import('./pages/admin/reportes.page').then(m => m.AdminReportesPage) },
+          { path: 'reportes', loadComponent: () => import('./pages/admin/reportes.page').then(m => m.AdminReportesPage) },
+          { path: 'reportes/distribucion', loadComponent: () => import('./pages/admin/reportes-detalle-torta.page').then(m => m.AdminReporteTortaPage) },
+          { path: 'reportes/top-clientes', loadComponent: () => import('./pages/admin/reportes-detalle-barras.page').then(m => m.AdminReporteBarrasPage) },
+          { path: 'reportes/ventas-mensuales', loadComponent: () => import('./pages/admin/reportes-detalle-lineas.page').then(m => m.AdminReporteLineasPage) },
       { path: 'stock', loadComponent: () => import('./pages/admin/stock.page').then(m => m.AdminStockPage) },
       { path: 'perfil', loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage) },
     ]
