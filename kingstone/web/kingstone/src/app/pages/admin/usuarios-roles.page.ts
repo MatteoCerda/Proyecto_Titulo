@@ -47,7 +47,7 @@ interface UserVM { id: number; username: string; fullName: string; email: string
           <ion-icon name="person-outline" class="avatar"></ion-icon>
           <div class="u-meta">
             <div class="u-username">{{u.username}}</div>
-            <div class="u-actions"><a href="#" (click)="$event.preventDefault(); edit(u)">Editar</a> / <a href="#" (click)="$event.preventDefault(); view(u)">Ver</a></div>
+            <div class="u-actions"><a href="#" (click)="$event.preventDefault(); edit(u)">Ver</a> / <a href="#" (click)="$event.preventDefault(); edit(u)">Editar</a></div>
           </div>
         </div>
         <div class="cell name">{{u.fullName}}</div>
@@ -152,8 +152,8 @@ export class AdminUsuariosRolesPage {
   }
 
   addUser() { alert('Pronto: formulario para crear usuario'); }
-  edit(u: UserVM) { alert('Editar: '+u.username); }
-  view(u: UserVM) { alert('Ver: '+u.username); }
+  edit(u: UserVM) { (window as any).location.href = '/admin/usuarios/' + u.id; }
+  view(u: UserVM) { (window as any).location.href = '/admin/usuarios/' + u.id; }
   changeRole() {
     const sel = this.users().filter(u=>u.selected);
     if (sel.length===0) return;
@@ -169,3 +169,5 @@ export class AdminUsuariosRolesPage {
     this.http.request('delete', `http://localhost:3000/admin/users`, { body: { ids } }).subscribe(() => this.load());
   }
 }
+
+
