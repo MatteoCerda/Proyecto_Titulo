@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import authRoutes from './modules/auth/auth.routes';
 import { authGuard } from './modules/common/middlewares/authGuard';
+import adminRoutes from './modules/admin/admin.routes';
+import { adminGuard } from './modules/common/middlewares/adminGuard';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -75,3 +77,5 @@ app.put('/me/password', authGuard, async (req, res) => {
 });
 
 export default app;
+// Admin endpoints
+app.use('/admin', authGuard, adminGuard, adminRoutes);

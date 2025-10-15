@@ -38,8 +38,10 @@ export class LoginPage {
         color: 'success'
       });
       await t.present();
-      // Redirigir a p\u00E1gina de inicio
-      this.router.navigateByUrl('/inicio', { replaceUrl: true });
+      // Redirigir por rol
+      const role = this.auth.getRole();
+      const target = role === 'ADMIN' ? '/admin/inicio' : role === 'OPERATOR' ? '/operador' : '/cliente';
+      this.router.navigateByUrl(target, { replaceUrl: true });
     } catch (e: any) {
       const status = e?.status;
       const msg = status === 401
