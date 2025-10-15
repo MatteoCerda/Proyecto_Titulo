@@ -3,6 +3,7 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { IonContent, IonItem, IonLabel, IonInput, IonButton, IonList } from '@ionic/angular/standalone';
 import { AuthService } from '../../core/auth.service';
 import { ToastController } from '@ionic/angular';
+import { Router } from '@angular/router';
 
 @Component({
   standalone: true,
@@ -15,6 +16,7 @@ export class ProfilePage {
   private fb = inject(FormBuilder);
   private auth = inject(AuthService);
   private toast = inject(ToastController);
+  private router = inject(Router);
 
   loading = signal(false);
   form = this.fb.group({
@@ -80,5 +82,10 @@ export class ProfilePage {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  logout() {
+    this.auth.logout();
+    this.router.navigateByUrl('/login', { replaceUrl: true });
   }
 }

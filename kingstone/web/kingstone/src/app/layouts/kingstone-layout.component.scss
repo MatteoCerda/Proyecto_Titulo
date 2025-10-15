@@ -124,6 +124,31 @@ ion-header.ks-header .ks-actions,
 ion-header.ks-header .ks-actions .icon-btn,
 ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important; opacity: 1 !important; }
 
+/* Popover simple del usuario */
+.ks-user-menu {
+  position: absolute;
+  right: 10px;
+  top: 56px;
+  background: #123b56;
+  border: 1px solid #0a2a3d;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 1000;
+}
+.ks-user-menu a,
+.ks-user-menu button {
+  color: #ffffff;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 6px 8px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
 /* Badge del carro */
 .ks-cart { position: relative; }
 .ks-badge {

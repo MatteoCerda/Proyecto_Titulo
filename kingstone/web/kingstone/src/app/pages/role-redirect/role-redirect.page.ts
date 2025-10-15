@@ -15,7 +15,7 @@ export class RoleRedirectPage {
 
   ngOnInit() {
     const role = this.auth.getRole();
-    const path = role === 'ADMIN' ? '/admin' :
+    const path = role === 'ADMIN' ? '/admin/inicio' :
                  role === 'OPERATOR' ? '/operador' :
                  '/cliente';
     this.router.navigateByUrl(path, { replaceUrl: true });

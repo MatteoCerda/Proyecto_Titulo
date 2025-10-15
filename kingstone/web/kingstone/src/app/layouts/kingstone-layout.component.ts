@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+﻿import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import {
@@ -39,7 +39,7 @@ import { AuthService } from '../core/auth.service';
           <img src="assets/kingston-estampados.png" alt="Kingstone logo" class="ks-logo" />
         </a>
 
-        <!-- Centro: menú -->
+        <!-- Centro: menÃº -->
         <nav class="ks-nav" style="color:#ffffff;">
           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
           <a routerLink="/productos" routerLinkActive="active">Productos</a>
@@ -54,14 +54,18 @@ import { AuthService } from '../core/auth.service';
           </button>
 
 
-          <a [routerLink]="auth.isAuthenticated() ? '/perfil' : '/login'" class="icon-btn" aria-label="Cuenta">
+          <button type="button" class="icon-btn" aria-label="Cuenta" (click)="onProfileClick()">
             <ion-icon src="/svg/person-outline.svg"></ion-icon>
-          </a>
+          </button>
+          <div class="ks-user-menu" *ngIf="showUserMenu">
+            <a routerLink="/perfil">Mi perfil</a>
+            <button type="button" (click)="logout()">Cerrar sesiÃ³n</button>
+          </div>
         </div>
       </div>
     </ion-toolbar>
 
-    <!-- Barra de búsqueda desplegable -->
+    <!-- Barra de bÃºsqueda desplegable -->
     <ion-toolbar *ngIf="showSearch" class="ks-toolbar-search">
       <ion-searchbar
         placeholder="Busca en toda la tienda..."
@@ -90,7 +94,7 @@ import { AuthService } from '../core/auth.service';
       <div class="ks-footer-item">
         <ion-icon name="location-outline"></ion-icon>
         <div>
-          <strong>Ubicación:</strong>
+          <strong>UbicaciÃ³n:</strong>
           <div>Loreto 216, Recoleta</div>
           <div>Toesca 2760, Santiago Centro</div>
         </div>
@@ -99,9 +103,9 @@ import { AuthService } from '../core/auth.service';
       <div class="ks-footer-item">
         <ion-icon name="information-circle-outline"></ion-icon>
         <div>
-          <strong>Horarios de atención:</strong>
+          <strong>Horarios de atenciÃ³n:</strong>
           <div>Lunes a viernes 10:00 AM a 7:00 PM</div>
-          <div>Sábado 10:30 AM a 3:00 PM</div>
+          <div>SÃ¡bado 10:30 AM a 3:00 PM</div>
         </div>
       </div>
 
@@ -114,11 +118,11 @@ import { AuthService } from '../core/auth.service';
       </div>
     </div>
 
-    <!-- Columna centro: Envíos/retiros -->
+    <!-- Columna centro: EnvÃ­os/retiros -->
     <div class="ks-footer-middle">
       <p><strong>Retiros en nuestro taller</strong></p>
       <p><strong>Delivery en RM</strong></p>
-      <p><strong>Envíos a regiones</strong></p>
+      <p><strong>EnvÃ­os a regiones</strong></p>
       <ul>
         <li>Starken</li>
       </ul>
@@ -146,6 +150,7 @@ import { AuthService } from '../core/auth.service';
 export class KingstoneLayoutComponent {
   auth = inject(AuthService);
   showSearch = false;
+  showUserMenu = false;
   cartCount = 0; // TODO: conecta tu servicio de carrito
 
   toggleSearch() {
@@ -154,10 +159,32 @@ export class KingstoneLayoutComponent {
 
   onSearch(ev: any) {
     const q = (ev?.detail?.value ?? '').trim();
-    // TODO: dispara tu búsqueda global aquí
+    // TODO: dispara tu bÃºsqueda global aquÃ­
     // console.log('buscar:', q);
   }
+
+  onProfileClick() {
+    if (!this.auth.isAuthenticated()) {
+      (window as any).location.href = '/login';
+      return;
+    }
+    // Si es ADMIN, lleva al panel admin para activar el header de administración
+    const role = this.auth.getRole();
+    if (role === 'ADMIN') {
+      (window as any).location.href = '/admin/inicio';
+    } else {
+      (window as any).location.href = '/perfil';
+    }
+  }
+
+  logout() {
+    this.auth.logout();
+    this.showUserMenu = false;
+    (window as any).location.href = '/login';
+  }
 }
+
+
 
 
 
