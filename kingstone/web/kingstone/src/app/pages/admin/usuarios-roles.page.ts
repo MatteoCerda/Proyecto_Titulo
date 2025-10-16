@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent, IonButton, IonIcon } from '@ionic/angular/standalone';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 
 type Role = 'ADMIN' | 'CLIENT' | 'OPERATOR';
 interface UserVM { id: number; username: string; fullName: string; email: string; role: Role; selected?: boolean }
@@ -33,6 +34,9 @@ interface UserVM { id: number; username: string; fullName: string; email: string
       </div>
     </div>
 
+    <div *ngIf="error()" style="color:#ef4444; margin:8px 0;">{{error()}}</div>
+    <div *ngIf="!error() && users().length===0" style="color:#94a3b8; margin:8px 0;">No hay usuarios para mostrar.</div>
+
     <div class="table">
       <div class="thead">
         <div class="th select"><input type="checkbox" [checked]="allSelected()" (change)="toggleSelectAll($event)"></div>
@@ -47,7 +51,7 @@ interface UserVM { id: number; username: string; fullName: string; email: string
           <ion-icon name="person-outline" class="avatar"></ion-icon>
           <div class="u-meta">
             <div class="u-username">{{u.username}}</div>
-            <div class="u-actions"><a href="#" (click)="$event.preventDefault(); edit(u)">Ver</a> / <a href="#" (click)="$event.preventDefault(); edit(u)">Editar</a></div>
+            <div class="u-actions"><a href="#" (click)="$event.preventDefault(); view(u)">Ver</a> / <a href="#" (click)="$event.preventDefault(); edit(u)">Editar</a></div>
           </div>
         </div>
         <div class="cell name">{{u.fullName}}</div>
@@ -101,10 +105,12 @@ interface UserVM { id: number; username: string; fullName: string; email: string
 })
 export class AdminUsuariosRolesPage {
   private http = inject(HttpClient);
+  private router = inject(Router);
   users = signal<UserVM[]>([]);
   query = '';
   activeTab: 'all'|'client'|'admin' = 'all';
   sortDesc = true;
+  error = signal<string | null>(null);
 
   total = computed(() => this.users().length);
   countBy = (r:Role) => this.users().filter(u => u.role===r).length;
@@ -138,7 +144,7 @@ export class AdminUsuariosRolesPage {
     if (this.activeTab === 'client') params.role = 'user';
     if (this.activeTab === 'admin') params.role = 'admin';
     if (this.query?.trim()) params.q = this.query.trim();
-    this.http.get<any[]>(`http://localhost:3000/admin/users`, { params }).subscribe(users => {
+    this.http.get<any[]>(`http://localhost:3000/admin/users`, { params }).subscribe({ next: users => {
       const mapRole = (r: string): Role => (r?.toLowerCase() === 'admin') ? 'ADMIN' : 'CLIENT';
       const vm = users.map(u => ({
         id: u.id,
@@ -148,12 +154,16 @@ export class AdminUsuariosRolesPage {
         role: mapRole(u.role)
       } as UserVM));
       this.users.set(vm);
-    });
+      this.error.set(null);
+    }, error: err => {
+      this.users.set([]);
+      this.error.set(err?.error?.message || 'No se pudieron cargar los usuarios');
+    }});
   }
 
   addUser() { alert('Pronto: formulario para crear usuario'); }
-  edit(u: UserVM) { (window as any).location.href = '/admin/usuarios/' + u.id; }
-  view(u: UserVM) { (window as any).location.href = '/admin/usuarios/' + u.id; }
+  edit(u: UserVM) { this.router.navigateByUrl('/admin/usuarios/' + u.id); }
+  view(u: UserVM) { this.router.navigateByUrl('/admin/usuarios/' + u.id); }
   changeRole() {
     const sel = this.users().filter(u=>u.selected);
     if (sel.length===0) return;

@@ -38,11 +38,12 @@ import { AuthService } from '../core/auth.service';
   styles: [
     `
     .ks-header, .ks-toolbar { background:#0c4a6e; color:#fff; }
-    .ks-bar { max-width:1180px; margin:0 auto; padding:6px 10px; display:flex; align-items:center; gap:18px; }
+    .ks-toolbar { padding: 0 !important; --padding-start: 0; --padding-end: 0; }
+    .ks-bar { width:100%; margin:0; padding:6px 8px; display:flex; align-items:center; gap:18px; }
     .ks-logo { height:36px; }
 
     /* Nav con misma animación que el header principal */
-    .ks-nav { display:flex; gap:20px; align-items:center; }
+    .ks-nav { display:flex; gap:20px; align-items:center; flex:1; justify-content:center; }
     .ks-nav a { position:relative; color:#fff; text-decoration:none; opacity:.9; font-weight:600; letter-spacing:.2px; padding:8px 0; }
     .ks-nav a:hover { opacity:1; }
     .ks-nav a::after { content:""; position:absolute; left:0; right:0; bottom:0; height:2px; background:currentColor; border-radius:2px; transform:scaleX(0); transform-origin:center; transition:transform .18s ease; }
