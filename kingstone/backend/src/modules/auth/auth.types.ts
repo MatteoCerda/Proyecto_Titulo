@@ -8,6 +8,7 @@ export interface RegisterDTO {
   direccion?: string;
   comuna?: string;
   ciudad?: string;
+  role?: string;
 }
 export interface LoginDTO { email: string; password: string }
 export interface JwtPayload { sub: number; email: string; role: string }

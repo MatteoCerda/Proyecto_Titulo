@@ -1,39 +1,46 @@
 <ion-header>
   <ion-toolbar><ion-title>Crear cuenta</ion-title></ion-toolbar>
- </ion-header>
+</ion-header>
 
- <ion-content class="ion-padding">
+<ion-content class="ion-padding">
   <form (ngSubmit)="onSubmit()">
-    <ion-item>
+    <ion-text color="danger" *ngIf="generalError" class="form-error">{{ generalError }}</ion-text>
+
+    <ion-item [class.invalid]="fieldErrors.fullName">
       <ion-label position="floating">Nombre completo</ion-label>
       <ion-input type="text" [(ngModel)]="fullName" name="fullName" required></ion-input>
     </ion-item>
+    <ion-note color="danger" class="error-note" *ngIf="fieldErrors.fullName">{{ fieldErrors.fullName }}</ion-note>
 
-    <ion-item>
+    <ion-item [class.invalid]="fieldErrors.email">
       <ion-label position="floating">Email</ion-label>
       <ion-input type="email" [(ngModel)]="email" name="email" required></ion-input>
     </ion-item>
+    <ion-note color="danger" class="error-note" *ngIf="fieldErrors.email">{{ fieldErrors.email }}</ion-note>
 
-    <ion-item>
-      <ion-label position="floating">Contraseña</ion-label>
+    <ion-item [class.invalid]="fieldErrors.password">
+      <ion-label position="floating">Contrasena</ion-label>
       <ion-input type="password" [(ngModel)]="password" name="password" required></ion-input>
     </ion-item>
+    <ion-note color="danger" class="error-note" *ngIf="fieldErrors.password">{{ fieldErrors.password }}</ion-note>
 
     <!-- Perfil de cliente -->
-    <ion-item>
+    <ion-item [class.invalid]="fieldErrors.rut">
       <ion-label position="floating">RUT</ion-label>
       <ion-input type="text" [(ngModel)]="rut" name="rut"></ion-input>
     </ion-item>
+    <ion-note color="danger" class="error-note" *ngIf="fieldErrors.rut">{{ fieldErrors.rut }}</ion-note>
+
     <ion-item>
       <ion-label position="floating">Nombre de contacto</ion-label>
       <ion-input type="text" [(ngModel)]="nombre_contacto" name="nombre_contacto"></ion-input>
     </ion-item>
     <ion-item>
-      <ion-label position="floating">Teléfono</ion-label>
+      <ion-label position="floating">Telefono</ion-label>
       <ion-input type="tel" [(ngModel)]="telefono" name="telefono"></ion-input>
     </ion-item>
     <ion-item>
-      <ion-label position="floating">Dirección</ion-label>
+      <ion-label position="floating">Direccion</ion-label>
       <ion-input type="text" [(ngModel)]="direccion" name="direccion"></ion-input>
     </ion-item>
     <ion-item>
@@ -49,6 +56,6 @@
       {{ loading ? 'Creando...' : 'Crear cuenta' }}
     </ion-button>
 
-    <ion-button fill="clear" expand="block" (click)="goLogin()">¿Ya tienes cuenta? Inicia sesión</ion-button>
+    <ion-button fill="clear" expand="block" (click)="goLogin()">Ya tienes cuenta? Inicia sesion</ion-button>
   </form>
- </ion-content>
+</ion-content>

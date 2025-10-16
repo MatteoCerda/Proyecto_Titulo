@@ -82,7 +82,11 @@ export class AuthService {
     return localStorage.getItem(this.emailKey) || '';
   }
 
-  hasRole(role: UserRole): boolean {
-    return this.getRole() === role;
+  hasRole(role: UserRole | UserRole[]): boolean {
+    const current = this.getRole();
+    if (Array.isArray(role)) {
+      return role.includes(current);
+    }
+    return current === role;
   }
 }

@@ -49,3 +49,19 @@ model Cliente {
   @@index([id_usuario])
   @@map("cliente")
 }
+
+model InventoryItem {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  itemType  String
+  color     String
+  provider  String
+  quantity  Int      @default(0)
+  qrRaw     String?
+  imageUrl  String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("inventory_item")
+}

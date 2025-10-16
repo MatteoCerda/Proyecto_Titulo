@@ -35,35 +35,20 @@ import { AuthService } from '../core/auth.service';
     <router-outlet></router-outlet>
   </ion-content>
   `,
-  styles: [
-    `
-    .ks-header, .ks-toolbar { background:#0c4a6e; color:#fff; }
-    .ks-bar { max-width:1180px; margin:0 auto; padding:6px 10px; display:flex; align-items:center; gap:18px; }
-    .ks-logo { height:36px; }
-
-    /* Nav con misma animación que el header principal */
-    .ks-nav { display:flex; gap:20px; align-items:center; }
-    .ks-nav a { position:relative; color:#fff; text-decoration:none; opacity:.9; font-weight:600; letter-spacing:.2px; padding:8px 0; }
-    .ks-nav a:hover { opacity:1; }
-    .ks-nav a::after { content:""; position:absolute; left:0; right:0; bottom:0; height:2px; background:currentColor; border-radius:2px; transform:scaleX(0); transform-origin:center; transition:transform .18s ease; }
-    .ks-nav a:hover::after, .ks-nav a.active::after { transform:scaleX(1); }
-
-    .ks-actions { margin-left:auto; display:flex; gap:12px; align-items:center; }
-    .icon-btn { background:none; border:0; color:#fff; width:40px; height:40px; display:inline-flex; align-items:center; justify-content:center; border-radius:10px; transition:background .15s ease, transform .08s ease; }
-    .icon-btn:hover { background:rgba(255,255,255,.08); }
-    .icon-btn:active { transform:scale(.98); }
-    .icon-btn ion-icon { font-size:24px; }
-    `
-  ]
+  styleUrls: ['./admin-layout.component.scss']
 })
 export class AdminLayoutComponent {
   auth = inject(AuthService);
   router = inject(Router);
+
   onProfileClick() {
-    if (!this.auth.isAuthenticated()) { this.router.navigateByUrl('/login'); return; }
-    // Ir directo a página de perfil (manteniendo header admin)
+    if (!this.auth.isAuthenticated()) {
+      this.router.navigateByUrl('/login');
+      return;
+    }
     this.router.navigateByUrl('/admin/perfil');
   }
+
   logout() {
     this.auth.logout();
     this.router.navigateByUrl('/login');

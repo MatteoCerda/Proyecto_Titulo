@@ -1,0 +1,127 @@
+.ks-header,
+.ks-toolbar {
+  background: #0c4a6e;
+  color: #fff;
+}
+
+.ks-toolbar {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
+}
+
+.ks-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto; /* logo | nav | acciones */
+  align-items: center;
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 6px 16px;
+  gap: 18px;
+}
+
+.ks-logo-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.ks-logo {
+  height: 42px;
+  width: auto;
+  max-width: 180px;
+  object-fit: contain;
+}
+
+.ks-nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.ks-nav a {
+  position: relative;
+  color: #fff;
+  text-decoration: none;
+  opacity: 0.9;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  padding: 8px 0;
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.ks-nav a:hover {
+  opacity: 1;
+}
+
+.ks-nav a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.18s ease;
+}
+
+.ks-nav a:hover::after,
+.ks-nav a.active::after {
+  transform: scaleX(1);
+}
+
+.ks-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  align-items: center;
+}
+
+.icon-btn {
+  background: none;
+  border: 0;
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.icon-btn:active {
+  transform: scale(0.98);
+}
+
+.icon-btn ion-icon {
+  font-size: 24px;
+}
+
+@media (max-width: 900px) {
+  .ks-bar {
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+    gap: 12px;
+  }
+
+  .ks-nav {
+    grid-column: 1 / span 2;
+    justify-content: center;
+  }
+}
+
+.ks-toolbar {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
+}
+

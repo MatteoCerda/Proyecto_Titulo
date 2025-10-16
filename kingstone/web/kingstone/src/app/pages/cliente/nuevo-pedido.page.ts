@@ -1,11 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { IonContent, IonItem, IonLabel, IonInput, IonButton, IonImg } from '@ionic/angular/standalone';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { UploadsService } from '../../services/uploads.service';
 
 @Component({
   standalone: true,
-  imports: [IonContent, IonItem, IonLabel, IonInput, IonButton, IonImg, ReactiveFormsModule],
+  imports: [CommonModule, IonContent, IonItem, IonLabel, IonInput, IonButton, IonImg, ReactiveFormsModule],
   template: `
   <ion-content class="ion-padding">
     <h2>Nuevo pedido</h2>

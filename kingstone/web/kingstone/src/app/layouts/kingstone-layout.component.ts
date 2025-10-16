@@ -7,7 +7,6 @@ import {
   IonToolbar,
   IonFooter,
   IonIcon,
-  IonBadge,
   IonSearchbar,
 } from '@ionic/angular/standalone';
 import { AuthService } from '../core/auth.service';
@@ -25,7 +24,6 @@ import { AuthService } from '../core/auth.service';
     IonContent,
     IonFooter,
     IonIcon,
-    IonBadge,
     IonSearchbar,
   ],
   template: `

@@ -1,12 +1,12 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonContent, IonButton, IonIcon } from '@ionic/angular/standalone';
+import { IonContent, IonButton } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 
 @Component({
   standalone: true,
   selector: 'app-admin-reporte-torta',
-  imports: [CommonModule, IonContent, IonButton, IonIcon],
+  imports: [CommonModule, IonContent, IonButton],
   template: `
   <ion-content class="ion-padding">
     <button class="back" (click)="back()">←</button>

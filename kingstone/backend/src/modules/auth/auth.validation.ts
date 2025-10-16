@@ -11,6 +11,7 @@ const register = z.object({
   direccion: z.string().max(200).optional(),
   comuna: z.string().max(80).optional(),
   ciudad: z.string().max(80).optional(),
+  role: z.enum(['user', 'admin', 'operator']).optional(),
 });
 
 const login = z.object({ email: z.string().email(), password: z.string().min(1) });

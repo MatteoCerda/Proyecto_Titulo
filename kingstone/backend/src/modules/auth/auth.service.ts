@@ -10,7 +10,11 @@ export async function register(dto: RegisterDTO) {
   const exists = await prisma.user.findUnique({ where: { email: dto.email } });
   if (exists) throw new Error('EMAIL_IN_USE');
   const passwordHash = await bcrypt.hash(dto.password, 10);
-  const user = await prisma.user.create({ data: { email: dto.email, passwordHash, fullName: dto.fullName } });
+  const allowedRoles = ['user', 'admin', 'operator'];
+  const role = dto.role && allowedRoles.includes(dto.role) ? dto.role : 'user';
+  const user = await prisma.user.create({
+    data: { email: dto.email, passwordHash, fullName: dto.fullName, role }
+  });
   // Si vienen datos de perfil, creamos registro en tabla cliente
   const hasProfile = dto.rut || dto.nombre_contacto || dto.telefono || dto.direccion || dto.comuna || dto.ciudad;
   if (hasProfile) {
