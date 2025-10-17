@@ -212,19 +212,20 @@ ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important;
 .ks-footer-wrap {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 26px 18px;
+  /* Compactamos el footer por defecto */
+  padding: 12px 16px;
   display: grid;
   grid-template-columns: 1.2fr 1fr 0.9fr;
-  gap: 28px;
+  gap: 16px;
   align-items: start;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 /* ---- Columna izquierda: logo + items con icono ---- */
 .ks-footer-logo {
-  height: 60px;
-  margin-bottom: 12px;
+  height: 40px;
+  margin-bottom: 6px;
   display: block;
   object-fit: contain;
 }
@@ -232,8 +233,8 @@ ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important;
 .ks-footer-item {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  margin: 12px 0;
+  gap: 8px;
+  margin: 6px 0;
 }
 .ks-footer-item ion-icon {
   font-size: 18px;
@@ -258,12 +259,13 @@ ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important;
   display: flex;
   align-items: flex-end;
   justify-content: flex-end;
-  min-height: 100%;
+  /* Evita que estire la altura del footer */
+  min-height: auto;
 }
 .ks-socials { display: flex; gap: 12px; }
 .ks-socials a {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: 2px solid var(--ks-accent);
   display: inline-flex;
@@ -281,7 +283,7 @@ ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important;
 
 /* ---- Responsive ---- */
 @media (max-width: 1100px) {
-  .ks-footer-wrap { max-width: 100%; padding-inline: 16px; }
+  .ks-footer-wrap { max-width: 100%; padding-inline: 12px; }
 }
 @media (max-width: 900px) {
   .ks-footer-wrap { grid-template-columns: 1fr; gap: 18px; }
@@ -292,15 +294,15 @@ ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important;
 @media (max-width: 600px) {
   .ks-footer { box-shadow: 0 -1px 8px rgba(0,0,0,0.15); }
   .ks-footer-wrap {
-    padding: 10px 12px;
-    gap: 10px;
-    font-size: 13px;
-    line-height: 1.4;
+    padding: 8px 10px;
+    gap: 8px;
+    font-size: 12.5px;
+    line-height: 1.35;
   }
-  .ks-footer-logo { height: 40px; margin-bottom: 6px; }
-  .ks-footer-item { margin: 6px 0; gap: 8px; }
+  .ks-footer-logo { height: 36px; margin-bottom: 4px; }
+  .ks-footer-item { margin: 4px 0; gap: 6px; }
   .ks-footer-item ion-icon { font-size: 16px; }
-  .ks-socials a { width: 32px; height: 32px; }
+  .ks-socials a { width: 30px; height: 30px; }
 }
 
 
@@ -312,4 +314,12 @@ ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important;
 .ks-footer { background: #0c4a6e !important; background-color: #0c4a6e !important; color: #ffffff !important; }
 .ks-footer .ks-footer-wrap { background: #0c4a6e !important; color: #ffffff !important; }
 .ks-footer a { color: #ffffff !important; }
+
+/* ---- Modo ultra-compacto (slim) ---- */
+.ks-footer.ks-slim .ks-footer-wrap { padding: 6px 10px; gap: 8px; font-size: 12px; line-height: 1.3; }
+.ks-footer.ks-slim .ks-footer-logo { display: none; }
+.ks-footer.ks-slim .ks-footer-item { margin: 2px 0; gap: 6px; }
+.ks-footer.ks-slim .ks-socials a { width: 28px; height: 28px; }
+.ks-footer.ks-slim .ks-footer-middle ul { margin: 0; padding: 0; }
+.ks-footer.ks-slim .ks-footer-middle li { list-style: none; display: inline; margin-right: 10px; }
 

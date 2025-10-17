@@ -14,6 +14,7 @@ interface InventoryItem {
   color: string;
   provider: string;
   quantity: number;
+  umbralBajoStock: number;
   qrRaw?: string | null;
   imageUrl?: string | null;
   createdAt: string;
@@ -93,6 +94,12 @@ interface InventoryItem {
             <input type="number" min="0" [(ngModel)]="form.quantity" name="quantity">
           </label>
         </div>
+        <div class="grid">
+          <label>
+            Umbral bajo stock (aviso)
+            <input type="number" min="0" [(ngModel)]="form.umbralBajoStock" name="umbralBajoStock">
+          </label>
+        </div>
 
         <div class="error" *ngIf="formError">{{ formError }}</div>
 
@@ -130,6 +137,7 @@ interface InventoryItem {
                 <th class="col-meta">Color</th>
                 <th class="col-meta">Proveedor</th>
                 <th class="col-qty">Cantidad</th>
+                <th class="col-qty">Umbral</th>
                 <th class="col-actions">Acciones</th>
               </tr>
             </thead>
@@ -155,6 +163,9 @@ interface InventoryItem {
                 <td class="col-meta">{{ item.provider }}</td>
                 <td class="col-qty">
                   <input type="number" min="0" [(ngModel)]="item.quantity" (blur)="updateQuantity(item)">
+                </td>
+                <td class="col-qty">
+                  <input type="number" min="0" [(ngModel)]="item.umbralBajoStock" (blur)="updateThreshold(item)">
                 </td>
                 <td class="col-actions">
                   <button class="btn danger sm" type="button" (click)="remove(item)">Eliminar</button>
@@ -302,6 +313,7 @@ export class AdminStockPage implements OnDestroy {
     color: '',
     provider: '',
     quantity: 0,
+    umbralBajoStock: 0,
     imageUrl: ''
   };
   imagePreview: string | null = null;
@@ -367,6 +379,7 @@ export class AdminStockPage implements OnDestroy {
       color,
       provider,
       quantity,
+      umbralBajoStock: this.form.umbralBajoStock || 0,
       imageUrl: this.form.imageUrl || undefined
     }).subscribe({
       next: item => {
@@ -553,6 +566,7 @@ export class AdminStockPage implements OnDestroy {
       color: '',
       provider: '',
       quantity: 0,
+      umbralBajoStock: 0,
       imageUrl: ''
     };
     this.formError = '';
@@ -568,10 +582,27 @@ export class AdminStockPage implements OnDestroy {
       quantity: item.quantity
     }).subscribe({
       next: updated => {
-        this.items.set(this.items().map(i => (i.id === updated.id ? updated : i)));
+        this.items.set(this.items().map(i => (i.id === updated.id ? { ...i, ...updated } : i)));
       },
       error: () => {
         // revert on error
+        this.load();
+      }
+    });
+  }
+
+  updateThreshold(item: InventoryItem) {
+    const umbral = Number(item.umbralBajoStock);
+    if (Number.isNaN(umbral) || umbral < 0) {
+      item.umbralBajoStock = 0;
+    }
+    this.http.patch<InventoryItem>(`http://localhost:3000/admin/inventory/${item.id}`, {
+      umbralBajoStock: item.umbralBajoStock
+    }).subscribe({
+      next: updated => {
+        this.items.set(this.items().map(i => (i.id === updated.id ? { ...i, ...updated } : i)));
+      },
+      error: () => {
         this.load();
       }
     });

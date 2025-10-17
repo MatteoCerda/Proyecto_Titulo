@@ -25,6 +25,7 @@ const inventoryCreateSchema = z.object({
   color: z.string().min(1),
   provider: z.string().min(1),
   quantity: z.coerce.number().int().min(0).default(0),
+  umbralBajoStock: z.coerce.number().int().min(0).default(0),
   qrRaw: z.string().optional(),
   imageUrl: z.string().min(1).optional()
 });
@@ -216,6 +217,7 @@ router.post('/inventory', async (req, res) => {
           color: dto.color,
           provider: dto.provider,
           qrRaw: dto.qrRaw ?? existing.qrRaw,
+          umbralBajoStock: dto.umbralBajoStock ?? existing.umbralBajoStock,
           imageUrl: dto.imageUrl !== undefined ? dto.imageUrl || null : existing.imageUrl,
           quantity: existing.quantity + (dto.quantity ?? 0),
           updatedAt: new Date()
@@ -231,6 +233,7 @@ router.post('/inventory', async (req, res) => {
         color: dto.color,
         provider: dto.provider,
         quantity: dto.quantity ?? 0,
+        umbralBajoStock: dto.umbralBajoStock ?? 0,
         qrRaw: dto.qrRaw ?? null,
         imageUrl: dto.imageUrl ?? null
       }
@@ -271,6 +274,7 @@ router.patch('/inventory/:id', async (req, res) => {
         ...(dto.provider !== undefined ? { provider: dto.provider } : {}),
         ...(dto.quantity !== undefined ? { quantity: dto.quantity } : {}),
         ...(dto.qrRaw !== undefined ? { qrRaw: dto.qrRaw } : {}),
+        ...(dto.umbralBajoStock !== undefined ? { umbralBajoStock: dto.umbralBajoStock } : {}),
         ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {})
       }
     });

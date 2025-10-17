@@ -37,7 +37,7 @@ import { AuthService } from '../core/auth.service';
           <img src="assets/kingston-estampados.png" alt="Kingstone logo" class="ks-logo" />
         </a>
 
-        <!-- Centro: menÃº -->
+        <!-- Centro: menÃƒÂº -->
         <nav class="ks-nav" style="color:#ffffff;">
           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
           <a routerLink="/productos" routerLinkActive="active">Productos</a>
@@ -57,13 +57,13 @@ import { AuthService } from '../core/auth.service';
           </button>
           <div class="ks-user-menu" *ngIf="showUserMenu">
             <a routerLink="/perfil">Mi perfil</a>
-            <button type="button" (click)="logout()">Cerrar sesiÃ³n</button>
+            <button type="button" (click)="logout()">Cerrar sesi&oacute;n</button>
           </div>
         </div>
       </div>
     </ion-toolbar>
 
-    <!-- Barra de bÃºsqueda desplegable -->
+    <!-- Barra de bÃƒÂºsqueda desplegable -->
     <ion-toolbar *ngIf="showSearch" class="ks-toolbar-search">
       <ion-searchbar
         placeholder="Busca en toda la tienda..."
@@ -83,7 +83,7 @@ import { AuthService } from '../core/auth.service';
   </ion-content>
 
   <!-- === FOOTER === -->
-<ion-footer class="ks-footer" style="--background:#0c4a6e; --ion-background-color:#0c4a6e; background:#0c4a6e; color:#ffffff;">
+<ion-footer class="ks-footer ks-slim" style="--background:#0c4a6e; --ion-background-color:#0c4a6e; background:#0c4a6e; color:#ffffff;">
   <div class="ks-footer-wrap" style="color:#ffffff;">
     <!-- Columna izquierda: logo + datos -->
     <div class="ks-footer-left">
@@ -92,7 +92,7 @@ import { AuthService } from '../core/auth.service';
       <div class="ks-footer-item">
         <ion-icon name="location-outline"></ion-icon>
         <div>
-          <strong>UbicaciÃ³n:</strong>
+          <strong>Ubicaci&oacute;n:</strong>
           <div>Loreto 216, Recoleta</div>
           <div>Toesca 2760, Santiago Centro</div>
         </div>
@@ -101,9 +101,9 @@ import { AuthService } from '../core/auth.service';
       <div class="ks-footer-item">
         <ion-icon name="information-circle-outline"></ion-icon>
         <div>
-          <strong>Horarios de atenciÃ³n:</strong>
+          <strong>Horarios de atenci&oacute;n:</strong>
           <div>Lunes a viernes 10:00 AM a 7:00 PM</div>
-          <div>SÃ¡bado 10:30 AM a 3:00 PM</div>
+          <div>S&aacute;bado 10:30 AM a 3:00 PM</div>
         </div>
       </div>
 
@@ -116,11 +116,11 @@ import { AuthService } from '../core/auth.service';
       </div>
     </div>
 
-    <!-- Columna centro: EnvÃ­os/retiros -->
+    <!-- Columna centro: EnvÃƒÂ­os/retiros -->
     <div class="ks-footer-middle">
       <p><strong>Retiros en nuestro taller</strong></p>
       <p><strong>Delivery en RM</strong></p>
-      <p><strong>EnvÃ­os a regiones</strong></p>
+      <p><strong>Env&iacute;os a regiones</strong></p>
       <ul>
         <li>Starken</li>
       </ul>
@@ -157,7 +157,7 @@ export class KingstoneLayoutComponent {
 
   onSearch(ev: any) {
     const q = (ev?.detail?.value ?? '').trim();
-    // TODO: dispara tu bÃºsqueda global aquÃ­
+    // TODO: dispara tu bÃƒÂºsqueda global aquÃƒÂ­
     // console.log('buscar:', q);
   }
 
@@ -166,7 +166,7 @@ export class KingstoneLayoutComponent {
       (window as any).location.href = '/login';
       return;
     }
-    // Si es ADMIN, lleva al panel admin para activar el header de administración
+    // Si es ADMIN, lleva al panel admin para activar el header de administraciÃ³n
     const role = this.auth.getRole();
     if (role === 'ADMIN') {
       (window as any).location.href = '/admin/inicio';
