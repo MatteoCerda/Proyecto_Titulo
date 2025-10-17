@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE `inventory_item` ADD COLUMN `price_store` INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN `price_web` INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN `price_wsp` INTEGER NOT NULL DEFAULT 0;

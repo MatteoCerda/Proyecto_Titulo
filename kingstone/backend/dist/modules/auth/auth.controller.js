@@ -37,8 +37,27 @@ exports.postRegister = postRegister;
 exports.postLogin = postLogin;
 exports.postForgotPassword = postForgotPassword;
 exports.postResetPassword = postResetPassword;
+const zod_1 = require("zod");
 const svc = __importStar(require("./auth.service"));
 const auth_validation_1 = require("./auth.validation");
+function respondValidationError(err, res) {
+    const firstIssue = err.issues?.[0];
+    const message = firstIssue?.message || 'Datos invalidos';
+    res.status(400).json({
+        message,
+        issues: err.issues?.map(issue => ({
+            path: issue.path,
+            message: issue.message
+        }))
+    });
+}
+function tryHandleValidationError(err, res) {
+    if (err instanceof zod_1.ZodError) {
+        respondValidationError(err, res);
+        return true;
+    }
+    return false;
+}
 async function postRegister(req, res) {
     try {
         const dto = (0, auth_validation_1.validate)('register', req.body);
@@ -46,8 +65,11 @@ async function postRegister(req, res) {
         res.status(201).json(user);
     }
     catch (err) {
-        if (err.message === 'EMAIL_IN_USE')
+        if (tryHandleValidationError(err, res))
+            return;
+        if (err?.message === 'EMAIL_IN_USE') {
             return res.status(409).json({ message: 'Email ya registrado' });
+        }
         res.status(500).json({ message: 'Error interno' });
     }
 }
@@ -58,8 +80,11 @@ async function postLogin(req, res) {
         res.json(result);
     }
     catch (err) {
-        if (err.message === 'INVALID_CREDENTIALS')
-            return res.status(401).json({ message: 'Credenciales inválidas' });
+        if (tryHandleValidationError(err, res))
+            return;
+        if (err?.message === 'INVALID_CREDENTIALS') {
+            return res.status(401).json({ message: 'Credenciales invalidas' });
+        }
         res.status(500).json({ message: 'Error interno' });
     }
 }
@@ -70,6 +95,8 @@ async function postForgotPassword(req, res) {
         res.json(info);
     }
     catch (err) {
+        if (tryHandleValidationError(err, res))
+            return;
         res.status(500).json({ message: 'Error interno' });
     }
 }
@@ -80,7 +107,9 @@ async function postResetPassword(req, res) {
         res.json({ ok: true });
     }
     catch (err) {
-        const map = { 'TOKEN_INVALID': 400, 'TOKEN_EXPIRED': 400 };
+        if (tryHandleValidationError(err, res))
+            return;
+        const map = { TOKEN_INVALID: 400, TOKEN_EXPIRED: 400 };
         const code = map[err?.message] || 500;
         res.status(code).json({ message: err?.message || 'Error interno' });
     }

@@ -25,6 +25,9 @@ const inventoryCreateSchema = z.object({
   color: z.string().min(1),
   provider: z.string().min(1),
   quantity: z.coerce.number().int().min(0).default(0),
+  priceWeb: z.coerce.number().int().min(0).default(0),
+  priceStore: z.coerce.number().int().min(0).default(0),
+  priceWsp: z.coerce.number().int().min(0).default(0),
   umbralBajoStock: z.coerce.number().int().min(0).default(0),
   qrRaw: z.string().optional(),
   imageUrl: z.string().min(1).optional()
@@ -198,6 +201,15 @@ router.get('/inventory', async (_req, res) => {
   res.json(items);
 });
 
+// Inventario: detalle
+router.get('/inventory/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ message: 'ID invalido' });
+  const item = await prisma.inventoryItem.findUnique({ where: { id } });
+  if (!item) return res.status(404).json({ message: 'Item no encontrado' });
+  res.json(item);
+});
+
 // Inventario: crear
 router.post('/inventory', async (req, res) => {
   try {
@@ -216,6 +228,9 @@ router.post('/inventory', async (req, res) => {
           itemType: dto.itemType,
           color: dto.color,
           provider: dto.provider,
+          priceWeb: dto.priceWeb ?? existing.priceWeb,
+          priceStore: dto.priceStore ?? existing.priceStore,
+          priceWsp: dto.priceWsp ?? existing.priceWsp,
           qrRaw: dto.qrRaw ?? existing.qrRaw,
           umbralBajoStock: dto.umbralBajoStock ?? existing.umbralBajoStock,
           imageUrl: dto.imageUrl !== undefined ? dto.imageUrl || null : existing.imageUrl,
@@ -233,6 +248,9 @@ router.post('/inventory', async (req, res) => {
         color: dto.color,
         provider: dto.provider,
         quantity: dto.quantity ?? 0,
+        priceWeb: dto.priceWeb ?? 0,
+        priceStore: dto.priceStore ?? 0,
+        priceWsp: dto.priceWsp ?? 0,
         umbralBajoStock: dto.umbralBajoStock ?? 0,
         qrRaw: dto.qrRaw ?? null,
         imageUrl: dto.imageUrl ?? null
@@ -273,6 +291,9 @@ router.patch('/inventory/:id', async (req, res) => {
         ...(dto.color !== undefined ? { color: dto.color } : {}),
         ...(dto.provider !== undefined ? { provider: dto.provider } : {}),
         ...(dto.quantity !== undefined ? { quantity: dto.quantity } : {}),
+        ...(dto.priceWeb !== undefined ? { priceWeb: dto.priceWeb } : {}),
+        ...(dto.priceStore !== undefined ? { priceStore: dto.priceStore } : {}),
+        ...(dto.priceWsp !== undefined ? { priceWsp: dto.priceWsp } : {}),
         ...(dto.qrRaw !== undefined ? { qrRaw: dto.qrRaw } : {}),
         ...(dto.umbralBajoStock !== undefined ? { umbralBajoStock: dto.umbralBajoStock } : {}),
         ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {})

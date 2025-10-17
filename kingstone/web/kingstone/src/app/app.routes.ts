@@ -31,6 +31,7 @@ export const routes: Routes = [
           { path: 'usuarios', loadComponent: () => import('./pages/admin/usuarios-roles.page').then(m => m.AdminUsuariosRolesPage) },
           { path: 'usuarios/:id', loadComponent: () => import('./pages/admin/user-detail.page').then(m => m.AdminUserDetailPage) },
       { path: 'catalogo', loadComponent: () => import('./pages/admin/catalogo-precio.page').then(m => m.AdminCatalogoPrecioPage) },
+      { path: 'catalogo/:id', loadComponent: () => import('./pages/admin/catalogo-precio-detalle.page').then(m => m.AdminCatalogoPrecioDetallePage) },
           { path: 'reportes', loadComponent: () => import('./pages/admin/reportes.page').then(m => m.AdminReportesPage) },
           { path: 'reportes/distribucion', loadComponent: () => import('./pages/admin/reportes-detalle-torta.page').then(m => m.AdminReporteTortaPage) },
           { path: 'reportes/top-clientes', loadComponent: () => import('./pages/admin/reportes-detalle-barras.page').then(m => m.AdminReporteBarrasPage) },

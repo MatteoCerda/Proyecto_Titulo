@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
@@ -12,6 +13,9 @@ interface Producto {
   color: string;
   provider: string;
   quantity: number;
+  priceWeb: number;
+  priceStore: number;
+  priceWsp: number;
   umbralBajoStock: number;
   imageUrl?: string | null;
 }
@@ -53,7 +57,13 @@ interface Producto {
             </div>
           </div>
           <div class="titulo">{{ p.name }}</div>
-          <div class="meta">{{ p.itemType }} • {{ p.color }} • {{ p.provider }}</div>
+          <div class="meta">{{ p.itemType }} | {{ p.color }} | {{ p.provider }}</div>
+          <div class="prices">
+            <div><span>Web:</span> {{ p.priceWeb | currency:'CLP':'symbol-narrow':'1.0-0' }}</div>
+            <div><span>Presencial:</span> {{ p.priceStore | currency:'CLP':'symbol-narrow':'1.0-0' }}</div>
+            <div><span>WhatsApp:</span> {{ p.priceWsp | currency:'CLP':'symbol-narrow':'1.0-0' }}</div>
+          </div>
+          <button type="button" class="btn primary block" (click)="editar(p)">Editar producto</button>
         </div>
       </div>
     </div>
@@ -68,6 +78,9 @@ interface Producto {
     .btn { background:#0c4a6e; color:#fff; border:0; padding:8px 14px; border-radius:999px; cursor:pointer; font-weight:600; }
     .btn.secondary { background:#475569; }
     .btn.sm { padding:6px 12px; font-size:13px; }
+    .btn.primary { background:#0ea5e9; }
+    .btn.block { display:block; width:calc(100% - 24px); margin:12px; border-radius:10px; }
+    .btn.block:hover { filter:brightness(0.95); }
     .vacio { text-align:center; color:#64748b; padding:24px; }
 
     .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
@@ -78,13 +91,16 @@ interface Producto {
     .low-overlay { position:absolute; inset:0; z-index: 2; display:flex; align-items:center; justify-content:center; padding:14px; background:rgba(2,6,23,0.55); color:#fff; text-align:center; pointer-events:none; }
     .low-msg { font-weight:700; line-height:1.25; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
     .titulo { font-weight:700; padding:10px 12px 2px; color:#0f172a; }
-    .meta { color:#475569; font-size:12.5px; padding:0 12px 12px; }
+    .meta { color:#475569; font-size:12.5px; padding:0 12px 6px; }
+    .prices { padding:0 12px 12px; font-size:13px; color:#0f172a; display:flex; flex-direction:column; gap:4px; }
+    .prices span { font-weight:600; display:inline-block; min-width:84px; color:#1e293b; }
     `
   ]
 })
 export class AdminCatalogoPrecioPage {
   private http = inject(HttpClient);
   private sanitizer = inject(DomSanitizer);
+  private router = inject(Router);
   productos = signal<Producto[]>([]);
   cargando = false;
 
@@ -103,5 +119,9 @@ export class AdminCatalogoPrecioPage {
   imagen(p: Producto): SafeUrl | null {
     if (!p.imageUrl) return null;
     return this.sanitizer.bypassSecurityTrustUrl(p.imageUrl);
+  }
+
+  editar(item: Producto) {
+    this.router.navigate(['/admin/catalogo', item.id], { state: { item } });
   }
 }

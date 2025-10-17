@@ -58,10 +58,13 @@ model InventoryItem {
   color     String
   provider  String
   quantity  Int      @default(0)
+  priceWeb  Int      @default(0) @map("price_web")
+  priceStore Int     @default(0) @map("price_store")
+  priceWsp  Int      @default(0) @map("price_wsp")
   /// Umbral para aviso de bajo stock
   umbralBajoStock Int @default(0) @map("umbral_bajo_stock")
   qrRaw     String?
-  imageUrl  String?  @db.Text
+  imageUrl  String?  @db.LongText
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -368,6 +368,10 @@ export class AdminStockPage implements OnDestroy {
       this.formError = 'Todos los campos son obligatorios (cantidad puede ser cero).';
       return;
     }
+    if (Number.isNaN(quantity) || quantity < 0) {
+      this.formError = 'La cantidad debe ser un número positivo.';
+      return;
+    }
 
     this.formError = '';
     this.saving = true;

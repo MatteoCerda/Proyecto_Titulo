@@ -8,13 +8,16 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const auth_routes_1 = __importDefault(require("./modules/auth/auth.routes"));
 const authGuard_1 = require("./modules/common/middlewares/authGuard");
+const admin_routes_1 = __importDefault(require("./modules/admin/admin.routes"));
+const adminGuard_1 = require("./modules/common/middlewares/adminGuard");
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const app = (0, express_1.default)();
 const prisma = new client_1.PrismaClient();
 app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)({ origin: true, credentials: true }));
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '8mb' }));
+app.use(express_1.default.urlencoded({ extended: true, limit: '8mb' }));
 app.get('/health', (_req, res) => res.json({ ok: true }));
 // Auth (register/login)
 app.use('/auth', auth_routes_1.default);
@@ -82,4 +85,44 @@ app.put('/me/password', authGuard_1.authGuard, async (req, res) => {
         res.status(500).json({ message: 'Error interno' });
     }
 });
+// Perfil de cliente: obtener
+app.get('/me/profile', authGuard_1.authGuard, async (req, res) => {
+    try {
+        const id = Number(req.user?.sub);
+        if (!id)
+            return res.status(401).json({ message: 'No autorizado' });
+        const profile = await prisma.cliente.findUnique({
+            where: { id_usuario: id },
+            select: { id_cliente: true, rut: true, nombre_contacto: true, email: true, telefono: true, direccion: true, comuna: true, ciudad: true, id_usuario: true, creado_en: true }
+        });
+        res.json({ profile });
+    }
+    catch (e) {
+        res.status(500).json({ message: 'Error interno' });
+    }
+});
+// Perfil de cliente: crear/actualizar
+app.put('/me/profile', authGuard_1.authGuard, async (req, res) => {
+    try {
+        const id = Number(req.user?.sub);
+        if (!id)
+            return res.status(401).json({ message: 'No autorizado' });
+        const { rut, nombre_contacto, telefono, direccion, comuna, ciudad } = req.body || {};
+        const user = await prisma.user.findUnique({ where: { id } });
+        if (!user)
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        const profile = await prisma.cliente.upsert({
+            where: { id_usuario: id },
+            create: { id_usuario: id, email: user.email, rut: rut || null, nombre_contacto: nombre_contacto || user.fullName || null, telefono: telefono || null, direccion: direccion || null, comuna: comuna || null, ciudad: ciudad || null },
+            update: { rut: rut || null, nombre_contacto: (nombre_contacto ?? undefined), telefono: telefono ?? null, direccion: direccion ?? null, comuna: comuna ?? null, ciudad: ciudad ?? null },
+            select: { id_cliente: true, rut: true, nombre_contacto: true, email: true, telefono: true, direccion: true, comuna: true, ciudad: true, id_usuario: true, creado_en: true }
+        });
+        res.json({ profile });
+    }
+    catch (e) {
+        res.status(500).json({ message: 'Error interno' });
+    }
+});
 exports.default = app;
+// Admin endpoints
+app.use('/admin', authGuard_1.authGuard, adminGuard_1.adminGuard, admin_routes_1.default);

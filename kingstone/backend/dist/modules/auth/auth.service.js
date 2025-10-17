@@ -17,7 +17,33 @@ async function register(dto) {
     if (exists)
         throw new Error('EMAIL_IN_USE');
     const passwordHash = await bcryptjs_1.default.hash(dto.password, 10);
-    const user = await prisma.user.create({ data: { email: dto.email, passwordHash, fullName: dto.fullName } });
+    const allowedRoles = ['user', 'admin', 'operator'];
+    const role = dto.role && allowedRoles.includes(dto.role) ? dto.role : 'user';
+    const user = await prisma.user.create({
+        data: { email: dto.email, passwordHash, fullName: dto.fullName, role }
+    });
+    // Si vienen datos de perfil, creamos registro en tabla cliente
+    const hasProfile = dto.rut || dto.nombre_contacto || dto.telefono || dto.direccion || dto.comuna || dto.ciudad;
+    if (hasProfile) {
+        try {
+            await prisma.cliente.create({
+                data: {
+                    id_usuario: user.id,
+                    rut: dto.rut || null,
+                    nombre_contacto: dto.nombre_contacto || dto.fullName || null,
+                    email: dto.email,
+                    telefono: dto.telefono || null,
+                    direccion: dto.direccion || null,
+                    comuna: dto.comuna || null,
+                    ciudad: dto.ciudad || null,
+                }
+            });
+        }
+        catch (e) {
+            // No interrumpimos el registro si falla el perfil
+            console.warn('No se pudo crear perfil cliente:', e);
+        }
+    }
     return { id: user.id, email: user.email, fullName: user.fullName, role: user.role };
 }
 async function login(dto) {
