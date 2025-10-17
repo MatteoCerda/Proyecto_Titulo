@@ -1,4 +1,5 @@
 import { Component, signal, inject, ViewChild, ElementRef, OnDestroy } from '@angular/core';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent, IonSpinner } from '@ionic/angular/standalone';
@@ -119,34 +120,48 @@ interface InventoryItem {
         </div>
 
         <div class="table" *ngIf="items().length > 0">
-          <div class="thead">
-            <div class="th code">Codigo</div>
-            <div class="th name">Nombre</div>
-            <div class="th meta">Tipo</div>
-            <div class="th meta">Color</div>
-            <div class="th meta">Proveedor</div>
-            <div class="th qty">Cantidad</div>
-            <div class="th actions">Acciones</div>
-          </div>
-          <div class="row" *ngFor="let item of items()">
-            <div class="cell code">{{ item.code }}</div>
-            <div class="cell name">
-              <div class="title">{{ item.name }}</div>
-              <div class="image-preview-list" *ngIf="item.imageUrl">
-                <img [src]="item.imageUrl" alt="Imagen de {{item.name}}">
-              </div>
-              <div class="subtitle">{{ item.qrRaw }}</div>
-            </div>
-            <div class="cell meta">{{ item.itemType }}</div>
-            <div class="cell meta">{{ item.color }}</div>
-            <div class="cell meta">{{ item.provider }}</div>
-            <div class="cell qty">
-              <input type="number" min="0" [(ngModel)]="item.quantity" (blur)="updateQuantity(item)">
-            </div>
-            <div class="cell actions">
-              <button class="btn danger sm" type="button" (click)="remove(item)">Eliminar</button>
-            </div>
-          </div>
+          <table class="stock-table">
+            <thead>
+              <tr>
+                <th class="col-img">Imagen</th>
+                <th class="col-code">Código</th>
+                <th class="col-name">Nombre</th>
+                <th class="col-meta">Tipo</th>
+                <th class="col-meta">Color</th>
+                <th class="col-meta">Proveedor</th>
+                <th class="col-qty">Cantidad</th>
+                <th class="col-actions">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of items()">
+                <td class="col-img">
+                  <ng-container *ngIf="imageSrc(item) as img; else noImg">
+                    <img [src]="img" alt="Imagen de {{item.name}}">
+                  </ng-container>
+                  <ng-template #noImg>
+                    <div class="img-placeholder">Sin imagen</div>
+                  </ng-template>
+                </td>
+                <td class="col-code">
+                  <div class="code">{{ item.code }}</div>
+                </td>
+                <td class="col-name">
+                  <div class="name">{{ item.name }}</div>
+                  <div class="meta">{{ item.qrRaw }}</div>
+                </td>
+                <td class="col-meta">{{ item.itemType }}</td>
+                <td class="col-meta">{{ item.color }}</td>
+                <td class="col-meta">{{ item.provider }}</td>
+                <td class="col-qty">
+                  <input type="number" min="0" [(ngModel)]="item.quantity" (blur)="updateQuantity(item)">
+                </td>
+                <td class="col-actions">
+                  <button class="btn danger sm" type="button" (click)="remove(item)">Eliminar</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </div>
@@ -183,7 +198,6 @@ interface InventoryItem {
     .image-upload input { background:#0b3a54; border:1px dashed rgba(148,163,184,0.4); padding:10px; border-radius:8px; color:#e2e8f0; cursor:pointer; }
     .image-preview-block { display:flex; align-items:center; gap:14px; }
     .image-preview-block img { width:96px; height:96px; object-fit:cover; border-radius:8px; border:1px solid rgba(148,163,184,0.3); background:#0f172a; }
-    .image-preview-list img { width:56px; height:56px; object-fit:cover; border-radius:6px; border:1px solid rgba(148,163,184,0.25); margin-top:6px; }
     input, textarea, select {
       background:#0b3a54;
       border:1px solid rgba(148,163,184,0.35);
@@ -222,33 +236,48 @@ interface InventoryItem {
     .empty { padding:24px; text-align:center; color:#cbd5f5; font-size:14px; }
 
     .table { border-radius:10px; overflow:hidden; border:1px solid rgba(148,163,184,0.2); }
-    .thead, .row {
-      display:grid;
-      grid-template-columns: 1.4fr 2.2fr 1fr 1fr 1.2fr 0.8fr 0.8fr;
-      gap:0;
+    .stock-table { width:100%; border-collapse:separate; border-spacing:0; color:#e2e8f0; }
+    .stock-table thead { background:rgba(15,23,42,0.45); font-size:12px; letter-spacing:0.04em; text-transform:uppercase; }
+    .stock-table th,
+    .stock-table td { padding:12px 16px; border-bottom:1px solid rgba(148,163,184,0.18); text-align:left; vertical-align:middle; }
+    .stock-table tbody tr:last-child td { border-bottom:none; }
+    .stock-table .col-img { width:90px; }
+    .stock-table .col-img img {
+      width:68px;
+      height:68px;
+      border-radius:10px;
+      object-fit:cover;
+      border:1px solid rgba(148,163,184,0.35);
+      background:#0f172a;
+      display:block;
     }
-    .thead {
-      background:rgba(15,23,42,0.45);
-      padding:10px 12px;
-      font-weight:600;
-      font-size:13px;
-      text-transform:uppercase;
-      letter-spacing:0.04em;
-    }
-    .row {
-      border-top:1px solid rgba(148,163,184,0.18);
-      padding:12px;
+    .img-placeholder {
+      width:68px;
+      height:68px;
+      border-radius:10px;
+      display:flex;
       align-items:center;
+      justify-content:center;
+      font-size:11px;
+      text-align:center;
+      background:rgba(15,23,42,0.5);
+      color:#9ca3af;
+      padding:6px;
     }
-    .cell { display:flex; align-items:center; gap:8px; font-size:14px; }
-    .cell.name { flex-direction:column; align-items:flex-start; }
-    .cell.name .title { font-weight:600; }
-    .cell.name .subtitle { font-size:12px; color:#94a3b8; word-break:break-all; }
-    .cell.qty input {
-      width:90px;
+    .stock-table .col-code .code { font-weight:600; word-break:break-word; }
+    .stock-table .col-name .name { font-weight:700; }
+    .stock-table .col-name .meta { font-size:12px; color:#94a3b8; margin-top:4px; word-break:break-word; max-width:320px; }
+    .stock-table .col-meta { white-space:nowrap; font-size:14px; }
+    .stock-table .col-qty input {
+      width:88px;
+      padding:6px 8px;
+      border-radius:8px;
+      border:1px solid rgba(148,163,184,0.4);
+      background:#0b3a54;
+      color:#e2e8f0;
       text-align:right;
     }
-    .cell.actions { justify-content:flex-end; }
+    .stock-table .col-actions { text-align:right; }
 
     .error { color:#f87171; font-size:13px; margin-top:4px; }
     `
@@ -256,6 +285,7 @@ interface InventoryItem {
 })
 export class AdminStockPage implements OnDestroy {
   private http = inject(HttpClient);
+  private sanitizer = inject(DomSanitizer);
   @ViewChild('qrVideo') qrVideo?: ElementRef<HTMLVideoElement>;
 
   items = signal<InventoryItem[]>([]);
@@ -341,7 +371,12 @@ export class AdminStockPage implements OnDestroy {
     }).subscribe({
       next: item => {
         this.saving = false;
-        this.items.set([item, ...this.items()]);
+        const exists = this.items().some(i => i.id === item.id);
+        if (exists) {
+          this.items.set(this.items().map(i => (i.id === item.id ? item : i)));
+        } else {
+          this.items.set([item, ...this.items()]);
+        }
         this.resetForm();
       },
       error: err => {
@@ -436,6 +471,11 @@ export class AdminStockPage implements OnDestroy {
       video.srcObject = null;
     }
     this.isScanning.set(false);
+  }
+
+  imageSrc(item: InventoryItem): SafeUrl | null {
+    if (!item?.imageUrl) return null;
+    return this.sanitizer.bypassSecurityTrustUrl(item.imageUrl);
   }
 
   onImageFile(event: Event) {
@@ -582,4 +622,7 @@ export class AdminStockPage implements OnDestroy {
       .toLowerCase();
   }
 }
+
+
+
 

@@ -48,12 +48,12 @@ import { AuthService } from '../core/auth.service';
         <!-- Derecha: iconos -->
         <div class="ks-actions" style="color:#ffffff;">
           <button type="button" class="icon-btn" aria-label="Buscar" (click)="toggleSearch()">
-            <ion-icon src="/svg/search-outline.svg"></ion-icon>
+            <ion-icon name="search-outline"></ion-icon>
           </button>
 
 
           <button type="button" class="icon-btn" aria-label="Cuenta" (click)="onProfileClick()">
-            <ion-icon src="/svg/person-outline.svg"></ion-icon>
+            <ion-icon name="person-outline"></ion-icon>
           </button>
           <div class="ks-user-menu" *ngIf="showUserMenu">
             <a routerLink="/perfil">Mi perfil</a>

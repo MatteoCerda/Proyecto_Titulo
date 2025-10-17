@@ -24,7 +24,7 @@ import { AuthService } from '../core/auth.service';
         </nav>
         <div class="ks-actions">
           <button type="button" class="icon-btn" aria-label="Cuenta" (click)="onProfileClick()">
-            <ion-icon src="/svg/person-outline.svg"></ion-icon>
+            <ion-icon name="person-outline"></ion-icon>
           </button>
         </div>
       </div>

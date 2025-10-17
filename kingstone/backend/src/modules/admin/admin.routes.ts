@@ -206,6 +206,23 @@ router.post('/inventory', async (req, res) => {
       Object.assign(payload, parseQrPayload(payload.qrRaw));
     }
     const dto = inventoryCreateSchema.parse(payload);
+    const existing = await prisma.inventoryItem.findUnique({ where: { code: dto.code } });
+    if (existing) {
+      const updated = await prisma.inventoryItem.update({
+        where: { id: existing.id },
+        data: {
+          name: dto.name,
+          itemType: dto.itemType,
+          color: dto.color,
+          provider: dto.provider,
+          qrRaw: dto.qrRaw ?? existing.qrRaw,
+          imageUrl: dto.imageUrl !== undefined ? dto.imageUrl || null : existing.imageUrl,
+          quantity: existing.quantity + (dto.quantity ?? 0),
+          updatedAt: new Date()
+        }
+      });
+      return res.status(200).json(updated);
+    }
     const item = await prisma.inventoryItem.create({
       data: {
         code: dto.code,
