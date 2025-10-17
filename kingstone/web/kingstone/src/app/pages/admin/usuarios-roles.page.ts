@@ -3,8 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent, IonIcon } from '@ionic/angular/standalone';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 
 type Role = 'ADMIN' | 'CLIENT' | 'OPERATOR';
+
 interface UserVM {
   id: number;
   username: string;
@@ -12,6 +14,13 @@ interface UserVM {
   email: string;
   role: Role;
   selected?: boolean;
+}
+
+interface NewUserPayload {
+  fullName: string;
+  email: string;
+  password: string;
+  role: 'user' | 'admin';
 }
 
 @Component({
@@ -34,7 +43,7 @@ interface UserVM {
               <input type="email" [(ngModel)]="newUser.email" name="email" required>
             </label>
             <label>
-              Contrasena
+              Contraseña
               <input type="password" [(ngModel)]="newUser.password" name="password" required>
             </label>
             <label>
@@ -58,7 +67,7 @@ interface UserVM {
 
     <div class="users-header">
       <h1>Usuarios</h1>
-      <button class="btn primary" (click)="addUser()">Anadir usuario</button>
+      <button class="btn primary" (click)="addUser()">Añadir usuario</button>
     </div>
 
     <div class="tabs">
@@ -76,12 +85,15 @@ interface UserVM {
       </div>
     </div>
 
+    <div *ngIf="error()" class="error-banner">{{ error() }}</div>
+    <div *ngIf="!error() && users().length === 0" class="empty-banner">No hay usuarios para mostrar.</div>
+
     <div class="table">
       <div class="thead">
         <div class="th select"><input type="checkbox" [checked]="allSelected()" (change)="toggleSelectAll($event)"></div>
         <div class="th user" (click)="toggleSort()">Nombre de usuario <span class="sort" [class.desc]="sortDesc">^</span></div>
         <div class="th name">Nombre</div>
-        <div class="th email">Correo Electronico</div>
+        <div class="th email">Correo Electrónico</div>
         <div class="th role">Perfil</div>
       </div>
       <div class="row" *ngFor="let u of filteredSorted()">
@@ -91,7 +103,7 @@ interface UserVM {
           <div class="u-meta">
             <div class="u-username">{{ u.username }}</div>
             <div class="u-actions">
-              <a href="#" (click)="$event.preventDefault(); edit(u)">Ver</a>
+              <a href="#" (click)="$event.preventDefault(); view(u)">Ver</a>
               /
               <a href="#" (click)="$event.preventDefault(); edit(u)">Editar</a>
             </div>
@@ -114,11 +126,12 @@ interface UserVM {
     .users-wrap { --padding-start:16px; --padding-end:16px; }
     .users-header { display:flex; align-items:center; justify-content:space-between; margin:8px 0 12px; }
     .users-header h1 { margin:0; font-size:22px; }
-    .btn { background:#0c4a6e; color:#fff; border:0; padding:8px 14px; border-radius:999px; cursor:pointer; }
+    .btn { background:#0c4a6e; color:#fff; border:0; padding:8px 14px; border-radius:999px; cursor:pointer; font-weight:600; }
     .btn.primary { background:#0c4a6e; }
     .btn.secondary { background:#475569; }
     .btn.danger { background:#b91c1c; }
     .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .btn.sm { padding:6px 12px; font-size:13px; }
 
     .tabs { display:flex; align-items:center; gap:8px; margin:6px 0 10px; }
     .tab { background:transparent; border:0; color:#0c4a6e; font-weight:600; cursor:pointer; }
@@ -130,6 +143,9 @@ interface UserVM {
     .search ion-icon { font-size:18px; }
     .search input { flex:1; background:transparent; border:0; outline:none; color:#fff; }
 
+    .error-banner { color:#ef4444; margin:8px 0; }
+    .empty-banner { color:#94a3b8; margin:8px 0; }
+
     .table { background:#062a3d; border-radius:8px; color:#e5e7eb; overflow:hidden; }
     .thead, .row { display:grid; grid-template-columns: 40px 1.1fr 1fr 1.4fr 0.8fr; align-items:center; }
     .thead { padding:10px 12px; background:#052536; font-weight:700; }
@@ -138,8 +154,7 @@ interface UserVM {
     .user .avatar { font-size:22px; }
     .u-meta { display:flex; flex-direction:column; }
     .u-username { font-weight:600; }
-    .u-actions { font-size:12px; display:flex; gap:4px; }
-    .u-actions a { color:#93c5fd; text-decoration:none; }
+    .u-actions a { color:#93c5fd; font-size:12px; text-decoration:none; }
     .u-actions a:hover { text-decoration:underline; }
     .sort { margin-left:4px; opacity:.7; display:inline-block; transform:rotate(180deg); transition: transform .15s ease; }
     .sort.desc { transform:rotate(0deg); }
@@ -187,19 +202,18 @@ interface UserVM {
 })
 export class AdminUsuariosRolesPage {
   private http = inject(HttpClient);
+  private router = inject(Router);
+
   users = signal<UserVM[]>([]);
   query = '';
   activeTab: 'all' | 'client' | 'admin' = 'all';
   sortDesc = true;
 
+  error = signal<string | null>(null);
+
   showModal = false;
   saving = false;
-  newUser: { fullName: string; email: string; password: string; role: 'user' | 'admin' } = {
-    fullName: '',
-    email: '',
-    password: '',
-    role: 'user'
-  };
+  newUser: NewUserPayload = { fullName: '', email: '', password: '', role: 'user' };
   newUserError = '';
 
   total = computed(() => this.users().length);
@@ -208,7 +222,7 @@ export class AdminUsuariosRolesPage {
   filteredSorted() {
     const q = this.query.trim().toLowerCase();
     const roleFilter = this.activeTab === 'client' ? 'CLIENT' : this.activeTab === 'admin' ? 'ADMIN' : undefined;
-    const list = this.users()
+    return this.users()
       .filter(u => {
         const inText = !q || [u.username, u.fullName, u.email].some(s => s.toLowerCase().includes(q));
         const inRole = !roleFilter || u.role === roleFilter;
@@ -219,20 +233,22 @@ export class AdminUsuariosRolesPage {
         const vb = b.username.toLowerCase();
         return this.sortDesc ? va.localeCompare(vb) : vb.localeCompare(va);
       });
-    return list;
   }
 
   toggleSort() {
     this.sortDesc = !this.sortDesc;
   }
+
   allSelected() {
     const list = this.filteredSorted();
     return list.length > 0 && list.every(u => !!u.selected);
   }
+
   toggleSelectAll(ev: any) {
-    const ck = !!ev?.target?.checked;
-    this.filteredSorted().forEach(u => (u.selected = ck));
+    const checked = !!ev?.target?.checked;
+    this.filteredSorted().forEach(u => (u.selected = checked));
   }
+
   hasSelection() {
     return this.users().some(u => u.selected);
   }
@@ -244,26 +260,35 @@ export class AdminUsuariosRolesPage {
   ngOnInit() {
     this.load();
   }
+
   load() {
     const params: any = {};
     if (this.activeTab === 'client') params.role = 'user';
     if (this.activeTab === 'admin') params.role = 'admin';
     if (this.query?.trim()) params.q = this.query.trim();
-    this.http.get<any[]>(`http://localhost:3000/admin/users`, { params }).subscribe(users => {
-      const mapRole = (r: string): Role => {
-        const key = r?.toLowerCase();
-        if (key === 'admin') return 'ADMIN';
-        if (key === 'operator') return 'OPERATOR';
-        return 'CLIENT';
-      };
-      const vm = users.map(u => ({
-        id: u.id,
-        username: (u.email || '').split('@')[0] || u.fullName || `user${u.id}`,
-        fullName: u.fullName || '',
-        email: u.email,
-        role: mapRole(u.role)
-      }) as UserVM);
-      this.users.set(vm);
+
+    this.http.get<any[]>(`http://localhost:3000/admin/users`, { params }).subscribe({
+      next: users => {
+        const mapRole = (r: string): Role => {
+          const key = r?.toLowerCase();
+          if (key === 'admin') return 'ADMIN';
+          if (key === 'operator') return 'OPERATOR';
+          return 'CLIENT';
+        };
+        const vm = users.map(u => ({
+          id: u.id,
+          username: (u.email || '').split('@')[0] || u.fullName || `user${u.id}`,
+          fullName: u.fullName || '',
+          email: u.email,
+          role: mapRole(u.role)
+        }) as UserVM);
+        this.users.set(vm);
+        this.error.set(null);
+      },
+      error: err => {
+        this.users.set([]);
+        this.error.set(err?.error?.message || 'No se pudieron cargar los usuarios');
+      }
     });
   }
 
@@ -293,11 +318,11 @@ export class AdminUsuariosRolesPage {
       return;
     }
     if (!this.isValidEmail(email)) {
-      this.newUserError = 'El correo no es valido.';
+      this.newUserError = 'El correo no es válido.';
       return;
     }
     if (!password || password.length < 6) {
-      this.newUserError = 'La contrasena debe tener al menos 6 caracteres.';
+      this.newUserError = 'La contraseña debe tener al menos 6 caracteres.';
       return;
     }
 
@@ -314,11 +339,11 @@ export class AdminUsuariosRolesPage {
         this.showModal = false;
         this.load();
       },
-      error: (err) => {
+      error: err => {
         this.saving = false;
         const issues = err?.error?.issues;
         if (Array.isArray(issues) && issues.length) {
-          this.newUserError = issues[0]?.message || 'Datos invalidos.';
+          this.newUserError = issues[0]?.message || 'Datos inválidos.';
           return;
         }
         this.newUserError = err?.error?.message || 'No se pudo crear el usuario.';
@@ -327,11 +352,11 @@ export class AdminUsuariosRolesPage {
   }
 
   edit(u: UserVM) {
-    (window as any).location.href = '/admin/usuarios/' + u.id;
+    this.router.navigateByUrl('/admin/usuarios/' + u.id);
   }
 
   view(u: UserVM) {
-    (window as any).location.href = '/admin/usuarios/' + u.id;
+    this.router.navigateByUrl('/admin/usuarios/' + u.id);
   }
 
   changeRole() {
@@ -352,7 +377,7 @@ export class AdminUsuariosRolesPage {
   }
 
   private isValidEmail(email: string) {
-    const pattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+    const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return pattern.test(email);
   }
 }

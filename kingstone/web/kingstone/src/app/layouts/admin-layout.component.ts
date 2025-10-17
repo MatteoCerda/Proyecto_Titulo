@@ -38,8 +38,8 @@ import { AuthService } from '../core/auth.service';
   styleUrls: ['./admin-layout.component.scss']
 })
 export class AdminLayoutComponent {
-  auth = inject(AuthService);
-  router = inject(Router);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
 
   onProfileClick() {
     if (!this.auth.isAuthenticated()) {
