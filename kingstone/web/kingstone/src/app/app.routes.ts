@@ -15,6 +15,7 @@ export const routes: Routes = [
       { path: 'recuperar', loadComponent: () => import('./pages/forgot/forgot-password.page').then(m => m.ForgotPasswordPage) },
       { path: 'registro', loadComponent: () => import('./pages/register/register.page').then(m => m.RegisterPage) },
       { path: 'perfil', canMatch: [authGuard], loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage) },
+      { path: 'crea-tu-diseno', canMatch: [authGuard], loadComponent: () => import('./pages/cliente/nuevo-pedido.page').then(m => m.NuevoPedidoPage) },
       { path: 'redir', loadComponent: () => import('./pages/role-redirect/role-redirect.page').then(m => m.RoleRedirectPage) },
       { path: 'cliente', loadComponent: () => import('./pages/cliente/mis-pedidos.page').then(m => m.MisPedidosPage) },
       { path: 'operador', loadComponent: () => import('./pages/operador/dashboard.page').then(m => m.OperatorDashboardPage) },

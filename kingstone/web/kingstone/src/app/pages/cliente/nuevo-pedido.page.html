@@ -1,0 +1,126 @@
+<ion-content class="cotiza-wrap">
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="avatar">KS</div>
+        <span>Tu espacio</span>
+      </div>
+      <nav>
+        <button type="button" class="nav-btn">Datos de cuenta</button>
+        <button type="button" class="nav-btn">Mis pedidos</button>
+        <button type="button" class="nav-btn active">Mis cotizaciones</button>
+        <button type="button" class="nav-btn">Mi carrito</button>
+        <button type="button" class="nav-btn">Metodos de pago</button>
+        <button type="button" class="nav-btn">Notificaciones / Alertas</button>
+      </nav>
+      <button type="button" class="logout-btn">Cerrar sesion</button>
+    </aside>
+
+    <main class="content">
+      <header class="header">
+        <h1>Cotiza tu pedido</h1>
+        <p class="intro">
+          Te ayudamos paso a paso. Cuentanos:
+        </p>
+        <ul>
+          <li>Que tecnica quieres (impresion o corte).</li>
+          <li>Cuantas unidades necesitas.</li>
+          <li>Sobre que prenda o material trabajaremos.</li>
+          <li>Adjunta tu diseno y deja cualquier indicacion importante.</li>
+        </ul>
+      </header>
+
+      <section class="upload">
+        <label class="upload-box" (drop)="onDrop($event)" (dragover)="onDragOver($event)">
+          <input type="file" accept=".png,.jpg,.jpeg,.svg,.pdf" multiple (change)="onFileSelect($event)" />
+          <strong>Arrastra tu imagen aqui</strong>
+          <span>o presiona para buscar en tu equipo</span>
+          <small>Formatos: PNG, JPG, SVG o PDF. Maximo 20 archivos.</small>
+        </label>
+
+        <div *ngIf="items().length > 0" class="item-list">
+          <article *ngFor="let item of items(); index as idx" class="item-card">
+            <div class="badge">{{ idx + 1 }}</div>
+            <div class="preview" (click)="openPreview(item)">
+              <img *ngIf="item.previewUrl" [src]="item.previewUrl" [alt]="item.displayName" />
+              <div *ngIf="!item.previewUrl" class="placeholder">Archivo</div>
+            </div>
+            <div class="info">
+              <div class="name">{{ item.displayName }}</div>
+              <div class="controls">
+                <label>
+                  Tamano estimado
+                  <div class="slider">
+                    <button type="button" (click)="adjustSize(item.id, -1)">-</button>
+                    <input type="range" min="10" max="60" [value]="item.sizeCm"
+                           (input)="setSize(item.id, $any($event.target).value)" />
+                    <button type="button" (click)="adjustSize(item.id, 1)">+</button>
+                    <span>{{ item.sizeCm }} cm</span>
+                  </div>
+                </label>
+                <label>
+                  Cantidad
+                  <div class="qty">
+                    <button type="button" (click)="adjustQuantity(item.id, -1)">-</button>
+                    <span>{{ item.quantity }}</span>
+                    <button type="button" (click)="adjustQuantity(item.id, 1)">+</button>
+                  </div>
+                </label>
+              </div>
+            </div>
+            <button type="button" class="remove" (click)="removeItem(item.id)">Quitar</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="material">
+        <div class="field">
+          <label>Tipo de material</label>
+          <select [(ngModel)]="selectedMaterialId">
+            <option *ngFor="let material of materials" [value]="material.id">
+              {{ material.label }} - ${{ material.pricePerMeter | number:'1.0-0' }}/metro
+            </option>
+          </select>
+          <p class="helper">{{ materialDescription() }}</p>
+        </div>
+      </section>
+
+      <section class="panel-grid">
+        <header>
+          <h2>Vista rapida del pano</h2>
+          <p>Asi se acomodaran tus piezas dentro del metro seleccionado.</p>
+        </header>
+        <div class="grid">
+          <div class="slot" *ngFor="let n of gridSlots; index as i">
+            <span *ngIf="i < totalCopies()">{{ i + 1 }}</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="summary">
+        <div class="price">
+          <span>Precio estimado</span>
+          <strong>${{ totalPrice() | number:'1.0-0' }} CLP</strong>
+          <small>Calculado segun area utilizada del metro seleccionado.</small>
+        </div>
+        <button type="button" class="primary" [disabled]="items().length === 0">
+          Pedir ahora
+        </button>
+      </section>
+
+      <section class="tips">
+        <h3>Recomendaciones</h3>
+        <ul>
+          <li *ngIf="items().length === 0">Tu pedido comienza subiendo una imagen.</li>
+          <li>Si ves el mensaje "Tu imagen puede verse pixelada", intenta un tamano menor.</li>
+          <li>Para stickers y vinilos recuerda incluir o dibujar la linea de corte.</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <div class="preview-modal" *ngIf="previewImage()" (click)="closePreview()">
+    <img [src]="previewImage()" alt="Vista previa" />
+    <span>Toca para cerrar</span>
+  </div>
+</ion-content>
