@@ -48,24 +48,83 @@
             <div class="info">
               <div class="name">{{ item.displayName }}</div>
               <div class="controls">
-                <label>
-                  Tamano estimado
-                  <div class="slider">
+                <div class="size-section">
+                  <span class="size-section-title">Control de tamano</span>
+                  <div class="size-mode-group">
+                    <label class="size-mode-option" [class.active]="item.sizeMode === 'width'">
+                      <input type="radio" [attr.name]="'size-mode-' + item.id" [checked]="item.sizeMode === 'width'"
+                             (change)="setSizeMode(item.id, 'width')" />
+                      <span>Solo ancho</span>
+                    </label>
+                    <label class="size-mode-option" [class.active]="item.sizeMode === 'height'">
+                      <input type="radio" [attr.name]="'size-mode-' + item.id" [checked]="item.sizeMode === 'height'"
+                             (change)="setSizeMode(item.id, 'height')" />
+                      <span>Solo alto</span>
+                    </label>
+                    <label class="size-mode-option" [class.active]="item.sizeMode === 'custom'">
+                      <input type="radio" [attr.name]="'size-mode-' + item.id" [checked]="item.sizeMode === 'custom'"
+                             (change)="setSizeMode(item.id, 'custom')" />
+                      <span>Ancho y alto</span>
+                    </label>
+                  </div>
+                  <div class="size-visual">
+                    <div class="size-sample"
+                         [class.width-mode]="item.sizeMode === 'width'"
+                         [class.height-mode]="item.sizeMode === 'height'"
+                         [class.custom-mode]="item.sizeMode === 'custom'">
+                      <div class="sample-image"></div>
+                      <div class="measure measure-width">{{ item.widthCm | number:'1.0-1' }} cm</div>
+                      <div class="measure measure-height">{{ item.heightCm | number:'1.0-1' }} cm</div>
+                    </div>
+                    <div class="size-notes">
+                      <small *ngIf="item.sizeMode !== 'custom'">Ajustamos la otra medida automaticamente para mantener la proporcion original.</small>
+                      <small *ngIf="item.sizeMode === 'custom'" class="warn">Definir ambos valores puede deformar la imagen.</small>
+                      <small *ngIf="getSizeNote(item) as note">{{ note }}</small>
+                    </div>
+                  </div>
+                  <div class="smart-fit" *ngIf="columnOptions().length">
+                    <span>Ajuste inteligente</span>
+                    <div class="smart-fit-buttons">
+                      <button type="button"
+                              *ngFor="let cols of columnOptions()"
+                              (click)="fitColumns(item.id, cols)">
+                        {{ cols }} por fila
+                      </button>
+                    </div>
+                  </div>
+                  <div *ngIf="item.sizeMode !== 'custom'" class="slider">
                     <button type="button" (click)="adjustSize(item.id, -1)">-</button>
-                    <input type="range" min="10" max="60" [value]="item.sizeCm"
+                    <input type="range" min="5" max="60" step="0.5"
+                           [value]="item.sizeMode === 'width' ? item.widthCm : item.heightCm"
                            (input)="setSize(item.id, $any($event.target).value)" />
                     <button type="button" (click)="adjustSize(item.id, 1)">+</button>
-                    <span>{{ item.sizeCm }} cm</span>
+                    <span>
+                      {{ item.sizeMode === 'width' ? (item.widthCm | number:'1.0-1') : (item.heightCm | number:'1.0-1') }} cm
+                    </span>
                   </div>
-                </label>
-                <label>
-                  Cantidad
+                  <div *ngIf="item.sizeMode === 'custom'" class="custom-dimensions">
+                    <label>
+                      Ancho (cm)
+                      <input type="number" min="5" max="120" step="0.5"
+                             [value]="item.widthCm"
+                             (change)="setCustomDimension(item.id, 'width', $any($event.target).value)" />
+                    </label>
+                    <label>
+                      Alto (cm)
+                      <input type="number" min="5" max="120" step="0.5"
+                             [value]="item.heightCm"
+                             (change)="setCustomDimension(item.id, 'height', $any($event.target).value)" />
+                    </label>
+                  </div>
+                </div>
+                <div class="qty-section">
+                  <span>Cantidad</span>
                   <div class="qty">
                     <button type="button" (click)="adjustQuantity(item.id, -1)">-</button>
                     <span>{{ item.quantity }}</span>
                     <button type="button" (click)="adjustQuantity(item.id, 1)">+</button>
                   </div>
-                </label>
+                </div>
               </div>
             </div>
             <button type="button" class="remove" (click)="removeItem(item.id)">Quitar</button>
@@ -76,7 +135,7 @@
       <section class="material">
         <div class="field">
           <label>Tipo de material</label>
-          <select [(ngModel)]="selectedMaterialId">
+          <select [(ngModel)]="selectedMaterialId" (ngModelChange)="onMaterialChange($event)">
             <option *ngFor="let material of materials" [value]="material.id">
               {{ material.label }} - ${{ material.pricePerMeter | number:'1.0-0' }}/metro
             </option>
@@ -90,11 +149,24 @@
           <h2>Vista rapida del pano</h2>
           <p>Asi se acomodaran tus piezas dentro del metro seleccionado.</p>
         </header>
-        <div class="grid">
-          <div class="slot" *ngFor="let n of gridSlots; index as i">
-            <span *ngIf="i < totalCopies()">{{ i + 1 }}</span>
+        <div class="panel-preview">
+          <div class="panel-canvas" [style.padding-top.%]="panelPadding()">
+            <div class="panel-cell"
+                 *ngFor="let cell of panelCells()"
+                 [style.left.%]="cell.left"
+                 [style.top.%]="cell.top"
+                 [style.width.%]="cell.width"
+                 [style.height.%]="cell.height">
+              <img *ngIf="cell.previewUrl" [src]="cell.previewUrl" alt="Preview pieza" />
+            </div>
+            <span class="panel-watermark" *ngIf="currentMaterial()">
+              Ancho {{ currentMaterial()?.rollWidthCm }} cm
+            </span>
           </div>
         </div>
+        <p class="panel-empty" *ngIf="panelCells().length === 0">
+          Agrega imagenes o reduce su tamano para visualizar como quedaran en el material.
+        </p>
       </section>
 
       <section class="summary">
@@ -102,6 +174,18 @@
           <span>Precio estimado</span>
           <strong>${{ totalPrice() | number:'1.0-0' }} CLP</strong>
           <small>Calculado segun area utilizada del metro seleccionado.</small>
+          <small *ngIf="priceOverride()">Precio personalizado aplicado: ${{ priceOverride() | number:'1.0-0' }} CLP.</small>
+        </div>
+        <div class="price-editor" *ngIf="currentMaterial()">
+          <label for="price-input">Precio por metro</label>
+          <div class="price-editor-row">
+            <input id="price-input" type="number" min="100" step="50"
+                   [(ngModel)]="priceDraft" (input)="priceError = null" />
+            <button type="button" (click)="applyPriceOverride()">Confirmar</button>
+            <button type="button" class="secondary" (click)="clearPriceOverride()" [disabled]="!priceOverride()">Restablecer</button>
+          </div>
+          <small *ngIf="priceError" class="error">{{ priceError }}</small>
+          <small class="note">Base: ${{ (currentMaterial()?.pricePerMeter ?? 0) | number:'1.0-0' }} CLP.</small>
         </div>
         <button type="button" class="primary" [disabled]="items().length === 0">
           Pedir ahora
