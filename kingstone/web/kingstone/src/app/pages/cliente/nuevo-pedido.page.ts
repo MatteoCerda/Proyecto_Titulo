@@ -2,8 +2,10 @@ import { Component, OnDestroy, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent } from '@ionic/angular/standalone';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { PedidosService, CreatePedidoRequest } from '../../services/pedidos.service';
+import { CartService } from '../../services/cart.service';
 
 interface MaterialPreset {
   id: string;
@@ -51,7 +53,7 @@ interface PackResult {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, IonContent, FormsModule],
+  imports: [CommonModule, IonContent, FormsModule, RouterLink],
   templateUrl: './nuevo-pedido.page.html',
   styleUrls: ['./nuevo-pedido.page.css']
 })
@@ -59,10 +61,13 @@ export class NuevoPedidoPage implements OnDestroy {
   private nextId = 1;
   private readonly packGap = 0.35;
   private readonly pedidos = inject(PedidosService);
+  private readonly cart = inject(CartService);
 
   orderNote = '';
   submitting = false;
   submitFeedback: { type: 'success' | 'error'; message: string } | null = null;
+  cartFeedback: { type: 'success' | 'error'; message: string } | null = null;
+  private cartFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 
   materials: MaterialPreset[] = [
     { id: 'dtf-57', label: 'DTF 57 cm', description: 'Impresion a todo color para prendas claras y oscuras.', rollWidthCm: 57, pricePerMeter: 13000 },
@@ -154,6 +159,46 @@ export class NuevoPedidoPage implements OnDestroy {
 
   onDragOver(event: DragEvent) {
     event.preventDefault();
+  }
+
+  saveQuoteToCart() {
+    if (this.items().length === 0) {
+      this.setCartFeedback('error', 'Agrega al menos un diseño antes de guardar la cotización.');
+      return;
+    }
+    const material = this.currentMaterial();
+    if (!material) {
+      this.setCartFeedback('error', 'Selecciona un material para estimar tu cotización.');
+      return;
+    }
+
+    const pack = this.packResult();
+    const items = this.items().map(item => {
+      const dims = this.getEffectiveDimensions(item);
+      return {
+        name: item.displayName,
+        quantity: item.quantity,
+        widthCm: Number(dims.width.toFixed(2)),
+        heightCm: Number(dims.height.toFixed(2))
+      };
+    });
+
+    if (!items.length) {
+      this.setCartFeedback('error', 'No se pudo preparar la cotización. Revisa tus archivos.');
+      return;
+    }
+
+    this.cart.setQuote({
+      materialId: material.id,
+      materialLabel: material.label,
+      totalPrice: this.totalPrice(),
+      usedHeight: Number(pack.usedHeight.toFixed(2)),
+      note: this.orderNote.trim() ? this.orderNote.trim() : undefined,
+      items,
+      createdAt: new Date().toISOString()
+    });
+
+    this.setCartFeedback('success', 'Cotización guardada en tu carrito.');
   }
 
   async onDrop(event: DragEvent) {
@@ -555,6 +600,9 @@ export class NuevoPedidoPage implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.cartFeedbackTimer) {
+      clearTimeout(this.cartFeedbackTimer);
+    }
     this.items().forEach(item => {
       if (item.previewUrl && item.revokeOnDestroy) {
         URL.revokeObjectURL(item.previewUrl);
@@ -789,5 +837,15 @@ export class NuevoPedidoPage implements OnDestroy {
   }
 
     return { placements, usedHeight: maxUsedHeight };
+  }
+
+  private setCartFeedback(type: 'success' | 'error', message: string) {
+    this.cartFeedback = { type, message };
+    if (this.cartFeedbackTimer) {
+      clearTimeout(this.cartFeedbackTimer);
+    }
+    this.cartFeedbackTimer = setTimeout(() => {
+      this.cartFeedback = null;
+    }, 4000);
   }
 }

@@ -6,10 +6,10 @@
         <span>Tu espacio</span>
       </div>
       <nav>
-        <button type="button" class="nav-btn">Datos de cuenta</button>
-        <button type="button" class="nav-btn">Mis pedidos</button>
-        <button type="button" class="nav-btn active">Mis cotizaciones</button>
-        <button type="button" class="nav-btn">Mi carrito</button>
+        <a routerLink="/perfil" class="nav-btn">Datos de cuenta</a>
+        <a routerLink="/cliente/mis-pedidos" class="nav-btn">Mis pedidos</a>
+        <a routerLink="/crea-tu-diseno" class="nav-btn active">Mis cotizaciones</a>
+        <a routerLink="/carrito" class="nav-btn">Mi carrito</a>
         <button type="button" class="nav-btn">Metodos de pago</button>
         <button type="button" class="nav-btn">Notificaciones / Alertas</button>
       </nav>
@@ -170,22 +170,30 @@
       </section>
 
       <section class="summary">
-        <div class="price">
-          <span>Precio estimado</span>
-          <strong>${{ totalPrice() | number:'1.0-0' }} CLP</strong>
-          <small>Calculado segun area utilizada del metro seleccionado.</small>
-        </div>
+      <div class="price">
+        <span>Precio estimado</span>
+        <strong>${{ totalPrice() | number:'1.0-0' }} CLP</strong>
+        <small>Calculado segun area utilizada del metro seleccionado.</small>
+      </div>
         <div class="summary-note">
           <label for="order-note">Indicaciones para el operador</label>
           <textarea id="order-note" rows="3" [(ngModel)]="orderNote" placeholder="Ej: Imprimir en rollo completo y cortar por fuera del contorno."></textarea>
           <small>Agrega detalles o recordatorios que el operador debe considerar antes de producir.</small>
         </div>
-        <div *ngIf="submitFeedback" class="submit-feedback" [class.error]="submitFeedback?.type === 'error'">
-          {{ submitFeedback?.message }}
+        <div *ngIf="cartFeedback" class="submit-feedback" [class.error]="cartFeedback.type === 'error'">
+          {{ cartFeedback.message }}
         </div>
-        <button type="button" class="primary" [disabled]="items().length === 0 || submitting" (click)="submitOrder()">
-          {{ submitting ? 'Enviando...' : 'Pedir ahora' }}
-        </button>
+        <div *ngIf="submitFeedback" class="submit-feedback" [class.error]="submitFeedback.type === 'error'">
+          {{ submitFeedback.message }}
+        </div>
+        <div class="summary-actions">
+          <button type="button" class="secondary" [disabled]="items().length === 0" (click)="saveQuoteToCart()">
+            Guardar en carrito
+          </button>
+          <button type="button" class="primary" [disabled]="items().length === 0 || submitting" (click)="submitOrder()">
+            {{ submitting ? 'Enviando...' : 'Pedir ahora' }}
+          </button>
+        </div>
       </section>
 
       <section class="tips">

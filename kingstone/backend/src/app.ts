@@ -113,6 +113,111 @@ app.put('/me/profile', authGuard, async (req, res) => {
   }
 });
 
+// Catálogo público para clientes
+app.get('/catalogo', async (req, res) => {
+  try {
+    const search = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const tipo = typeof req.query.tipo === 'string' ? req.query.tipo.trim() : '';
+
+    const where: any = { quantity: { gt: 0 } };
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { itemType: { contains: search } },
+        { color: { contains: search } },
+        { provider: { contains: search } }
+      ];
+    }
+    if (tipo) {
+      where.itemType = { contains: tipo };
+    }
+
+    const items = await prisma.inventoryItem.findMany({
+      where,
+      orderBy: [
+        { itemType: 'asc' },
+        { name: 'asc' }
+      ],
+      select: {
+        id: true,
+        name: true,
+        itemType: true,
+        color: true,
+        provider: true,
+        quantity: true,
+        priceWeb: true,
+        priceStore: true,
+        priceWsp: true,
+        imageUrl: true
+      }
+    });
+
+    const catalogo = items.map(item => ({
+      id: item.id,
+      name: item.name,
+      itemType: item.itemType,
+      color: item.color,
+      provider: item.provider,
+      quantity: item.quantity,
+      price: item.priceWeb,
+      priceWeb: item.priceWeb,
+      priceStore: item.priceStore,
+      priceWsp: item.priceWsp,
+      imageUrl: item.imageUrl ?? null
+    }));
+
+    res.json(catalogo);
+  } catch (error) {
+    console.error('Error obteniendo catálogo', error);
+    res.status(500).json({ message: 'Error interno' });
+  }
+});
+
+app.get('/catalogo/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: 'ID invalido' });
+    }
+    const item = await prisma.inventoryItem.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        itemType: true,
+        color: true,
+        provider: true,
+        quantity: true,
+        priceWeb: true,
+        priceStore: true,
+        priceWsp: true,
+        imageUrl: true,
+        qrRaw: true
+      }
+    });
+    if (!item) {
+      return res.status(404).json({ message: 'Producto no encontrado' });
+    }
+    res.json({
+      id: item.id,
+      name: item.name,
+      itemType: item.itemType,
+      color: item.color,
+      provider: item.provider,
+      quantity: item.quantity,
+      price: item.priceWeb,
+      priceWeb: item.priceWeb,
+      priceStore: item.priceStore,
+      priceWsp: item.priceWsp,
+      imageUrl: item.imageUrl ?? null,
+      descripcion: item.qrRaw ?? null
+    });
+  } catch (error) {
+    console.error('Error obteniendo producto', error);
+    res.status(500).json({ message: 'Error interno' });
+  }
+});
+
 // Pedidos (clientes y operadores)
 app.use('/api/pedidos', authGuard, pedidosRoutes);
 // Admin endpoints

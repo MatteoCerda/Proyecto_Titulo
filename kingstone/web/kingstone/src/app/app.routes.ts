@@ -11,6 +11,8 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'inicio', pathMatch: 'full' },
       { path: 'inicio', loadComponent: () => import('./pages/home/home.page').then(m => m.HomePage) },
+      { path: 'productos', loadComponent: () => import('./pages/productos/productos.page').then(m => m.ProductosPage) },
+      { path: 'carrito', loadComponent: () => import('./pages/carrito/carrito.page').then(m => m.CarritoPage) },
       { path: 'login', loadComponent: () => import('./pages/login/login.page').then(m => m.LoginPage) },
       { path: 'recuperar', loadComponent: () => import('./pages/forgot/forgot-password.page').then(m => m.ForgotPasswordPage) },
       { path: 'registro', loadComponent: () => import('./pages/register/register.page').then(m => m.RegisterPage) },

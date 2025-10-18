@@ -1,16 +1,38 @@
-<ion-content class="home" fullscreen>
+﻿<ion-content class="home" fullscreen>
   <section class="hero">
-    <ion-img src="assets/kingston-estampados.png" alt="logo" class="hero-logo"></ion-img>
-    <h1>Kingston Estampados</h1>
-    <p>DTF • Vinilo textil • Stickers • Poleras y más.</p>
+    <div class="hero-media">
+      <img src="assets/kingston-hero-placeholder.png" alt="Servicios Kingston Estampados" loading="eager" />
+    </div>
+    <div class="hero-info">
+      <h1>Kingston Estampados</h1>
+      <p>
+        &iexcl;Todos tus dise&ntilde;os aqu&iacute;! Impresi&oacute;n personalizada, vinilos textiles y soluciones completas para tus proyectos.
+      </p>
+      <ul class="hero-list">
+        <li>Comprinter y vinilos textiles premium</li>
+        <li>Ploteo, serigraf&iacute;a y estampados express</li>
+        <li>Adhesivos, vinilo decorativo y papel de sublimaci&oacute;n</li>
+        <li>Atenci&oacute;n presencial y env&iacute;os a todo Chile</li>
+      </ul>
+      <div class="cta">
+        <a routerLink="/productos">
+          <ion-button color="light">Ver cat&aacute;logo</ion-button>
+        </a>
+        <a routerLink="/crea-tu-diseno">
+          <ion-button>Crear cotizaci&oacute;n</ion-button>
+        </a>
+      </div>
+    </div>
+  </section>
 
-    <div class="cta">
-      <a routerLink="/cliente/nuevo-pedido">
-        <ion-button>Crear pedido</ion-button>
-      </a>
-      <a routerLink="/login">
-        <ion-button fill="outline">Iniciar sesión</ion-button>
-      </a>
+  <section class="home-catalog">
+    <h2>Encuentra lo que necesitas</h2>
+    <p>Consulta nuestro cat&aacute;logo con precios web y guarda tus cotizaciones para retomarlas cuando quieras.</p>
+    <div class="quick-links">
+      <a routerLink="/productos">Vinilos textiles</a>
+      <a routerLink="/productos">Vinilo decorativo</a>
+      <a routerLink="/productos">Sublimaci&oacute;n y DTF</a>
+      <a routerLink="/carrito">Revisa tu carrito</a>
     </div>
   </section>
 </ion-content>

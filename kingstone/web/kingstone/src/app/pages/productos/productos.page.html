@@ -1,0 +1,69 @@
+<ion-content class="productos">
+  <div class="catalog">
+    <header class="catalog-header">
+      <h1>Catálogo para clientes</h1>
+      <p>Explora los insumos disponibles: vinilos textiles, decorativos y soportes para tus pedidos.</p>
+      <ion-searchbar
+        placeholder="Buscar por nombre, tipo, color o proveedor"
+        [debounce]="200"
+        (ionInput)="onSearch($event)">
+      </ion-searchbar>
+    </header>
+
+    <section *ngIf="loading()" class="status">
+      <ion-spinner name="crescent"></ion-spinner>
+      <span>Cargando catálogo...</span>
+    </section>
+
+    <section *ngIf="!loading() && error()" class="status error">
+      {{ error() }}
+    </section>
+
+    <section *ngIf="!loading() && !error() && items().length === 0" class="status empty">
+      No encontramos productos con ese filtro. Intenta con otro término.
+    </section>
+
+    <section *ngIf="items().length > 0" class="grid">
+      <ion-card *ngFor="let product of items()" [class.added]="lastAddedId() === product.id">
+        <div class="img-wrapper">
+          <img
+            *ngIf="product.imageUrl; else placeholder"
+            [src]="product.imageUrl"
+            [alt]="product.name" />
+          <ng-template #placeholder>
+            <div class="img-placeholder">Sin imagen</div>
+          </ng-template>
+        </div>
+
+        <ion-card-header>
+          <ion-card-title>{{ product.name }}</ion-card-title>
+          <ion-card-subtitle>
+            {{ product.itemType }} • {{ product.color }}
+          </ion-card-subtitle>
+        </ion-card-header>
+
+        <ion-card-content>
+          <div class="price">
+            <span>Precio web</span>
+            <strong>{{ product.price | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+          </div>
+          <div class="meta">
+            <span>Proveedor: {{ product.provider }}</span>
+            <span *ngIf="product.quantity > 0">Stock: {{ product.quantity }}</span>
+            <span *ngIf="product.quantity === 0">Sin stock disponible</span>
+          </div>
+          <ion-button
+            expand="block"
+            color="primary"
+            (click)="addToCart(product.id)"
+            [disabled]="product.quantity === 0">
+            Añadir al carrito
+          </ion-button>
+          <div class="added-alert" *ngIf="lastAddedId() === product.id">
+            Agregado al carrito
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </section>
+  </div>
+</ion-content>

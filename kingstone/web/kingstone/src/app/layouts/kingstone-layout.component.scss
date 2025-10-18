@@ -117,6 +117,28 @@
 .icon-btn:hover { background: rgba(255, 255, 255, 0.06); }
 .icon-btn:active { transform: scale(0.98); }
 .icon-btn ion-icon { font-size: 22px; color: #ffffff !important; opacity: 0.95; }
+
+.ks-actions .cart-btn {
+  position: relative;
+}
+
+.ks-actions .cart-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 8px rgba(249, 115, 22, 0.35);
+}
 /* Contraste garantizado en header azul: texto e iconos blancos */
 ion-header.ks-header .ks-nav,
 ion-header.ks-header .ks-nav a { color: #ffffff !important; opacity: 0.95; }

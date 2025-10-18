@@ -10,6 +10,11 @@ import {
   IonSearchbar,
 } from '@ionic/angular/standalone';
 import { AuthService } from '../core/auth.service';
+import { CartService } from '../services/cart.service';
+import { addIcons } from 'ionicons';
+import { cartOutline, searchOutline, personOutline } from 'ionicons/icons';
+
+addIcons({ cartOutline, searchOutline, personOutline });
 
 @Component({
   selector: 'app-kingstone-layout',
@@ -42,13 +47,18 @@ import { AuthService } from '../core/auth.service';
           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
           <a routerLink="/productos" routerLinkActive="active">Productos</a>
           <a routerLink="/crea-tu-diseno" routerLinkActive="active">Crea tu dise&ntilde;o</a>
-          <a routerLink="/contacto" routerLinkActive="active">Cont&aacute;ctanos</a>
+          <a href="https://wa.me/56986412218" target="_blank" rel="noopener">Cont&aacute;ctanos</a>
         </nav>
 
         <!-- Derecha: iconos -->
         <div class="ks-actions" style="color:#ffffff;">
           <button type="button" class="icon-btn" aria-label="Buscar" (click)="toggleSearch()">
             <ion-icon name="search-outline"></ion-icon>
+          </button>
+
+          <button type="button" class="icon-btn cart-btn" aria-label="Carrito" routerLink="/carrito">
+            <ion-icon name="cart-outline"></ion-icon>
+            <span class="cart-badge" *ngIf="cartCount() > 0">{{ cartCount() }}</span>
           </button>
 
 
@@ -147,9 +157,10 @@ import { AuthService } from '../core/auth.service';
 })
 export class KingstoneLayoutComponent {
   auth = inject(AuthService);
+  cart = inject(CartService);
   showSearch = false;
   showUserMenu = false;
-  cartCount = 0; // TODO: conecta tu servicio de carrito
+  cartCount = this.cart.totalItems;
 
   toggleSearch() {
     this.showSearch = !this.showSearch;
