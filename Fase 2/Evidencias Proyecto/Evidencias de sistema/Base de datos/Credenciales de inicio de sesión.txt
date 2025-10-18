@@ -1,0 +1,16 @@
+Para poder iniciar sesión deberemos cargar la base de datos "kingstone.sql"
+
+
+Credenciales: 
+
+Administrador: 
+matt.cerda@duocuc.cl
+matteo123
+
+Operador:
+ro.carrascob@duocuc.cl
+romina123
+
+Cliente:
+andr.gonzalezg@duocuc.cl
+andres123
