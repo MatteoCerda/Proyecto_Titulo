@@ -174,18 +174,6 @@
           <span>Precio estimado</span>
           <strong>${{ totalPrice() | number:'1.0-0' }} CLP</strong>
           <small>Calculado segun area utilizada del metro seleccionado.</small>
-          <small *ngIf="priceOverride()">Precio personalizado aplicado: ${{ priceOverride() | number:'1.0-0' }} CLP.</small>
-        </div>
-        <div class="price-editor" *ngIf="currentMaterial()">
-          <label for="price-input">Precio por metro</label>
-          <div class="price-editor-row">
-            <input id="price-input" type="number" min="100" step="50"
-                   [(ngModel)]="priceDraft" (input)="priceError = null" />
-            <button type="button" (click)="applyPriceOverride()">Confirmar</button>
-            <button type="button" class="secondary" (click)="clearPriceOverride()" [disabled]="!priceOverride()">Restablecer</button>
-          </div>
-          <small *ngIf="priceError" class="error">{{ priceError }}</small>
-          <small class="note">Base: ${{ (currentMaterial()?.pricePerMeter ?? 0) | number:'1.0-0' }} CLP.</small>
         </div>
         <button type="button" class="primary" [disabled]="items().length === 0">
           Pedir ahora

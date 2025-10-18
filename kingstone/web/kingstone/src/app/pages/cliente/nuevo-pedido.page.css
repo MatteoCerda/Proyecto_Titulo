@@ -314,36 +314,6 @@ nav { display:flex; flex-direction:column; gap:10px; }
 .price { display:flex; flex-direction:column; gap:4px; font-size:18px; }
 .price strong { font-size:32px; }
 .price small { font-size:14px; color:#1f2a37; }
-.price-editor { display:flex; flex-direction:column; gap:8px; min-width:220px; }
-.price-editor label { font-size:15px; font-weight:600; color:#0b1b28; }
-.price-editor-row { display:flex; flex-wrap:wrap; gap:8px; }
-.price-editor-row input {
-  background:#fff7d6;
-  border:1px solid rgba(11,27,40,0.25);
-  border-radius:999px;
-  padding:10px 14px;
-  font-size:16px;
-  color:#0b1b28;
-  min-width:140px;
-}
-.price-editor-row button {
-  background:#0b1b28;
-  color:#ffe082;
-  border:0;
-  border-radius:999px;
-  padding:10px 16px;
-  font-weight:600;
-  cursor:pointer;
-}
-.price-editor-row button.secondary {
-  background:transparent;
-  color:#0b1b28;
-  border:1px solid rgba(11,27,40,0.45);
-}
-.price-editor-row button:disabled { opacity:0.6; cursor:not-allowed; }
-.price-editor small { font-size:12px; color:#1f2a37; }
-.price-editor small.error { color:#dc2626; font-weight:600; }
-.price-editor .note { color:#374151; }
 .summary .primary {
   background:#0b1b28;
   color:#ffe082;

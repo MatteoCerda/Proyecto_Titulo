@@ -70,10 +70,6 @@ export class NuevoPedidoPage implements OnDestroy {
 
   items = signal<DesignItem[]>([]);
   previewImage = signal<string | null>(null);
-  priceOverride = signal<number | null>(null);
-
-  priceDraft = this.materials[0]?.pricePerMeter.toString() ?? '';
-  priceError: string | null = null;
 
   currentMaterial = computed(() => this.materials.find(m => m.id === this.selectedMaterialId) ?? null);
 
@@ -146,8 +142,7 @@ export class NuevoPedidoPage implements OnDestroy {
     if (!material) return 0;
     const usedHeight = this.packResult().usedHeight;
     const proportion = Math.max(0.2, usedHeight / 100);
-    const pricePerMeter = this.priceOverride() ?? material.pricePerMeter;
-    return Math.round(pricePerMeter * proportion);
+    return Math.round(material.pricePerMeter * proportion);
   });
 
   onDragOver(event: DragEvent) {
@@ -424,29 +419,7 @@ export class NuevoPedidoPage implements OnDestroy {
 
   onMaterialChange(materialId: string) {
     const material = this.materials.find(m => m.id === materialId) ?? null;
-    this.priceOverride.set(null);
-    this.priceError = null;
-    this.priceDraft = material ? material.pricePerMeter.toString() : '';
     this.items.update(curr => curr.map(item => this.clampToMaterial(item, material)));
-  }
-
-  applyPriceOverride() {
-    const parsed = this.parseNumber(this.priceDraft);
-    if (parsed === null || parsed <= 0) {
-      this.priceError = 'Ingresa un precio valido.';
-      return;
-    }
-    const sanitized = Math.round(parsed);
-    this.priceOverride.set(sanitized);
-    this.priceDraft = sanitized.toString();
-    this.priceError = null;
-  }
-
-  clearPriceOverride() {
-    const material = this.currentMaterial();
-    this.priceOverride.set(null);
-    this.priceError = null;
-    this.priceDraft = material ? material.pricePerMeter.toString() : '';
   }
 
   getSizeNote(item: DesignItem): string | null {
