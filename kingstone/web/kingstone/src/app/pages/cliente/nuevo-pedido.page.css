@@ -314,6 +314,49 @@ nav { display:flex; flex-direction:column; gap:10px; }
 .price { display:flex; flex-direction:column; gap:4px; font-size:18px; }
 .price strong { font-size:32px; }
 .price small { font-size:14px; color:#1f2a37; }
+.summary-note {
+  flex:1 1 100%;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.summary-note label {
+  font-size:15px;
+  font-weight:600;
+}
+.summary-note textarea {
+  width:100%;
+  min-height:90px;
+  border-radius:12px;
+  border:1px solid rgba(15,23,42,0.25);
+  padding:12px;
+  background:#fff7d6;
+  color:#0b1b28;
+  font-size:15px;
+  resize:vertical;
+}
+.summary-note textarea:focus {
+  outline:none;
+  border-color:#0b1b28;
+  box-shadow:0 0 0 2px rgba(11,27,40,0.12);
+}
+.summary-note small {
+  font-size:12px;
+  color:#4b5563;
+}
+.submit-feedback {
+  flex:1 1 100%;
+  background:rgba(11,27,40,0.08);
+  border-radius:12px;
+  padding:10px 14px;
+  font-size:14px;
+  font-weight:600;
+  color:#0b1b28;
+}
+.submit-feedback.error {
+  background:rgba(239,68,68,0.18);
+  color:#b91c1c;
+}
 .summary .primary {
   background:#0b1b28;
   color:#ffe082;

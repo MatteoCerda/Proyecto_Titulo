@@ -1,7 +1,9 @@
-import { Component, OnDestroy, computed, signal } from '@angular/core';
+import { Component, OnDestroy, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent } from '@ionic/angular/standalone';
+import { firstValueFrom } from 'rxjs';
+import { PedidosService, CreatePedidoRequest } from '../../services/pedidos.service';
 
 interface MaterialPreset {
   id: string;
@@ -56,6 +58,11 @@ interface PackResult {
 export class NuevoPedidoPage implements OnDestroy {
   private nextId = 1;
   private readonly packGap = 0.35;
+  private readonly pedidos = inject(PedidosService);
+
+  orderNote = '';
+  submitting = false;
+  submitFeedback: { type: 'success' | 'error'; message: string } | null = null;
 
   materials: MaterialPreset[] = [
     { id: 'dtf-57', label: 'DTF 57 cm', description: 'Impresion a todo color para prendas claras y oscuras.', rollWidthCm: 57, pricePerMeter: 13000 },
@@ -452,6 +459,71 @@ export class NuevoPedidoPage implements OnDestroy {
       }
       return this.withWidth(item, targetWidth);
     });
+  }
+
+  async submitOrder() {
+    if (this.submitting || this.items().length === 0) {
+      return;
+    }
+    const material = this.currentMaterial();
+    if (!material) {
+      this.submitFeedback = { type: 'error', message: 'Selecciona un material antes de enviar tu pedido.' };
+      return;
+    }
+
+    this.submitting = true;
+    this.submitFeedback = null;
+
+    try {
+      const pack = this.packResult();
+      const payload: CreatePedidoRequest = {
+        materialId: material.id,
+        materialLabel: material.label,
+        materialWidthCm: material.rollWidthCm,
+        usedHeight: pack.usedHeight,
+        totalPrice: this.totalPrice(),
+        note: this.orderNote.trim() ? this.orderNote.trim() : undefined,
+        items: this.items().map(item => {
+          const dims = this.getEffectiveDimensions(item);
+          return {
+            displayName: item.displayName,
+            quantity: item.quantity,
+            widthCm: Number(dims.width.toFixed(2)),
+            heightCm: Number(dims.height.toFixed(2)),
+            sizeMode: item.sizeMode,
+            previewUrl: item.previewUrl
+          };
+        }),
+        placements: pack.placements.map(cell => ({
+          x: Number(cell.x.toFixed(2)),
+          y: Number(cell.y.toFixed(2)),
+          width: Number(cell.width.toFixed(2)),
+          height: Number(cell.height.toFixed(2)),
+          previewUrl: cell.previewUrl
+        }))
+      };
+
+      await firstValueFrom(this.pedidos.createPedido(payload));
+      this.submitFeedback = { type: 'success', message: 'Tu solicitud fue enviada al equipo operador.' };
+      this.clearOrder();
+    } catch (error) {
+      console.error('Error al enviar el pedido', error);
+      this.submitFeedback = { type: 'error', message: 'No pudimos enviar tu pedido. Intentalo nuevamente.' };
+    } finally {
+      this.submitting = false;
+    }
+  }
+
+  private clearOrder() {
+    this.items().forEach(item => {
+      if (item.previewUrl && item.revokeOnDestroy) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+    });
+    this.items.set([]);
+    this.previewImage.set(null);
+    this.orderNote = '';
+    this.nextId = 1;
   }
 
   removeItem(id: number) {

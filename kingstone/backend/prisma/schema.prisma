@@ -17,8 +17,9 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   resets       PasswordReset[]
-  // Relación 1:1 con perfil de cliente
+  // Relacion 1:1 con perfil de cliente
   cliente      Cliente?
+  pedidos      Pedido[]
 }
 
 model PasswordReset {
@@ -69,4 +70,23 @@ model InventoryItem {
   updatedAt DateTime @updatedAt
 
   @@map("inventory_item")
+}
+
+model Pedido {
+  id             Int      @id @default(autoincrement())
+  userId         Int?
+  user           User?    @relation(fields: [userId], references: [id])
+  clienteEmail   String?
+  clienteNombre  String?
+  estado         String   @default("PENDIENTE")
+  notificado     Boolean  @default(true)
+  total          Int?     @default(0)
+  itemsCount     Int?     @default(0)
+  materialId     String?
+  materialLabel  String?
+  payload        Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("pedido")
 }

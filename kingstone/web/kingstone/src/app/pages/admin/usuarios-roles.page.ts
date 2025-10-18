@@ -20,7 +20,7 @@ interface NewUserPayload {
   fullName: string;
   email: string;
   password: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'operator';
 }
 
 @Component({
@@ -51,6 +51,7 @@ interface NewUserPayload {
               <select [(ngModel)]="newUser.role" name="role">
                 <option value="user">Cliente</option>
                 <option value="admin">Administrador</option>
+                <option value="operator">Operador</option>
               </select>
             </label>
             <div class="error" *ngIf="newUserError">{{ newUserError }}</div>
@@ -76,6 +77,8 @@ interface NewUserPayload {
       <button class="tab" [class.active]="activeTab==='client'" (click)="activeTab='client'; load()">Cliente ({{ countBy('CLIENT') }})</button>
       <span class="sep">|</span>
       <button class="tab" [class.active]="activeTab==='admin'" (click)="activeTab='admin'; load()">Administrador ({{ countBy('ADMIN') }})</button>
+      <span class="sep">|</span>
+      <button class="tab" [class.active]="activeTab==='operator'" (click)="activeTab='operator'; load()">Operador ({{ countBy('OPERATOR') }})</button>
     </div>
 
     <div class="toolbar">
@@ -206,7 +209,7 @@ export class AdminUsuariosRolesPage {
 
   users = signal<UserVM[]>([]);
   query = '';
-  activeTab: 'all' | 'client' | 'admin' = 'all';
+  activeTab: 'all' | 'client' | 'admin' | 'operator' = 'all';
   sortDesc = true;
 
   error = signal<string | null>(null);
@@ -221,7 +224,14 @@ export class AdminUsuariosRolesPage {
 
   filteredSorted() {
     const q = this.query.trim().toLowerCase();
-    const roleFilter = this.activeTab === 'client' ? 'CLIENT' : this.activeTab === 'admin' ? 'ADMIN' : undefined;
+    const roleFilter =
+      this.activeTab === 'client'
+        ? 'CLIENT'
+        : this.activeTab === 'admin'
+          ? 'ADMIN'
+          : this.activeTab === 'operator'
+            ? 'OPERATOR'
+            : undefined;
     return this.users()
       .filter(u => {
         const inText = !q || [u.username, u.fullName, u.email].some(s => s.toLowerCase().includes(q));
@@ -265,6 +275,7 @@ export class AdminUsuariosRolesPage {
     const params: any = {};
     if (this.activeTab === 'client') params.role = 'user';
     if (this.activeTab === 'admin') params.role = 'admin';
+    if (this.activeTab === 'operator') params.role = 'operator';
     if (this.query?.trim()) params.q = this.query.trim();
 
     this.http.get<any[]>(`http://localhost:3000/admin/users`, { params }).subscribe({
@@ -362,10 +373,15 @@ export class AdminUsuariosRolesPage {
   changeRole() {
     const sel = this.users().filter(u => u.selected);
     if (sel.length === 0) return;
-    const to = prompt('Nuevo rol para seleccionados (admin|user):', 'user');
+    const to = prompt('Nuevo rol para seleccionados (admin|user|operator):', 'user');
     if (!to) return;
+    const normalized = to.trim().toLowerCase();
+    if (!['admin', 'user', 'operator'].includes(normalized)) {
+      alert('Rol no valido. Usa admin, user u operator.');
+      return;
+    }
     sel.forEach(u => {
-      this.http.patch(`http://localhost:3000/admin/users/${u.id}`, { role: to }).subscribe(() => this.load());
+      this.http.patch(`http://localhost:3000/admin/users/${u.id}`, { role: normalized }).subscribe(() => this.load());
     });
   }
 
