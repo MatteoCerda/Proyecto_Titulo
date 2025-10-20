@@ -8,6 +8,7 @@ import { adminGuard } from './modules/common/middlewares/adminGuard';
 import pedidosRoutes from './modules/pedidos/pedidos.routes';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import cotizacionesRoutes from './modules/cotizaciones/cotizaciones.routes';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -220,6 +221,7 @@ app.get('/catalogo/:id', async (req, res) => {
 
 // Pedidos (clientes y operadores)
 app.use('/api/pedidos', authGuard, pedidosRoutes);
+app.use('/api/cotizaciones', cotizacionesRoutes);
 // Admin endpoints
 app.use('/admin', authGuard, adminGuard, adminRoutes);
 

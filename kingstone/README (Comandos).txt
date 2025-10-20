@@ -25,3 +25,7 @@ UPDATE User SET role='admin' WHERE email='tu@correo.com';
 
 Puerto para el front: http://localhost:8100/
 Puerto util para adminer: http://localhost:8080/
+
+- migrar datos en docker
+npx prisma migrate deploy
+docker compose up migrate
