@@ -143,7 +143,7 @@ export class NuevoPedidoPage implements OnDestroy {
       const material = this.currentMaterial();
       const items = this.items();
       this.onInputsChanged(material, items);
-    }, { allowSignalWrites: true });
+    });
   }
 
 

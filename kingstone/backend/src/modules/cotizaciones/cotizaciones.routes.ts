@@ -47,6 +47,13 @@ type JwtUser = {
   role?: string;
 };
 
+class HttpError extends Error {
+  constructor(public status: number, public payload: Record<string, unknown>) {
+    super(typeof payload?.message === 'string' ? (payload.message as string) : 'HTTP_ERROR');
+    this.name = 'HttpError';
+  }
+}
+
 function isOperator(role?: string | null) {
   if (!role) return false;
   const normalized = role.toUpperCase();
@@ -115,6 +122,291 @@ function normalizeMetadata(metadata: unknown) {
     return { ...(metadata as Record<string, unknown>) };
   }
   return {};
+}
+
+const MATERIAL_WIDTH_MAP: Record<string, number> = {
+  dtf: 57,
+  dtf57: 57,
+  dtf57cm: 57,
+  dtftextil: 57,
+  vinilodecorativo: 56,
+  vinilodecorativo56: 56,
+  vinilodecorativo56cm: 56,
+  vinilotextil: 47,
+  vinilotextil47: 47,
+  vinilotextil47cm: 47,
+  comprinter: 47,
+  comprinterpvc: 47,
+  comprinterpvc47: 47,
+  comprinterpvc47cm: 47,
+  comprinterpu: 47,
+  comprinterpu47: 47,
+  comprinterpu47cm: 47,
+  sticker70: 70,
+  sticker70cm: 70,
+};
+
+const INVENTORY_ID_KEYS = [
+  'inventoryItemId',
+  'inventoryId',
+  'itemId',
+  'inventarioId',
+  'inventory_id',
+  'item_id',
+  'inventario_id',
+  'idInventario',
+  'id_inventory',
+  'idItem',
+];
+
+const INVENTORY_CODE_KEYS = [
+  'materialId',
+  'material_id',
+  'material',
+  'materialCode',
+  'material_code',
+  'inventoryCode',
+  'inventory_code',
+  'codigoInventario',
+  'codigo',
+  'code',
+  'sku',
+];
+
+const INVENTORY_NAME_KEYS = [
+  'materialLabel',
+  'materialNombre',
+  'nombreMaterial',
+  'label',
+  'name',
+  'displayName',
+  'producto',
+  'productName',
+  'productLabel',
+];
+
+const INVENTORY_QUANTITY_KEYS = [
+  'inventoryQuantity',
+  'cantidadInventario',
+  'inventarioCantidad',
+  'cantidadMaterial',
+  'materialCantidad',
+  'consumo',
+  'consumoCantidad',
+  'usedUnits',
+  'units',
+  'unitCount',
+  'stockConsumir',
+];
+
+const WIDTH_KEYS = [
+  'width',
+  'widthCm',
+  'width_cm',
+  'ancho',
+  'anchoCm',
+  'ancho_cm',
+  'rollWidth',
+  'rollWidthCm',
+  'roll_width_cm',
+  'materialWidth',
+  'materialWidthCm',
+];
+
+type InventoryRecordLite = {
+  id: number;
+  code: string;
+  name: string;
+  quantity: number;
+};
+
+type MaterialInfo = {
+  itemId: number;
+  producto: string;
+  quantity: number;
+  widthCm: number | null;
+  materialId: string | null;
+  inventoryItemId: number | null;
+  inventory?: InventoryRecordLite;
+  codeCandidates: string[];
+  nameCandidates: string[];
+};
+
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeMatchKey(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toLowerCase();
+}
+
+function parseNumberLike(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const normalized = value.replace(/,/g, '.').match(/-?\d+(?:\.\d+)?/);
+    if (!normalized) return null;
+    const parsed = Number(normalized[0]);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function collectCandidatesFromKeys(target: Set<string>, source: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed) {
+        target.add(trimmed);
+      }
+    }
+  }
+}
+
+function extractInventoryIdCandidate(source: Record<string, unknown>): number | null {
+  for (const key of INVENTORY_ID_KEYS) {
+    const candidate = parseNumberLike(source[key]);
+    if (candidate !== null) {
+      const intCandidate = Math.trunc(candidate);
+      if (intCandidate > 0) return intCandidate;
+    }
+  }
+  const nestedKeys = ['inventory', 'inventario', 'material', 'materialInfo'];
+  for (const nestedKey of nestedKeys) {
+    const nested = source[nestedKey];
+    if (isJsonObject(nested)) {
+      const nestedCandidate = extractInventoryIdCandidate(nested);
+      if (nestedCandidate) return nestedCandidate;
+    }
+  }
+  return null;
+}
+
+function extractQuantityOverride(source: Record<string, unknown>): number | null {
+  for (const key of INVENTORY_QUANTITY_KEYS) {
+    const value = parseNumberLike(source[key]);
+    if (value !== null) return value;
+  }
+  const nestedKeys = ['inventory', 'inventario', 'material', 'materialInfo'];
+  for (const nestedKey of nestedKeys) {
+    const nested = source[nestedKey];
+    if (isJsonObject(nested)) {
+      const nestedValue = extractQuantityOverride(nested);
+      if (nestedValue !== null) return nestedValue;
+    }
+  }
+  return null;
+}
+
+function parseWidthFromText(text: string): number | null {
+  if (typeof text !== 'string') return null;
+  const match = text.match(/(\d+(?:[.,]\d+)?)\s*(?:cm|centimetros|centímetros)/i);
+  if (!match) return null;
+  const value = Number(match[1].replace(',', '.'));
+  return Number.isFinite(value) ? value : null;
+}
+
+function inferWidthFromMaterial(materialId: string | null): number | null {
+  if (!materialId) return null;
+  const normalized = normalizeMatchKey(materialId);
+  for (const [key, width] of Object.entries(MATERIAL_WIDTH_MAP)) {
+    if (normalized.includes(key)) {
+      return width;
+    }
+  }
+  return null;
+}
+
+function extractWidthFromVariant(
+  variant: Record<string, unknown>,
+  fallbackTexts: string[],
+  materialId: string | null,
+): number | null {
+  for (const key of WIDTH_KEYS) {
+    const value = parseNumberLike(variant[key]);
+    if (value !== null) return value;
+  }
+
+  const nestedKeys = ['material', 'inventory', 'materialInfo'];
+  for (const nestedKey of nestedKeys) {
+    const nested = variant[nestedKey];
+    if (isJsonObject(nested)) {
+      for (const key of WIDTH_KEYS) {
+        const value = parseNumberLike(nested[key]);
+        if (value !== null) return value;
+      }
+    }
+  }
+
+  for (const text of fallbackTexts) {
+    const width = parseWidthFromText(text);
+    if (width !== null) return width;
+  }
+
+  return inferWidthFromMaterial(materialId);
+}
+
+function buildMaterialInfo(item: { id: number; producto: string; cantidad: number; variantes: Prisma.JsonValue | null }): MaterialInfo {
+  const variant = isJsonObject(item.variantes) ? (item.variantes as Record<string, unknown>) : {};
+  const codeSet = new Set<string>();
+  const nameSet = new Set<string>();
+
+  collectCandidatesFromKeys(codeSet, variant, INVENTORY_CODE_KEYS);
+  collectCandidatesFromKeys(nameSet, variant, INVENTORY_NAME_KEYS);
+
+  const nestedMaterial = variant.material;
+  if (isJsonObject(nestedMaterial)) {
+    collectCandidatesFromKeys(codeSet, nestedMaterial, ['id', 'code', 'codigo']);
+    collectCandidatesFromKeys(nameSet, nestedMaterial, ['label', 'nombre', 'name', 'displayName']);
+  }
+
+  const nestedInventory = variant.inventory;
+  if (isJsonObject(nestedInventory)) {
+    collectCandidatesFromKeys(codeSet, nestedInventory, ['id', 'code', 'codigo']);
+    collectCandidatesFromKeys(nameSet, nestedInventory, ['label', 'nombre', 'name', 'displayName']);
+  }
+
+  nameSet.add(item.producto);
+
+  const codeCandidates = Array.from(codeSet);
+  const nameCandidates = Array.from(nameSet);
+
+  let inventoryItemId = extractInventoryIdCandidate(variant);
+  if (!inventoryItemId && isJsonObject(nestedMaterial)) {
+    inventoryItemId = extractInventoryIdCandidate(nestedMaterial) ?? inventoryItemId;
+  }
+  if (!inventoryItemId && isJsonObject(nestedInventory)) {
+    inventoryItemId = extractInventoryIdCandidate(nestedInventory) ?? inventoryItemId;
+  }
+
+  const materialId = codeCandidates.length ? codeCandidates[0] : null;
+  const quantityOverride = extractQuantityOverride(variant);
+  let quantity = item.cantidad;
+  if (quantityOverride !== null) {
+    if (quantityOverride <= 0) {
+      quantity = 0;
+    } else {
+      quantity = Math.max(1, Math.round(quantityOverride));
+    }
+  }
+
+  const fallbackTexts = Array.from(new Set([...nameCandidates, ...codeCandidates]));
+  const width = extractWidthFromVariant(variant, fallbackTexts, materialId);
+
+  return {
+    itemId: item.id,
+    producto: item.producto,
+    quantity,
+    widthCm: width ?? null,
+    materialId,
+    inventoryItemId: inventoryItemId ?? null,
+    codeCandidates,
+    nameCandidates,
+  };
 }
 
 async function triggerWebhook(args: {
@@ -451,7 +743,13 @@ router.post(
           estado: { in: ['PENDIENTE', 'EN_PROGRESO'] },
         },
         orderBy: { createdAt: 'desc' },
-        include: { cotizacion: true },
+        include: {
+          cotizacion: {
+            include: {
+              items: true,
+            },
+          },
+        },
       });
 
       if (!asignacion) {
@@ -474,39 +772,225 @@ router.post(
         return res.status(400).json({ message: 'Estado de cotizacion invalido' });
       }
 
+      const cotizacionItems = asignacion.cotizacion.items ?? [];
+      const materialInfos = cotizacionItems.map(item =>
+        buildMaterialInfo({
+          id: item.id,
+          producto: item.producto,
+          cantidad: item.cantidad,
+          variantes: item.variantes,
+        }),
+      );
+
+      if (!materialInfos.length) {
+        throw new HttpError(400, {
+          message: 'La cotizacion no contiene materiales para descontar del inventario.',
+        });
+      }
+
+      const idCandidates = new Set<number>();
+      const codeCandidates = new Set<string>();
+      const nameCandidates = new Set<string>();
+
+      for (const info of materialInfos) {
+        if (info.inventoryItemId) {
+          idCandidates.add(info.inventoryItemId);
+        }
+        info.codeCandidates.forEach(candidate => codeCandidates.add(candidate));
+        info.nameCandidates.forEach(candidate => nameCandidates.add(candidate));
+      }
+
+      const inventoryConditions: Prisma.InventoryItemWhereInput[] = [];
+      if (idCandidates.size) {
+        inventoryConditions.push({ id: { in: Array.from(idCandidates) } });
+      }
+      if (codeCandidates.size) {
+        inventoryConditions.push({ code: { in: Array.from(codeCandidates) } });
+      }
+      if (nameCandidates.size) {
+        inventoryConditions.push({ name: { in: Array.from(nameCandidates) } });
+      }
+
+      let inventoryRecords: InventoryRecordLite[] = [];
+      if (inventoryConditions.length) {
+        inventoryRecords = await prisma.inventoryItem.findMany({
+          where: { OR: inventoryConditions },
+          select: { id: true, code: true, name: true, quantity: true },
+        });
+      }
+
+      const inventoryById = new Map<number, InventoryRecordLite>();
+      const inventoryByCode = new Map<string, InventoryRecordLite>();
+      const inventoryByName = new Map<string, InventoryRecordLite>();
+
+      for (const record of inventoryRecords) {
+        inventoryById.set(record.id, record);
+        if (record.code) {
+          inventoryByCode.set(normalizeMatchKey(record.code), record);
+        }
+        if (record.name) {
+          inventoryByName.set(normalizeMatchKey(record.name), record);
+        }
+      }
+
+      for (const info of materialInfos) {
+        let record: InventoryRecordLite | undefined;
+        if (info.inventoryItemId) {
+          record = inventoryById.get(info.inventoryItemId);
+        }
+        if (!record) {
+          for (const code of info.codeCandidates) {
+            record = inventoryByCode.get(normalizeMatchKey(code));
+            if (record) break;
+          }
+        }
+        if (!record) {
+          for (const nameCandidate of info.nameCandidates) {
+            record = inventoryByName.get(normalizeMatchKey(nameCandidate));
+            if (record) break;
+          }
+        }
+        if (!record) {
+          const normalizedProducto = normalizeMatchKey(info.producto);
+          record =
+            inventoryByName.get(normalizedProducto) ?? inventoryByCode.get(normalizedProducto);
+        }
+        if (record) {
+          info.inventoryItemId = record.id;
+          info.inventory = record;
+        }
+      }
+
+      const missingInventory = materialInfos.filter(info => info.quantity > 0 && !info.inventory);
+      if (missingInventory.length) {
+        throw new HttpError(400, {
+          message: 'Hay materiales de la cotizacion sin vinculo de inventario.',
+          detalles: missingInventory.map(info => ({
+            itemId: info.itemId,
+            producto: info.producto,
+            referenciaMaterial: info.materialId ?? null,
+          })),
+        });
+      }
+
+      const adjustments = new Map<
+        number,
+        { record: InventoryRecordLite; quantity: number }
+      >();
+      for (const info of materialInfos) {
+        if (!info.inventory || info.quantity <= 0) continue;
+        const existing = adjustments.get(info.inventory.id);
+        if (existing) {
+          existing.quantity += info.quantity;
+        } else {
+          adjustments.set(info.inventory.id, {
+            record: { ...info.inventory },
+            quantity: info.quantity,
+          });
+        }
+      }
+
+      if (!adjustments.size) {
+        throw new HttpError(400, {
+          message: 'No se pudo determinar la cantidad a descontar del inventario.',
+        });
+      }
+
+      const insufficient = Array.from(adjustments.values()).filter(
+        adj => adj.record.quantity < adj.quantity,
+      );
+      if (insufficient.length) {
+        throw new HttpError(409, {
+          message: 'No hay stock suficiente para los materiales seleccionados.',
+          detalles: insufficient.map(adj => ({
+            inventarioId: adj.record.id,
+            inventarioNombre: adj.record.name,
+            disponible: adj.record.quantity,
+            requerido: adj.quantity,
+          })),
+        });
+      }
+
+      const stockDespues = new Map<number, number>();
+      adjustments.forEach(adj => {
+        stockDespues.set(adj.record.id, adj.record.quantity - adj.quantity);
+      });
+
+      const materialSummary = materialInfos.map(info => {
+        const inventoryId = info.inventory?.id ?? null;
+        const aggregated = inventoryId ? adjustments.get(inventoryId) : undefined;
+        const stockAntes =
+          aggregated?.record.quantity ?? info.inventory?.quantity ?? null;
+        const stockRestante = inventoryId
+          ? stockDespues.get(inventoryId) ?? null
+          : null;
+        return {
+          itemId: info.itemId,
+          producto: info.producto,
+          cantidad: info.quantity,
+          anchoCm: info.widthCm,
+          materialId: info.materialId ?? null,
+          inventarioId: inventoryId,
+          inventarioCodigo: info.inventory?.code ?? null,
+          inventarioNombre: info.inventory?.name ?? null,
+          stockAntes,
+          stockDespues: stockRestante,
+        };
+      });
+
       const metadataBase = normalizeMetadata(asignacion.cotizacion.metadata);
       if (dto.notas) {
         metadataBase.resultadoNotas = dto.notas;
       }
+      (metadataBase as Record<string, unknown>).materiales = materialSummary;
 
       const cotizacionUpdateData: Prisma.CotizacionUpdateInput = {
         estado: estadoCotizacion ?? 'ENVIADA',
+        metadata: metadataBase as Prisma.InputJsonValue,
       };
 
       if (dto.totalFinal !== undefined) {
         cotizacionUpdateData.totalEstimado = toDecimal(dto.totalFinal) ?? null;
       }
 
-      if (dto.notas) {
-        cotizacionUpdateData.metadata = metadataBase as Prisma.InputJsonValue;
-      }
+      await prisma.$transaction(async tx => {
+        for (const adjustment of adjustments.values()) {
+          const result = await tx.inventoryItem.updateMany({
+            where: {
+              id: adjustment.record.id,
+              quantity: { gte: adjustment.quantity },
+            },
+            data: { quantity: { decrement: adjustment.quantity } },
+          });
 
-      await prisma.$transaction([
-        prisma.asignacion.update({
+          if (!result.count) {
+            throw new HttpError(409, {
+              message:
+                'El stock disponible cambio mientras enviabas la cotizacion. Revisa el inventario e intentalo nuevamente.',
+              inventarioId: adjustment.record.id,
+            });
+          }
+        }
+
+        await tx.asignacion.update({
           where: { id: asignacion.id },
           data: {
             estado: 'RESUELTA',
             resueltoEn: new Date(),
           },
-        }),
-        prisma.cotizacion.update({
+        });
+
+        await tx.cotizacion.update({
           where: { id },
           data: cotizacionUpdateData,
-        }),
-      ]);
+        });
+      });
 
-      res.json({ ok: true });
+      return res.json({ ok: true, materiales: materialSummary });
     } catch (error) {
+      if (error instanceof HttpError) {
+        return res.status(error.status).json(error.payload);
+      }
       console.error('Error resolviendo asignacion', error);
       res.status(500).json({ message: 'Error interno' });
     }
