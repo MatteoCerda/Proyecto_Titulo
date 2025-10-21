@@ -38,6 +38,7 @@ export const routes: Routes = [
       { path: 'reportes/distribucion', loadComponent: () => import('./pages/admin/reportes-detalle-torta.page').then(m => m.AdminReporteTortaPage) },
       { path: 'reportes/top-clientes', loadComponent: () => import('./pages/admin/reportes-detalle-barras.page').then(m => m.AdminReporteBarrasPage) },
       { path: 'reportes/ventas-mensuales', loadComponent: () => import('./pages/admin/reportes-detalle-lineas.page').then(m => m.AdminReporteLineasPage) },
+      { path: 'ofertas', loadComponent: () => import('./pages/admin/ofertas.page').then(m => m.AdminOfertasPage) },
       { path: 'stock', loadComponent: () => import('./pages/admin/stock.page').then(m => m.AdminStockPage) },
       { path: 'perfil', loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage) }
     ]

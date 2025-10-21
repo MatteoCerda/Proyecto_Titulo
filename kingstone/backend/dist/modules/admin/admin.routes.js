@@ -32,6 +32,18 @@ const inventoryCreateSchema = zod_1.z.object({
     imageUrl: zod_1.z.string().min(1).optional()
 });
 const inventoryUpdateSchema = inventoryCreateSchema.partial();
+const offerCreateSchema = zod_1.z.object({
+    titulo: zod_1.z.string().min(1),
+    descripcion: zod_1.z.string().optional(),
+    imageUrl: zod_1.z.string().url().optional(),
+    link: zod_1.z.string().url().optional(),
+    activo: zod_1.z.coerce.boolean().optional(),
+    prioridad: zod_1.z.coerce.number().int().min(0).optional(),
+    itemId: zod_1.z.coerce.number().int().optional(),
+    startAt: zod_1.z.coerce.date().optional(),
+    endAt: zod_1.z.coerce.date().optional()
+});
+const offerUpdateSchema = offerCreateSchema.partial();
 function normalizeKey(key) {
     return key
         .normalize('NFD')
@@ -335,6 +347,104 @@ router.delete('/inventory/:id', async (req, res) => {
         if (err?.code === 'P2025') {
             return res.status(404).json({ message: 'Item no encontrado' });
         }
+        res.status(500).json({ message: 'Error interno' });
+    }
+});
+// Ofertas: listar (admin)
+router.get('/offers', async (req, res) => {
+    const includeInactive = req.query.all === '1';
+    const offers = await prisma.oferta.findMany({
+        where: includeInactive ? {} : { activo: true },
+        include: { inventario: { select: { id: true, code: true, name: true } } },
+        orderBy: [
+            { prioridad: 'desc' },
+            { createdAt: 'desc' }
+        ]
+    });
+    res.json(offers);
+});
+// Ofertas: crear
+router.post('/offers', async (req, res) => {
+    try {
+        const dto = offerCreateSchema.parse(req.body);
+        if (dto.startAt && dto.endAt && dto.startAt > dto.endAt) {
+            return res.status(400).json({ message: 'La fecha de inicio debe ser anterior a la fecha de término' });
+        }
+        const offer = await prisma.oferta.create({
+            data: {
+                titulo: dto.titulo,
+                descripcion: dto.descripcion ?? null,
+                imageUrl: dto.imageUrl ?? null,
+                link: dto.link ?? null,
+                activo: dto.activo ?? true,
+                prioridad: dto.prioridad ?? 0,
+                itemId: dto.itemId ?? null,
+                startAt: dto.startAt ?? null,
+                endAt: dto.endAt ?? null
+            },
+            include: {
+                inventario: { select: { id: true, code: true, name: true } }
+            }
+        });
+        res.status(201).json(offer);
+    }
+    catch (err) {
+        if (err instanceof zod_1.ZodError)
+            return handleZodError(err, res);
+        res.status(500).json({ message: 'Error interno' });
+    }
+});
+// Ofertas: actualizar
+router.patch('/offers/:id', async (req, res) => {
+    const id = Number(req.params.id);
+    if (!id)
+        return res.status(400).json({ message: 'ID invalido' });
+    try {
+        const dto = offerUpdateSchema.parse(req.body);
+        if (!Object.keys(dto).length)
+            return res.status(400).json({ message: 'Datos vacios' });
+        if (dto.startAt && dto.endAt && dto.startAt > dto.endAt) {
+            return res.status(400).json({ message: 'La fecha de inicio debe ser anterior a la fecha de término' });
+        }
+        const offer = await prisma.oferta.update({
+            where: { id },
+            data: {
+                ...(dto.titulo !== undefined ? { titulo: dto.titulo } : {}),
+                ...(dto.descripcion !== undefined ? { descripcion: dto.descripcion ?? null } : {}),
+                ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl ?? null } : {}),
+                ...(dto.link !== undefined ? { link: dto.link ?? null } : {}),
+                ...(dto.activo !== undefined ? { activo: dto.activo } : {}),
+                ...(dto.prioridad !== undefined ? { prioridad: dto.prioridad } : {}),
+                ...(dto.itemId !== undefined ? { itemId: dto.itemId ?? null } : {}),
+                ...(dto.startAt !== undefined ? { startAt: dto.startAt ?? null } : {}),
+                ...(dto.endAt !== undefined ? { endAt: dto.endAt ?? null } : {})
+            },
+            include: {
+                inventario: { select: { id: true, code: true, name: true } }
+            }
+        });
+        res.json(offer);
+    }
+    catch (err) {
+        if (err instanceof zod_1.ZodError)
+            return handleZodError(err, res);
+        if (err?.code === 'P2025')
+            return res.status(404).json({ message: 'Oferta no encontrada' });
+        res.status(500).json({ message: 'Error interno' });
+    }
+});
+// Ofertas: eliminar
+router.delete('/offers/:id', async (req, res) => {
+    const id = Number(req.params.id);
+    if (!id)
+        return res.status(400).json({ message: 'ID invalido' });
+    try {
+        await prisma.oferta.delete({ where: { id } });
+        res.json({ ok: true });
+    }
+    catch (err) {
+        if (err?.code === 'P2025')
+            return res.status(404).json({ message: 'Oferta no encontrada' });
         res.status(500).json({ message: 'Error interno' });
     }
 });

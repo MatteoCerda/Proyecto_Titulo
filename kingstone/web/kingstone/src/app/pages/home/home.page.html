@@ -1,4 +1,4 @@
-﻿<ion-content class="home" fullscreen>
+<ion-content class="home" fullscreen>
   <section class="hero">
     <div class="hero-media">
       <img src="assets/kingston-hero-placeholder.png" alt="Servicios Kingston Estampados" loading="eager" />
@@ -25,6 +25,31 @@
     </div>
   </section>
 
+  <section class="home-offers" *ngIf="cargando() || error() || ofertas().length">
+    <div class="offers-header">
+      <h2>Ofertas destacadas</h2>
+      <button class="refresh" type="button" (click)="cargarOfertas()">Actualizar</button>
+    </div>
+    <p *ngIf="error()" class="offers-error">{{ error() }}</p>
+    <div *ngIf="cargando()" class="offers-loading">Cargando ofertas...</div>
+    <div class="offers-grid" *ngIf="!cargando() && ofertas().length">
+      <article class="offer-card" *ngFor="let oferta of ofertas()">
+        <div class="offer-media" *ngIf="oferta.imageUrl">
+          <img [src]="oferta.imageUrl" [alt]="oferta.titulo">
+        </div>
+        <div class="offer-body">
+          <h3>{{ oferta.titulo }}</h3>
+          <p *ngIf="oferta.descripcion">{{ oferta.descripcion }}</p>
+          <p class="offer-product" *ngIf="oferta.inventario">{{ oferta.inventario.code }} &mdash; {{ oferta.inventario.name }}</p>
+          <a *ngIf="oferta.link" class="offer-link" [href]="oferta.link" target="_blank" rel="noopener">
+            Ver m&aacute;s
+          </a>
+        </div>
+      </article>
+    </div>
+    <p *ngIf="!cargando() && !error() && !ofertas().length" class="offers-empty">No hay ofertas activas por ahora.</p>
+  </section>
+
   <section class="home-catalog">
     <h2>Encuentra lo que necesitas</h2>
     <p>Consulta nuestro cat&aacute;logo con precios web y guarda tus cotizaciones para retomarlas cuando quieras.</p>
@@ -36,3 +61,4 @@
     </div>
   </section>
 </ion-content>
+

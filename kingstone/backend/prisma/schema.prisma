@@ -70,6 +70,7 @@ model InventoryItem {
   imageUrl  String?  @db.LongText
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  ofertas   Oferta[]
 
   @@map("inventory_item")
 }
@@ -133,7 +134,7 @@ model Asignacion {
   estado        String      @default("PENDIENTE") @db.VarChar(30)
   slaMinutos    Int         @map("sla_minutos") @default(10)
   vencimiento   DateTime    @map("vencimiento")
-  creadoEn      DateTime    @default(now()) @map("creado_en")
+  createdAt      DateTime    @default(now()) @map("creado_en")
   aceptadoEn    DateTime?   @map("aceptado_en")
   resueltoEn    DateTime?   @map("resuelto_en")
 
@@ -154,9 +155,35 @@ model CotizacionNotificacion {
   payload       Json?
   enviadoEn     DateTime?   @map("enviado_en")
   estado        String      @db.VarChar(30)
-  creadoEn      DateTime    @default(now()) @map("creado_en")
+  createdAt      DateTime    @default(now()) @map("creado_en")
 
   cotizacion    Cotizacion  @relation(fields: [cotizacionId], references: [id])
 
   @@map("notificacion")
 }
+
+model Oferta {
+  id            Int             @id @default(autoincrement())
+  titulo        String
+  descripcion   String?         @db.Text
+  imageUrl      String?         @db.Text
+  link          String?         @db.VarChar(255)
+  activo        Boolean         @default(true)
+  prioridad     Int             @default(0)
+  itemId        Int?            @map("item_id")
+  startAt       DateTime?       @map("inicio_en")
+  endAt         DateTime?       @map("fin_en")
+  createdAt     DateTime        @default(now()) @map("creado_en")
+  updatedAt     DateTime        @updatedAt      @map("actualizado_en")
+
+  inventario    InventoryItem?  @relation(fields: [itemId], references: [id])
+
+  @@index([activo])
+  @@index([startAt])
+  @@index([endAt])
+  @@map("oferta")
+}
+
+
+
+

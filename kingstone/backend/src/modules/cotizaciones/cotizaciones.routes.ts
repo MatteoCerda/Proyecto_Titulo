@@ -336,7 +336,7 @@ router.get(
         estado: asignacion.estado,
         slaMinutos: asignacion.slaMinutos,
         vencimiento: asignacion.vencimiento,
-        creadoEn: asignacion.creadoEn,
+        creadoEn: asignacion.createdAt,
         cotizacion: {
           id: asignacion.cotizacion.id,
           canal: asignacion.cotizacion.canal,
@@ -380,7 +380,7 @@ router.post(
           cotizacionId: id,
           estado: { in: ['PENDIENTE', 'RE_ASIGNADA'] },
         },
-        orderBy: { creadoEn: 'desc' },
+        orderBy: { createdAt: 'desc' },
         include: { cotizacion: true },
       });
 
@@ -450,7 +450,7 @@ router.post(
           cotizacionId: id,
           estado: { in: ['PENDIENTE', 'EN_PROGRESO'] },
         },
-        orderBy: { creadoEn: 'desc' },
+        orderBy: { createdAt: 'desc' },
         include: { cotizacion: true },
       });
 
@@ -514,3 +514,4 @@ router.post(
 );
 
 export default router;
+

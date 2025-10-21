@@ -20,6 +20,7 @@ import { AuthService } from '../core/auth.service';
           <a routerLink="/admin/usuarios" routerLinkActive="active">Gestionar usuario/rol</a>
           <a routerLink="/admin/catalogo" routerLinkActive="active">Administrar catálogo/precio</a>
           <a routerLink="/admin/reportes" routerLinkActive="active">Reportes y dashboards</a>
+          <a routerLink="/admin/ofertas" routerLinkActive="active">Administrar ofertas</a>
           <a routerLink="/admin/stock" routerLinkActive="active">Administrar stock</a>
         </nav>
         <div class="ks-actions">

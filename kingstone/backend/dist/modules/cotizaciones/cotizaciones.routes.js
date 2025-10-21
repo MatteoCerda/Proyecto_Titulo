@@ -287,7 +287,7 @@ router.get('/queue', authGuard_1.authGuard, async (req, res) => {
             estado: asignacion.estado,
             slaMinutos: asignacion.slaMinutos,
             vencimiento: asignacion.vencimiento,
-            creadoEn: asignacion.creadoEn,
+            creadoEn: asignacion.createdAt,
             cotizacion: {
                 id: asignacion.cotizacion.id,
                 canal: asignacion.cotizacion.canal,
@@ -323,7 +323,7 @@ router.post('/:id/accept', authGuard_1.authGuard, async (req, res) => {
                 cotizacionId: id,
                 estado: { in: ['PENDIENTE', 'RE_ASIGNADA'] },
             },
-            orderBy: { creadoEn: 'desc' },
+            orderBy: { createdAt: 'desc' },
             include: { cotizacion: true },
         });
         if (!asignacion) {
@@ -381,7 +381,7 @@ router.post('/:id/resolve', authGuard_1.authGuard, async (req, res) => {
                 cotizacionId: id,
                 estado: { in: ['PENDIENTE', 'EN_PROGRESO'] },
             },
-            orderBy: { creadoEn: 'desc' },
+            orderBy: { createdAt: 'desc' },
             include: { cotizacion: true },
         });
         if (!asignacion) {

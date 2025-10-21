@@ -1,0 +1,137 @@
+<ion-content class="ofertas-wrap">
+  <div class="panel">
+    <section class="form-card">
+      <h2>{{ editingId ? 'Editar oferta' : 'Nueva oferta' }}</h2>
+      <form (ngSubmit)="save()">
+        <label>
+          Titulo
+          <input type="text" [(ngModel)]="form.titulo" name="titulo" required>
+        </label>
+        <label>
+          Descripcion
+          <textarea rows="3" [(ngModel)]="form.descripcion" name="descripcion"></textarea>
+        </label>
+        <label>
+          URL de imagen
+          <input type="url" [(ngModel)]="form.imageUrl" name="imageUrl" placeholder="https://...">
+        </label>
+        <label>
+          Enlace
+          <input type="url" [(ngModel)]="form.link" name="link" placeholder="https://...">
+        </label>
+        <label>
+          Producto del inventario (opcional)
+          <select [(ngModel)]="form.itemId" name="itemId">
+            <option value="">-- Sin vínculo --</option>
+            <option *ngFor="let item of inventory()" [value]="item.id">
+              {{ item.code }} - {{ item.name }}
+            </option>
+          </select>
+        </label>
+        <div class="grid">
+          <label>
+            Fecha inicio
+            <input type="datetime-local" [(ngModel)]="form.startAt" name="startAt">
+          </label>
+          <label>
+            Fecha termino
+            <input type="datetime-local" [(ngModel)]="form.endAt" name="endAt">
+          </label>
+        </div>
+        <div class="grid">
+          <label>
+            Prioridad
+            <input type="number" min="0" [(ngModel)]="form.prioridad" name="prioridad">
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" [(ngModel)]="form.activo" name="activo">
+            <span>Visible</span>
+          </label>
+        </div>
+        <div class="image-preview" *ngIf="previewUrl() as preview">
+          <img [src]="preview" alt="Vista previa">
+        </div>
+        <div class="error" *ngIf="formError">{{ formError }}</div>
+        <div class="actions">
+          <button class="btn primary" type="submit" [disabled]="saving">
+            {{ saving ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Crear oferta') }}
+          </button>
+          <button class="btn secondary" type="button" (click)="reset()" [disabled]="saving">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="list-card">
+      <header>
+        <h2>Ofertas actuales</h2>
+        <div class="list-actions">
+          <button class="btn secondary sm" type="button" (click)="load()" [disabled]="loading">
+            <ion-spinner *ngIf="loading" name="dots"></ion-spinner>
+            <span *ngIf="!loading">Refrescar</span>
+          </button>
+        </div>
+      </header>
+      <div class="empty" *ngIf="!loading && offers().length === 0">No hay ofertas creadas.</div>
+      <div class="table" *ngIf="offers().length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-img">Imagen</th>
+              <th>Titulo</th>
+              <th>Descripcion</th>
+              <th>Producto</th>
+              <th>Inicio</th>
+              <th>Termino</th>
+              <th>Enlace</th>
+              <th>Prioridad</th>
+              <th>Estado</th>
+              <th class="col-actions">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let oferta of offers()">
+              <td class="col-img">
+                <ng-container *ngIf="offerPreview(oferta) as img; else noImg">
+                  <img [src]="img" alt="Imagen oferta">
+                </ng-container>
+                <ng-template #noImg>
+                  <div class="placeholder">Sin imagen</div>
+                </ng-template>
+              </td>
+              <td>{{ oferta.titulo }}</td>
+              <td class="descripcion">{{ oferta.descripcion || '--' }}</td>
+              <td class="inventory-ref">
+                <ng-container *ngIf="oferta.inventario; else noItem">
+                  {{ oferta.inventario.code }}<br>
+                  <small>{{ oferta.inventario.name }}</small>
+                </ng-container>
+                <ng-template #noItem>--</ng-template>
+              </td>
+              <td>{{ oferta.startAt ? (oferta.startAt | date:'short') : '--' }}</td>
+              <td>{{ oferta.endAt ? (oferta.endAt | date:'short') : '--' }}</td>
+              <td class="link">
+                <a *ngIf="oferta.link" [href]="oferta.link" target="_blank" rel="noopener">
+                  {{ oferta.link }}
+                </a>
+                <span *ngIf="!oferta.link">--</span>
+              </td>
+              <td>{{ oferta.prioridad }}</td>
+              <td>
+                <span class="badge" [class.inactive]="!oferta.activo">
+                  {{ oferta.activo ? 'Activa' : 'Oculta' }}
+                </span>
+              </td>
+              <td class="col-actions">
+                <button class="btn sm" type="button" (click)="edit(oferta)">Editar</button>
+                <button class="btn secondary sm" type="button" (click)="toggle(oferta)">
+                  {{ oferta.activo ? 'Ocultar' : 'Mostrar' }}
+                </button>
+                <button class="btn danger sm" type="button" (click)="remove(oferta)">Eliminar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</ion-content>

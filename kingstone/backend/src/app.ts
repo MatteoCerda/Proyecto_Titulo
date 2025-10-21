@@ -219,6 +219,50 @@ app.get('/catalogo/:id', async (req, res) => {
   }
 });
 
+app.get('/offers', async (_req, res) => {
+  try {
+    const now = new Date();
+    const offers = await prisma.oferta.findMany({
+      where: {
+        activo: true,
+        OR: [
+          { startAt: null },
+          { startAt: { lte: now } }
+        ],
+        AND: [
+          {
+            OR: [
+              { endAt: null },
+              { endAt: { gte: now } }
+            ]
+          }
+        ]
+      },
+      orderBy: [
+        { prioridad: 'desc' },
+        { createdAt: 'desc' }
+      ],
+      select: {
+        id: true,
+        titulo: true,
+        descripcion: true,
+        imageUrl: true,
+        link: true,
+        prioridad: true,
+        startAt: true,
+        endAt: true,
+        inventario: {
+          select: { code: true, name: true }
+        }
+      }
+    });
+    res.json(offers);
+  } catch (error) {
+    console.error('Error obteniendo ofertas', error);
+    res.status(500).json({ message: 'Error interno' });
+  }
+});
+
 // Pedidos (clientes y operadores)
 app.use('/api/pedidos', authGuard, pedidosRoutes);
 app.use('/api/cotizaciones', cotizacionesRoutes);
@@ -226,3 +270,4 @@ app.use('/api/cotizaciones', cotizacionesRoutes);
 app.use('/admin', authGuard, adminGuard, adminRoutes);
 
 export default app;
+
