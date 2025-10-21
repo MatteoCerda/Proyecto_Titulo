@@ -30,13 +30,25 @@ export interface CreatePedidoRequest {
     heightCm: number;
     sizeMode?: string;
     previewUrl?: string | null;
+    coverageRatio?: number;
+    outlinePath?: string | null;
+    pixelArea?: number;
+    trimmedWidthPx?: number;
+    trimmedHeightPx?: number;
   }>;
   placements?: Array<{
     x: number;
     y: number;
     width: number;
     height: number;
+    designWidth?: number;
+    designHeight?: number;
+    margin?: number;
+    itemId?: number;
+    copyIndex?: number;
     previewUrl?: string | null;
+    clipPath?: string | null;
+    rotation?: number;
   }>;
 }
 

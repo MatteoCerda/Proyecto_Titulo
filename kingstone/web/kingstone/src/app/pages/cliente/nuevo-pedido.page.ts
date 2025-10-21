@@ -1,4 +1,4 @@
-import { Component, OnDestroy, computed, signal, inject } from '@angular/core';
+import { Component, OnDestroy, computed, signal, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent } from '@ionic/angular/standalone';
@@ -6,6 +6,7 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { PedidosService, CreatePedidoRequest } from '../../services/pedidos.service';
 import { CartService } from '../../services/cart.service';
+import type { PackableItem, PackOptions, PackedPlacement } from '../../utils/polygon-packer';
 
 interface MaterialPreset {
   id: string;
@@ -29,6 +30,19 @@ interface DesignItem {
   sizeMode: SizeMode;
   customWidthCm?: number;
   customHeightCm?: number;
+  coverageRatio?: number;
+  outlinePath?: string | null;
+  trimmedWidthPx?: number;
+  trimmedHeightPx?: number;
+  pixelArea?: number;
+  polygon: Float32Array | null;
+}
+
+interface PackingMeta {
+  itemId: number;
+  copyIndex: number;
+  clipPath: string | null;
+  previewUrl: string | null;
 }
 
 interface Placement {
@@ -36,12 +50,25 @@ interface Placement {
   y: number;
   width: number;
   height: number;
+  designWidth: number;
+  designHeight: number;
+  margin: number;
+  rotation: number;
   previewUrl: string | null;
+  clipPath?: string | null;
+  itemId: number;
+  copyIndex: number;
 }
 
 interface ProcessedImage {
   url: string;
   aspectRatio: number;
+  clipPath: string | null;
+  coverage: number;
+  trimmedWidth: number;
+  trimmedHeight: number;
+  pixelArea: number;
+  polygon: Float32Array;
 }
 
 type SizeMode = 'width' | 'height' | 'custom';
@@ -51,6 +78,16 @@ interface PackResult {
   usedHeight: number;
 }
 
+type WorkerSuccessMessage = {
+  id: number;
+  type: 'success';
+  placements: Array<PackedPlacement<PackingMeta>>;
+  usedHeight: number;
+};
+
+type WorkerErrorMessage = { id: number; type: 'error'; message: string };
+type PackWorkerMessage = WorkerSuccessMessage | WorkerErrorMessage;
+
 @Component({
   standalone: true,
   imports: [CommonModule, IonContent, FormsModule, RouterLink],
@@ -59,9 +96,15 @@ interface PackResult {
 })
 export class NuevoPedidoPage implements OnDestroy {
   private nextId = 1;
-  private readonly packGap = 0.35;
+  private readonly cutMarginMm = 8;
+  private readonly defaultPolygon = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
+  private readonly maxPreviewDimension = 1400;
   private readonly pedidos = inject(PedidosService);
   private readonly cart = inject(CartService);
+  private packWorker: Worker;
+  private packDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private latestPackRequest = 0;
+  private readonly packResultState = signal<PackResult>({ placements: [], usedHeight: 0 });
 
   orderNote = '';
   submitting = false;
@@ -86,35 +129,137 @@ export class NuevoPedidoPage implements OnDestroy {
   currentMaterial = computed(() => this.materials.find(m => m.id === this.selectedMaterialId) ?? null);
 
   materialDescription = computed(() => this.currentMaterial()?.description ?? '');
+  packing = signal(false);
+  packResult = computed(() => this.packResultState());
 
-  private packResult = computed<PackResult>(() => {
+  constructor() {
+    this.packWorker = new Worker(new URL('../../workers/packer.worker', import.meta.url), { type: 'module' });
+    this.packWorker.onmessage = (event: MessageEvent<PackWorkerMessage>) => this.handleWorkerMessage(event.data);
+    this.packWorker.onerror = () => {
+      this.packing.set(false);
+    };
+
+    effect(() => {
+      const material = this.currentMaterial();
+      const items = this.items();
+      this.onInputsChanged(material, items);
+    }, { allowSignalWrites: true });
+  }
+
+
+  private onInputsChanged(material: MaterialPreset | null, items: DesignItem[]): void {
+    if (!material || !items.length) {
+      if (this.packDebounceTimer) {
+        clearTimeout(this.packDebounceTimer);
+        this.packDebounceTimer = null;
+      }
+      this.resetPackResult();
+      return;
+    }
+    this.schedulePack();
+  }
+
+  private schedulePack(): void {
+    if (this.packDebounceTimer) {
+      clearTimeout(this.packDebounceTimer);
+    }
+    this.packDebounceTimer = setTimeout(() => this.sendPackRequest(), 120);
+  }
+
+  private sendPackRequest(): void {
+    if (this.packDebounceTimer) {
+      clearTimeout(this.packDebounceTimer);
+      this.packDebounceTimer = null;
+    }
     const material = this.currentMaterial();
-    if (!material) return { placements: [], usedHeight: 0 };
-    const rollWidth = material.rollWidthCm || 1;
-    const rollHeight = 100;
-    const gap = this.packGap;
+    const items = this.items();
+    if (!material || !items.length) {
+      this.resetPackResult();
+      return;
+    }
 
-    const pieces = this.items().reduce<Array<{ width: number; height: number; previewUrl: string | null }>>((acc, item: DesignItem) => {
+    const packItems = this.buildPackItems(items);
+    if (!packItems.length) {
+      this.resetPackResult();
+      return;
+    }
+
+    this.packing.set(true);
+    const requestId = ++this.latestPackRequest;
+    const options: PackOptions = {
+      rollWidthCm: material.rollWidthCm,
+      marginMm: this.cutMarginMm,
+      rotationStepDeg: 15
+    };
+    this.packWorker.postMessage({ id: requestId, items: packItems, options });
+  }
+
+  private buildPackItems(items: DesignItem[]): Array<PackableItem<PackingMeta>> {
+    const packItems: Array<PackableItem<PackingMeta>> = [];
+    for (const item of items) {
+      const polygon = item.polygon && item.polygon.length >= 6 ? item.polygon : this.defaultPolygon;
       const dims = this.getEffectiveDimensions(item);
-      const copies = Array.from({ length: item.quantity }, () => ({
-        width: dims.width,
-        height: dims.height,
-        previewUrl: item.previewUrl
-      }));
-      acc.push(...copies);
-      return acc;
-    }, []);
+      for (let copyIndex = 0; copyIndex < item.quantity; copyIndex++) {
+        packItems.push({
+          widthCm: dims.width,
+          heightCm: dims.height,
+          polygon,
+          meta: {
+            itemId: item.id,
+            copyIndex,
+            clipPath: item.outlinePath ?? null,
+            previewUrl: item.previewUrl ?? null
+          }
+        });
+      }
+    }
+    return packItems;
+  }
 
-    return this.packPieces(rollWidth, rollHeight, pieces, gap);
-  });
+  private handleWorkerMessage(message: PackWorkerMessage): void {
+    if (message.id !== this.latestPackRequest) {
+      return;
+    }
+    this.packing.set(false);
+    if (message.type === 'error') {
+      console.warn('Pack worker error', message.message);
+      this.resetPackResult();
+      return;
+    }
 
-  placements = computed<Placement[]>(() => this.packResult().placements);
+    const placements: Placement[] = message.placements.map(place => ({
+      x: place.x,
+      y: place.y,
+      width: place.width,
+      height: place.height,
+      designWidth: place.designWidth,
+      designHeight: place.designHeight,
+      margin: place.margin,
+      rotation: place.rotation,
+      previewUrl: place.meta.previewUrl ?? null,
+      clipPath: place.clipPath ?? null,
+      itemId: place.meta.itemId,
+      copyIndex: place.meta.copyIndex
+    }));
+
+    this.packResultState.set({
+      placements,
+      usedHeight: Number(message.usedHeight.toFixed(2))
+    });
+  }
+
+  private resetPackResult(): void {
+    this.latestPackRequest++;
+    this.packing.set(false);
+    this.packResultState.set({ placements: [], usedHeight: 0 });
+  }
 
   columnOptions = computed(() => {
     const material = this.currentMaterial();
     if (!material) return [];
     const maxWidth = material.rollWidthCm || 1;
-    const maxColumns = Math.min(8, Math.floor(maxWidth / (5 + this.packGap)));
+    const spacing = this.cutSpacingCm();
+    const maxColumns = Math.min(8, Math.floor(maxWidth / (5 + spacing)));
     const options: number[] = [];
     for (let cols = 2; cols <= maxColumns; cols++) {
       options.push(cols);
@@ -145,7 +290,16 @@ export class NuevoPedidoPage implements OnDestroy {
       top: (cell.y / usedHeight) * 100,
       width: (cell.width / rollWidth) * 100,
       height: (cell.height / usedHeight) * 100,
-      previewUrl: cell.previewUrl
+      previewUrl: cell.previewUrl,
+      clipPath: cell.clipPath ?? null,
+      rotation: cell.rotation ?? 0,
+      margin: cell.margin,
+      contentWidth: cell.width > 0
+        ? Math.min(100, Math.max(5, (cell.designWidth / cell.width) * 100))
+        : 100,
+      contentHeight: cell.height > 0
+        ? Math.min(100, Math.max(5, (cell.designHeight / cell.height) * 100))
+        : 100
     }));
   });
 
@@ -240,7 +394,13 @@ export class NuevoPedidoPage implements OnDestroy {
         heightCm: 25 / aspect,
         aspectRatio: aspect,
         revokeOnDestroy: false,
-        sizeMode: 'width'
+        sizeMode: 'width',
+        coverageRatio: processed?.coverage ?? undefined,
+        outlinePath: processed?.clipPath ?? null,
+        trimmedWidthPx: processed?.trimmedWidth ?? undefined,
+        trimmedHeightPx: processed?.trimmedHeight ?? undefined,
+        pixelArea: processed?.pixelArea ?? undefined,
+        polygon: processed?.polygon ?? this.defaultPolygon
       };
       return this.withWidth(base, base.sizeCm);
     }
@@ -256,7 +416,13 @@ export class NuevoPedidoPage implements OnDestroy {
       heightCm: 25,
       aspectRatio: 1,
       revokeOnDestroy: false,
-      sizeMode: 'width'
+      sizeMode: 'width',
+      coverageRatio: 1,
+      outlinePath: null,
+      trimmedWidthPx: undefined,
+      trimmedHeightPx: undefined,
+      pixelArea: undefined,
+      polygon: this.defaultPolygon
     };
     return this.withWidth(fallback, fallback.sizeCm);
   }
@@ -267,18 +433,46 @@ export class NuevoPedidoPage implements OnDestroy {
       reader.onload = () => {
         const img = new Image();
         img.onload = () => {
+          const originalWidth = Math.max(1, img.naturalWidth || img.width || 1);
+          const originalHeight = Math.max(1, img.naturalHeight || img.height || 1);
+          const longestSide = Math.max(originalWidth, originalHeight);
+          const rawScale =
+            longestSide > this.maxPreviewDimension ? this.maxPreviewDimension / longestSide : 1;
+          const scale = Number.isFinite(rawScale) && rawScale > 0 ? rawScale : 1;
+          const targetWidth = Math.max(1, Math.round(originalWidth * scale));
+          const targetHeight = Math.max(1, Math.round(originalHeight * scale));
+          const scaleInverse = scale > 0 ? 1 / scale : 1;
+          const areaScale = scaleInverse * scaleInverse;
+
           const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
           const ctx = canvas.getContext('2d');
           if (!ctx) {
-            resolve(reader.result ? { url: reader.result as string, aspectRatio: img.width / img.height || 1 } : null);
+            if (reader.result) {
+              const rawUrl = reader.result as string;
+              resolve({
+                url: rawUrl,
+                aspectRatio: originalWidth / originalHeight || 1,
+                clipPath: null,
+                coverage: 1,
+                trimmedWidth: originalWidth,
+                trimmedHeight: originalHeight,
+                pixelArea: originalWidth * originalHeight,
+                polygon: this.defaultPolygon
+              });
+            } else {
+              resolve(null);
+            }
             return;
           }
-          ctx.drawImage(img, 0, 0);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+          const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
           const data = imageData.data;
-          const { width, height } = canvas;
+          const width = targetWidth;
+          const height = targetHeight;
 
           const samples: number[][] = [];
           const stepX = Math.max(1, Math.floor(width / 40));
@@ -296,10 +490,9 @@ export class NuevoPedidoPage implements OnDestroy {
             sample(width - 1, y);
           }
 
-          const [avgR, avgG, avgB] = samples.reduce(
-            (acc, [r, g, b]) => [acc[0] + r, acc[1] + g, acc[2] + b],
-            [0, 0, 0]
-          ).map(channel => channel / samples.length) as [number, number, number];
+          const [avgR, avgG, avgB] = samples
+            .reduce((acc, [r, g, b]) => [acc[0] + r, acc[1] + g, acc[2] + b], [0, 0, 0])
+            .map(channel => channel / samples.length) as [number, number, number];
           const avgBrightness = 0.2126 * avgR + 0.7152 * avgG + 0.0722 * avgB;
 
           const visited = new Uint8Array(width * height);
@@ -318,9 +511,7 @@ export class NuevoPedidoPage implements OnDestroy {
             const g = data[base + 1];
             const b = data[base + 2];
             const colorDist = Math.sqrt(
-              (r - avgR) * (r - avgR) +
-              (g - avgG) * (g - avgG) +
-              (b - avgB) * (b - avgB)
+              (r - avgR) * (r - avgR) + (g - avgG) * (g - avgG) + (b - avgB) * (b - avgB)
             );
             const brightness = 0.2126 * r + 0.7152 * g + 0.0722 * b;
             if (colorDist <= colorThreshold && Math.abs(brightness - avgBrightness) <= brightnessThreshold) {
@@ -375,35 +566,90 @@ export class NuevoPedidoPage implements OnDestroy {
           }
 
           if (maxX < minX || maxY < minY) {
-            resolve({ url: canvas.toDataURL('image/png'), aspectRatio: 1 });
+            const fallbackUrl = canvas.toDataURL('image/png');
+            const safeWidth = Math.max(1, Math.round(canvas.width * scaleInverse));
+            const safeHeight = Math.max(1, Math.round(canvas.height * scaleInverse));
+            resolve({
+              url: fallbackUrl,
+              aspectRatio: safeWidth / safeHeight || 1,
+              clipPath: null,
+              coverage: 0,
+              trimmedWidth: safeWidth,
+              trimmedHeight: safeHeight,
+              pixelArea: 0,
+              polygon: this.defaultPolygon
+            });
             return;
           }
 
           const trimmedWidth = maxX - minX + 1;
           const trimmedHeight = maxY - minY + 1;
           const trimmed = document.createElement('canvas');
-          trimmed.width = trimmedWidth;
-          trimmed.height = trimmedHeight;
+          const safeTrimmedWidth = Math.max(1, trimmedWidth);
+          const safeTrimmedHeight = Math.max(1, trimmedHeight);
+          trimmed.width = safeTrimmedWidth;
+          trimmed.height = safeTrimmedHeight;
           const trimmedCtx = trimmed.getContext('2d');
           if (!trimmedCtx) {
-            resolve({ url: canvas.toDataURL('image/png'), aspectRatio: trimmedWidth / trimmedHeight || 1 });
+            resolve({
+              url: canvas.toDataURL('image/png'),
+              aspectRatio: safeTrimmedWidth / safeTrimmedHeight || 1,
+              clipPath: null,
+              coverage: 1,
+              trimmedWidth: Math.max(1, Math.round(safeTrimmedWidth * scaleInverse)),
+              trimmedHeight: Math.max(1, Math.round(safeTrimmedHeight * scaleInverse)),
+              pixelArea: Math.max(1, Math.round(safeTrimmedWidth * safeTrimmedHeight * areaScale)),
+              polygon: this.defaultPolygon
+            });
             return;
           }
           trimmedCtx.putImageData(imageData, -minX, -minY);
-          const trimmedData = trimmedCtx.getImageData(0, 0, trimmedWidth, trimmedHeight);
+          const trimmedData = trimmedCtx.getImageData(0, 0, safeTrimmedWidth, safeTrimmedHeight);
           const tData = trimmedData.data;
-          const pad = Math.max(1, Math.floor(Math.max(trimmedWidth, trimmedHeight) * 0.02));
-          for (let py = 0; py < trimmedHeight; py++) {
-            for (let px = 0; px < trimmedWidth; px++) {
-              if (px < pad || px >= trimmedWidth - pad || py < pad || py >= trimmedHeight - pad) {
-                tData[(py * trimmedWidth + px) * 4 + 3] = 0;
+          const pad = Math.max(1, Math.floor(Math.max(safeTrimmedWidth, safeTrimmedHeight) * 0.02));
+          for (let py = 0; py < safeTrimmedHeight; py++) {
+            for (let px = 0; px < safeTrimmedWidth; px++) {
+              if (px < pad || px >= safeTrimmedWidth - pad || py < pad || py >= safeTrimmedHeight - pad) {
+                tData[(py * safeTrimmedWidth + px) * 4 + 3] = 0;
               }
             }
           }
           trimmedCtx.putImageData(trimmedData, 0, 0);
-          resolve({ url: trimmed.toDataURL('image/png'), aspectRatio: trimmedWidth / trimmedHeight || 1 });
+          const metrics = this.computeMaskMetrics(trimmedData, safeTrimmedWidth, safeTrimmedHeight);
+          const baseUrl = trimmed.toDataURL('image/png');
+          const trimmedWidthPx = Math.max(1, Math.round(safeTrimmedWidth * scaleInverse));
+          const trimmedHeightPx = Math.max(1, Math.round(safeTrimmedHeight * scaleInverse));
+          const pixelArea = Math.max(0, Math.round(metrics.pixelArea * areaScale));
+          resolve({
+            url: baseUrl,
+            aspectRatio: safeTrimmedWidth / safeTrimmedHeight || 1,
+            clipPath: metrics.clipPath,
+            coverage: metrics.coverage,
+            trimmedWidth: trimmedWidthPx,
+            trimmedHeight: trimmedHeightPx,
+            pixelArea,
+            polygon: metrics.polygon ?? this.defaultPolygon
+          });
         };
-        img.onerror = () => resolve(reader.result ? { url: reader.result as string, aspectRatio: 1 } : null);
+        img.onerror = () => {
+          if (reader.result) {
+            const fallbackUrl = reader.result as string;
+            const fallbackWidth = Math.max(1, img.naturalWidth || img.width || 1);
+            const fallbackHeight = Math.max(1, img.naturalHeight || img.height || 1);
+            resolve({
+              url: fallbackUrl,
+              aspectRatio: fallbackWidth / fallbackHeight || 1,
+              clipPath: null,
+              coverage: 1,
+              trimmedWidth: fallbackWidth,
+              trimmedHeight: fallbackHeight,
+              pixelArea: Math.max(1, fallbackWidth * fallbackHeight),
+              polygon: this.defaultPolygon
+            });
+          } else {
+            resolve(null);
+          }
+        };
         img.src = reader.result as string;
       };
       reader.onerror = () => resolve(null);
@@ -489,8 +735,8 @@ export class NuevoPedidoPage implements OnDestroy {
     const material = this.currentMaterial();
     if (!material || columns < 1) return;
     if (!this.columnOptions().includes(columns)) return;
-    const gap = this.packGap;
-    const available = material.rollWidthCm - columns * gap;
+    const spacing = this.cutSpacingCm();
+    const available = material.rollWidthCm - columns * spacing;
     if (available <= 0) return;
     const targetWidth = this.clampDisplay(Math.max(5, available / columns));
     this.updateItem(id, item => {
@@ -536,7 +782,12 @@ export class NuevoPedidoPage implements OnDestroy {
             widthCm: Number(dims.width.toFixed(2)),
             heightCm: Number(dims.height.toFixed(2)),
             sizeMode: item.sizeMode,
-            previewUrl: item.previewUrl
+            previewUrl: undefined, // omit base64 previews to keep payload liviano
+            coverageRatio: typeof item.coverageRatio === 'number' ? Number(item.coverageRatio.toFixed(4)) : undefined,
+            outlinePath: item.outlinePath ?? undefined,
+            pixelArea: typeof item.pixelArea === 'number' ? Math.round(item.pixelArea) : undefined,
+            trimmedWidthPx: item.trimmedWidthPx ?? undefined,
+            trimmedHeightPx: item.trimmedHeightPx ?? undefined
           };
         }),
         placements: pack.placements.map(cell => ({
@@ -544,7 +795,13 @@ export class NuevoPedidoPage implements OnDestroy {
           y: Number(cell.y.toFixed(2)),
           width: Number(cell.width.toFixed(2)),
           height: Number(cell.height.toFixed(2)),
-          previewUrl: cell.previewUrl
+          designWidth: Number(cell.designWidth.toFixed(2)),
+          designHeight: Number(cell.designHeight.toFixed(2)),
+          margin: Number(cell.margin.toFixed(2)),
+          itemId: cell.itemId,
+          copyIndex: cell.copyIndex,
+          clipPath: cell.clipPath ?? undefined,
+          rotation: cell.rotation
         }))
       };
 
@@ -603,6 +860,11 @@ export class NuevoPedidoPage implements OnDestroy {
     if (this.cartFeedbackTimer) {
       clearTimeout(this.cartFeedbackTimer);
     }
+    if (this.packDebounceTimer) {
+      clearTimeout(this.packDebounceTimer);
+      this.packDebounceTimer = null;
+    }
+    this.packWorker.terminate();
     this.items().forEach(item => {
       if (item.previewUrl && item.revokeOnDestroy) {
         URL.revokeObjectURL(item.previewUrl);
@@ -612,7 +874,7 @@ export class NuevoPedidoPage implements OnDestroy {
 
   private clampToMaterial(item: DesignItem, material: MaterialPreset | null): DesignItem {
     if (!material) return item;
-    const maxWidth = Math.max(5, material.rollWidthCm - this.packGap);
+    const maxWidth = Math.max(5, material.rollWidthCm - this.cutSpacingCm());
     const ratio = item.aspectRatio > 0 ? item.aspectRatio : 1;
     if (item.sizeMode === 'custom') {
       const width = this.clampDisplay(Math.min(Math.max(5, item.widthCm), maxWidth));
@@ -650,6 +912,10 @@ export class NuevoPedidoPage implements OnDestroy {
   private clampDisplay(value: number): number {
     const safe = Number.isFinite(value) ? value : 1;
     return Math.max(1, this.round(safe));
+  }
+
+  private cutSpacingCm(): number {
+    return Math.max(0.2, (this.cutMarginMm / 10) * 2);
   }
 
   private constrainPrimary(value: number): number {
@@ -723,120 +989,219 @@ export class NuevoPedidoPage implements OnDestroy {
     return { width, height };
   }
 
-  private packPieces(rollWidth: number, rollHeight: number, pieces: Array<{ width: number; height: number; previewUrl: string | null }>, gap: number): PackResult {
-    const sorted = [...pieces].sort((a, b) => Math.max(b.width, b.height) - Math.max(a.width, a.height));
-    const freeRects: Array<{ x: number; y: number; width: number; height: number }> = [{ x: 0, y: 0, width: rollWidth, height: rollHeight }];
-    const placements: Placement[] = [];
-    let canvasHeight = rollHeight;
-    let maxUsedHeight = 0;
-
-    const addFreeRect = (rect: { x: number; y: number; width: number; height: number }) => {
-      if (rect.width <= 0.05 || rect.height <= 0.05) return;
-      freeRects.push(rect);
-    };
-
-    const prune = () => {
-      for (let i = 0; i < freeRects.length; i++) {
-        for (let j = 0; j < freeRects.length; j++) {
-          if (i === j) continue;
-          const a = freeRects[i];
-          const b = freeRects[j];
-          if (a.x >= b.x && a.y >= b.y && a.x + a.width <= b.x + b.width && a.y + a.height <= b.y + b.height) {
-            freeRects.splice(i, 1);
-            i--;
-            break;
-          }
-        }
+  private computeMaskMetrics(imageData: ImageData, width: number, height: number): { clipPath: string | null; coverage: number; pixelArea: number; polygon: Float32Array | null } {
+    const totalPixels = Math.max(1, width * height);
+    const data = imageData.data;
+    const mask = new Uint8Array(totalPixels);
+    let occupied = 0;
+    for (let idx = 0; idx < totalPixels; idx++) {
+      if (data[idx * 4 + 3] > 10) {
+        mask[idx] = 1;
+        occupied++;
       }
-    };
-
-    for (const piece of sorted) {
-      let placed = false;
-      let attempts = 0;
-      const orientations = [
-        { width: piece.width, height: piece.height },
-        { width: piece.height, height: piece.width }
-      ];
-      const canFitWidth = orientations.some(orientation => orientation.width + gap <= rollWidth + 1e-6);
-      if (!canFitWidth) {
-        continue;
-      }
-
-      while (!placed && attempts < 50) {
-        attempts++;
-        let bestIndex = -1;
-        let bestTop = Number.POSITIVE_INFINITY;
-        let bestLeft = Number.POSITIVE_INFINITY;
-        let bestWaste = Number.POSITIVE_INFINITY;
-        let bestOrientation: { width: number; height: number } | null = null;
-
-        for (let index = 0; index < freeRects.length; index++) {
-          const rect = freeRects[index];
-
-          for (const orientation of orientations) {
-            const neededWidth = orientation.width + gap;
-            const neededHeight = orientation.height + gap;
-            if (neededWidth <= rect.width + 1e-6 && neededHeight <= rect.height + 1e-6) {
-              const top = rect.y;
-              const left = rect.x;
-              const waste = rect.width * rect.height - neededWidth * neededHeight;
-              const isBetterTop = top < bestTop - 1e-6;
-              const isSameTop = Math.abs(top - bestTop) < 1e-6;
-              const isBetterLeft = left < bestLeft - 1e-6;
-              const isSameLeft = Math.abs(left - bestLeft) < 1e-6;
-              const shouldUse =
-                isBetterTop ||
-                (isSameTop && (isBetterLeft || (isSameLeft && waste < bestWaste - 1e-6)));
-              if (shouldUse) {
-                bestTop = top;
-                bestLeft = left;
-                bestWaste = waste;
-                bestIndex = index;
-                bestOrientation = orientation;
-              }
-            }
-          }
-        }
-
-        if (bestIndex === -1 || !bestOrientation) {
-          const extensionHeight = Math.max(piece.height + gap, 2);
-          freeRects.push({ x: 0, y: canvasHeight, width: rollWidth, height: extensionHeight });
-          canvasHeight += extensionHeight;
-          prune();
-          continue;
-        }
-
-        const rect = freeRects.splice(bestIndex, 1)[0];
-        const orientation = bestOrientation;
-        const usedWidth = orientation.width + gap;
-        const usedHeight = orientation.height + gap;
-
-        placements.push({
-          x: rect.x + gap / 2,
-          y: rect.y + gap / 2,
-          width: orientation.width,
-          height: orientation.height,
-          previewUrl: piece.previewUrl
-        });
-
-      const rightWidth = rect.width - usedWidth;
-      const bottomHeight = rect.height - usedHeight;
-
-      if (rightWidth > 0.1) {
-        addFreeRect({ x: rect.x + usedWidth, y: rect.y, width: rightWidth, height: rect.height });
-      }
-      if (bottomHeight > 0.1) {
-        addFreeRect({ x: rect.x, y: rect.y + usedHeight, width: usedWidth, height: bottomHeight });
-      }
-
-      maxUsedHeight = Math.max(maxUsedHeight, rect.y + usedHeight);
-      prune();
-      freeRects.sort((a, b) => (a.y === b.y ? a.x - b.x : a.y - b.y));
-      placed = true;
     }
+    if (!occupied) {
+      return { clipPath: null, coverage: 0, pixelArea: 0, polygon: null };
+    }
+
+    const component = this.extractLargestComponent(mask, width, height);
+    const outlinePoints = component ? this.traceOutline(component, width, height) : null;
+    const clipPath =
+      outlinePoints && outlinePoints.length >= 3 ? this.buildClipPath(outlinePoints, width, height) : null;
+
+    let polygon: Float32Array | null = null;
+    if (outlinePoints && outlinePoints.length >= 3) {
+      polygon = new Float32Array(outlinePoints.length * 2);
+      for (let i = 0; i < outlinePoints.length; i++) {
+        const point = outlinePoints[i];
+        polygon[i * 2] = (point.x + 0.5) / width;
+        polygon[i * 2 + 1] = (point.y + 0.5) / height;
+      }
+    }
+
+    return {
+      clipPath,
+      coverage: occupied / totalPixels,
+      pixelArea: occupied,
+      polygon
+    };
   }
 
-    return { placements, usedHeight: maxUsedHeight };
+  private extractLargestComponent(mask: Uint8Array, width: number, height: number): Uint8Array | null {
+    const total = mask.length;
+    const visited = new Uint8Array(total);
+    const neighborOffsets = [
+      { dx: 1, dy: 0 },
+      { dx: -1, dy: 0 },
+      { dx: 0, dy: 1 },
+      { dx: 0, dy: -1 },
+      { dx: 1, dy: 1 },
+      { dx: -1, dy: 1 },
+      { dx: 1, dy: -1 },
+      { dx: -1, dy: -1 }
+    ];
+
+    let bestStart = -1;
+    let bestSize = 0;
+
+    for (let idx = 0; idx < total; idx++) {
+      if (!mask[idx] || visited[idx]) continue;
+      const stack: number[] = [idx];
+      visited[idx] = 1;
+      let size = 0;
+      while (stack.length) {
+        const current = stack.pop()!;
+        size++;
+        const cx = current % width;
+        const cy = Math.floor(current / width);
+        for (const { dx, dy } of neighborOffsets) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+          const nIdx = ny * width + nx;
+          if (!mask[nIdx] || visited[nIdx]) continue;
+          visited[nIdx] = 1;
+          stack.push(nIdx);
+        }
+      }
+      if (size > bestSize) {
+        bestSize = size;
+        bestStart = idx;
+      }
+    }
+
+    if (bestStart === -1) {
+      return null;
+    }
+
+    const component = new Uint8Array(total);
+    const queue: number[] = [bestStart];
+    component[bestStart] = 1;
+    while (queue.length) {
+      const current = queue.pop()!;
+      const cx = current % width;
+      const cy = Math.floor(current / width);
+      for (const { dx, dy } of neighborOffsets) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        const nIdx = ny * width + nx;
+        if (!mask[nIdx] || component[nIdx]) continue;
+        component[nIdx] = 1;
+        queue.push(nIdx);
+      }
+    }
+
+    return component;
+  }
+
+  private traceOutline(component: Uint8Array, width: number, height: number): Array<{ x: number; y: number }> | null {
+    const get = (x: number, y: number) => {
+      if (x < 0 || y < 0 || x >= width || y >= height) return 0;
+      return component[y * width + x];
+    };
+
+    let startX = -1;
+    let startY = -1;
+    outer: for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (!get(x, y)) continue;
+        if (!get(x - 1, y) || !get(x + 1, y) || !get(x, y - 1) || !get(x, y + 1)) {
+          startX = x;
+          startY = y;
+          break outer;
+        }
+      }
+    }
+
+    if (startX === -1 || startY === -1) {
+      return null;
+    }
+
+    const neighbors = [
+      { dx: 0, dy: -1 },
+      { dx: 1, dy: -1 },
+      { dx: 1, dy: 0 },
+      { dx: 1, dy: 1 },
+      { dx: 0, dy: 1 },
+      { dx: -1, dy: 1 },
+      { dx: -1, dy: 0 },
+      { dx: -1, dy: -1 }
+    ];
+
+    const outline: Array<{ x: number; y: number }> = [];
+    let currentX = startX;
+    let currentY = startY;
+    let prevX = startX - 1;
+    let prevY = startY;
+    let guard = 0;
+    const guardLimit = width * height * 8;
+
+    do {
+      outline.push({ x: currentX, y: currentY });
+      let startDir = neighbors.findIndex(n => currentX + n.dx === prevX && currentY + n.dy === prevY);
+      if (startDir === -1) startDir = 0;
+      let found = false;
+      for (let offset = 1; offset <= neighbors.length; offset++) {
+        const dirIndex = (startDir + offset) % neighbors.length;
+        const n = neighbors[dirIndex];
+        const nx = currentX + n.dx;
+        const ny = currentY + n.dy;
+        if (!get(nx, ny)) continue;
+        prevX = currentX;
+        prevY = currentY;
+        currentX = nx;
+        currentY = ny;
+        found = true;
+        break;
+      }
+      if (!found) {
+        break;
+      }
+      guard++;
+    } while ((currentX !== startX || currentY !== startY || prevX !== startX - 1 || prevY !== startY) && guard < guardLimit);
+
+    if (outline.length < 3) {
+      return null;
+    }
+
+    return this.simplifyOutline(outline);
+  }
+
+  private simplifyOutline(points: Array<{ x: number; y: number }>, maxPoints = 240): Array<{ x: number; y: number }> {
+    if (points.length <= maxPoints) {
+      return points;
+    }
+    const step = Math.max(1, Math.floor(points.length / maxPoints));
+    const simplified: Array<{ x: number; y: number }> = [];
+    for (let i = 0; i < points.length; i += step) {
+      simplified.push(points[i]);
+    }
+    const lastPoint = points[points.length - 1];
+    const lastSimplified = simplified[simplified.length - 1];
+    if (!lastSimplified || lastSimplified.x !== lastPoint.x || lastSimplified.y !== lastPoint.y) {
+      simplified.push(lastPoint);
+    }
+    return simplified;
+  }
+
+  private buildClipPath(points: Array<{ x: number; y: number }>, width: number, height: number, rotate90 = false): string | null {
+    if (!points.length) return null;
+    const commands: string[] = [];
+    const targetWidth = rotate90 ? height : width;
+    const targetHeight = rotate90 ? width : height;
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i];
+      const baseX = point.x + 0.5;
+      const baseY = point.y + 0.5;
+      const adjustedX = rotate90 ? height - baseY : baseX;
+      const adjustedY = rotate90 ? baseX : baseY;
+      const xPercent = (adjustedX / targetWidth) * 100;
+      const yPercent = (adjustedY / targetHeight) * 100;
+      commands.push(`${i === 0 ? 'M' : 'L'} ${xPercent.toFixed(2)}% ${yPercent.toFixed(2)}%`);
+    }
+    commands.push('Z');
+    return `path("${commands.join(' ')}")`;
   }
 
   private setCartFeedback(type: 'success' | 'error', message: string) {
@@ -849,3 +1214,8 @@ export class NuevoPedidoPage implements OnDestroy {
     }, 4000);
   }
 }
+
+
+
+
+

@@ -11,7 +11,12 @@ const itemSchema = z.object({
   widthCm: z.number().nonnegative(),
   heightCm: z.number().nonnegative(),
   sizeMode: z.string().optional(),
-  previewUrl: z.string().optional().or(z.null()).optional()
+  previewUrl: z.string().optional().or(z.null()).optional(),
+  coverageRatio: z.number().min(0).max(1).optional(),
+  outlinePath: z.string().max(20000).optional().or(z.null()).optional(),
+  pixelArea: z.number().nonnegative().optional(),
+  trimmedWidthPx: z.number().nonnegative().optional(),
+  trimmedHeightPx: z.number().nonnegative().optional()
 });
 
 const placementSchema = z.object({
@@ -19,7 +24,14 @@ const placementSchema = z.object({
   y: z.number(),
   width: z.number(),
   height: z.number(),
-  previewUrl: z.string().optional().or(z.null()).optional()
+  previewUrl: z.string().optional().or(z.null()).optional(),
+  clipPath: z.string().optional().or(z.null()).optional(),
+  rotation: z.number().optional(),
+  designWidth: z.number().nonnegative().optional(),
+  designHeight: z.number().nonnegative().optional(),
+  margin: z.number().nonnegative().optional(),
+  itemId: z.number().int().optional(),
+  copyIndex: z.number().int().optional()
 });
 
 const createSchema = z.object({

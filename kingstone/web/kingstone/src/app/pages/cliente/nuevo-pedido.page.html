@@ -42,8 +42,16 @@
           <article *ngFor="let item of items(); index as idx" class="item-card">
             <div class="badge">{{ idx + 1 }}</div>
             <div class="preview" (click)="openPreview(item)">
-              <img *ngIf="item.previewUrl" [src]="item.previewUrl" [alt]="item.displayName" />
-              <div *ngIf="!item.previewUrl" class="placeholder">Archivo</div>
+              <div class="preview-media"
+                   *ngIf="item.previewUrl; else previewPlaceholder"
+                   [class.has-clip]="!!item.outlinePath"
+                   [style.clipPath]="item.outlinePath || ''"
+                   [style.webkitClipPath]="item.outlinePath || ''">
+                <img [src]="item.previewUrl" [alt]="item.displayName" />
+              </div>
+              <ng-template #previewPlaceholder>
+                <div class="placeholder">Archivo</div>
+              </ng-template>
             </div>
             <div class="info">
               <div class="name">{{ item.displayName }}</div>
@@ -80,6 +88,9 @@
                       <small *ngIf="item.sizeMode !== 'custom'">Ajustamos la otra medida automaticamente para mantener la proporcion original.</small>
                       <small *ngIf="item.sizeMode === 'custom'" class="warn">Definir ambos valores puede deformar la imagen.</small>
                       <small *ngIf="getSizeNote(item) as note">{{ note }}</small>
+                      <small *ngIf="item.coverageRatio !== undefined">
+                        Cobertura real: {{ item.coverageRatio! * 100 | number:'1.0-0' }}%
+                      </small>
                     </div>
                   </div>
                   <div class="smart-fit" *ngIf="columnOptions().length">
@@ -157,7 +168,18 @@
                  [style.top.%]="cell.top"
                  [style.width.%]="cell.width"
                  [style.height.%]="cell.height">
-              <img *ngIf="cell.previewUrl" [src]="cell.previewUrl" alt="Preview pieza" />
+              <div class="panel-piece"
+                   [attr.title]="'Ancho total: ' + (cell.width | number:'1.0-1') + ' cm · Alto total: ' + (cell.height | number:'1.0-1') + ' cm'">
+                <div class="panel-piece-inner"
+                     [class.has-clip]="!!cell.clipPath"
+                     [style.width.%]="cell.contentWidth"
+                     [style.height.%]="cell.contentHeight"
+                     [style.clipPath]="cell.clipPath || ''"
+                     [style.webkitClipPath]="cell.clipPath || ''"
+                     [style.transform]="'rotate(' + cell.rotation + 'deg)'">
+                  <img *ngIf="cell.previewUrl" [src]="cell.previewUrl" alt="Preview pieza" />
+                </div>
+              </div>
             </div>
             <span class="panel-watermark" *ngIf="currentMaterial()">
               Ancho {{ currentMaterial()?.rollWidthCm }} cm
