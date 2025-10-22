@@ -14,9 +14,9 @@
   display: grid;
   grid-template-columns: auto 1fr auto; /* logo | nav | acciones */
   align-items: center;
-  width: min(1180px, 100%);
-  margin: 0 auto;
-  padding: 6px 16px;
+  width: 100%;           /* ocupar todo el viewport */
+  margin: 0;             /* sin centrado */
+  padding: 0;            /* sin padding lateral para pegar a los bordes */
   gap: 18px;
 }
 
@@ -80,6 +80,7 @@
   gap: 12px;
   align-items: center;
 }
+.ks-actions .welcome { color:#e2e8f0; font-size:14px; margin-right:8px; white-space:nowrap; }
 
 .icon-btn {
   background: none;

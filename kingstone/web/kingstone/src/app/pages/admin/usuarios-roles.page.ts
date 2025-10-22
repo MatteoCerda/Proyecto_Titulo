@@ -1,7 +1,8 @@
-import { Component, signal, computed, inject } from '@angular/core';
+﻿import { Component, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent, IonIcon } from '@ionic/angular/standalone';
+import { AlertController } from '@ionic/angular';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 
@@ -29,6 +30,42 @@ interface NewUserPayload {
   imports: [CommonModule, FormsModule, IonContent, IonIcon],
   template: `
   <ion-content class="users-wrap">
+    <!-- Modal Cambiar Perfil -->
+    <div class="modal-backdrop" *ngIf="showRoleModal">
+      <div class="modal small">
+        <h2>Cambiar perfil</h2>
+        <div class="modal-body">
+          <p class="muted">Selecciona el nuevo rol para <strong>{{ roleIds.length }}</strong> usuario(s)</p>
+          <div class="role-grid">
+            <button type="button" class="role-card" [class.selected]="roleChoice==='user'" (click)="roleChoice='user'">
+              <ion-icon name="person-outline"></ion-icon>
+              <div>
+                <div class="role-title">Cliente</div>
+                <div class="role-desc">Acceso a compras y pedidos.</div>
+              </div>
+            </button>
+            <button type="button" class="role-card" [class.selected]="roleChoice==='admin'" (click)="roleChoice='admin'">
+              <ion-icon name="shield-checkmark-outline"></ion-icon>
+              <div>
+                <div class="role-title">Administrador</div>
+                <div class="role-desc">Gestión completa del sistema.</div>
+              </div>
+            </button>
+            <button type="button" class="role-card" [class.selected]="roleChoice==='operator'" (click)="roleChoice='operator'">
+              <ion-icon name="construct-outline"></ion-icon>
+              <div>
+                <div class="role-title">Operador</div>
+                <div class="role-desc">Centro de operaciones y tareas.</div>
+              </div>
+            </button>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn primary" (click)="applyRoleChange()">Aplicar</button>
+          <button type="button" class="btn secondary" (click)="closeRoleModal()">Cancelar</button>
+        </div>
+      </div>
+    </div>
     <div class="modal-backdrop" *ngIf="showModal">
       <div class="modal">
         <h2>Nuevo usuario</h2>
@@ -96,7 +133,7 @@ interface NewUserPayload {
         <div class="th select"><input type="checkbox" [checked]="allSelected()" (change)="toggleSelectAll($event)"></div>
         <div class="th user" (click)="toggleSort()">Nombre de usuario <span class="sort" [class.desc]="sortDesc">^</span></div>
         <div class="th name">Nombre</div>
-        <div class="th email">Correo Electrónico</div>
+        <div class="th email">Correo electrónico</div>
         <div class="th role">Perfil</div>
       </div>
       <div class="row" *ngFor="let u of filteredSorted()">
@@ -199,6 +236,21 @@ interface NewUserPayload {
       gap:10px;
       margin-top:18px;
     }
+    .modal.small { max-width: 720px; width: min(720px, 92vw); }
+    .radio-group { display:flex; flex-direction:column; gap:10px; margin-top:8px; }
+    .radio { display:flex; align-items:center; gap:10px; font-size:14px; }
+    .muted { color:#475569; margin:0 0 8px; }
+    /* Grid que se adapta al ancho del modal, evitando desbordes */
+    .role-grid { display:grid; gap:12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    .role-card {
+      background:#0c4a6e0f; border:1px solid #cbd5e1; border-radius:10px; padding:12px; text-align:left;
+      display:flex; gap:10px; align-items:center; cursor:pointer; transition:border .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+    .role-card:hover { border-color:#0c4a6e; box-shadow:0 6px 16px rgba(12,74,110,0.18); }
+    .role-card.selected { border-color:#0c4a6e; background:#0c4a6e12; box-shadow:0 8px 18px rgba(12,74,110,0.22); }
+    .role-card ion-icon { font-size:22px; color:#0c4a6e; }
+    .role-title { font-weight:700; }
+    .role-desc { font-size:12px; color:#64748b; }
     .error { color:#b91c1c; font-size:13px; }
     `
   ]
@@ -207,6 +259,9 @@ export class AdminUsuariosRolesPage {
   private http = inject(HttpClient);
   private router = inject(Router);
 
+  // Lista completa (todas las categorías)
+  allUsers = signal<UserVM[]>([]);
+  // Señal existente usada por la tabla (puede coincidir con allUsers)
   users = signal<UserVM[]>([]);
   query = '';
   activeTab: 'all' | 'client' | 'admin' | 'operator' = 'all';
@@ -219,24 +274,28 @@ export class AdminUsuariosRolesPage {
   newUser: NewUserPayload = { fullName: '', email: '', password: '', role: 'user' };
   newUserError = '';
 
-  total = computed(() => this.users().length);
-  countBy = (r: Role) => this.users().filter(u => u.role === r).length;
+  // Cambiar rol modal
+  showRoleModal = false;
+  roleChoice: 'user'|'admin'|'operator' = 'user';
+  roleIds: number[] = [];
+
+  total = computed(() => this.allUsers().length);
+  countBy = (r: Role) => this.allUsers().filter(u => u.role === r).length;
+
+  private baseListByTab(): UserVM[] {
+    const list = this.allUsers();
+    if (this.activeTab === 'client') return list.filter(u => u.role === 'CLIENT');
+    if (this.activeTab === 'admin') return list.filter(u => u.role === 'ADMIN');
+    if (this.activeTab === 'operator') return list.filter(u => u.role === 'OPERATOR');
+    return list;
+  }
 
   filteredSorted() {
     const q = this.query.trim().toLowerCase();
-    const roleFilter =
-      this.activeTab === 'client'
-        ? 'CLIENT'
-        : this.activeTab === 'admin'
-          ? 'ADMIN'
-          : this.activeTab === 'operator'
-            ? 'OPERATOR'
-            : undefined;
-    return this.users()
+    return this.baseListByTab()
       .filter(u => {
         const inText = !q || [u.username, u.fullName, u.email].some(s => s.toLowerCase().includes(q));
-        const inRole = !roleFilter || u.role === roleFilter;
-        return inText && inRole;
+        return inText;
       })
       .sort((a, b) => {
         const va = a.username.toLowerCase();
@@ -272,10 +331,8 @@ export class AdminUsuariosRolesPage {
   }
 
   load() {
+    // Siempre traemos todos para mantener los contadores correctos
     const params: any = {};
-    if (this.activeTab === 'client') params.role = 'user';
-    if (this.activeTab === 'admin') params.role = 'admin';
-    if (this.activeTab === 'operator') params.role = 'operator';
     if (this.query?.trim()) params.q = this.query.trim();
 
     this.http.get<any[]>(`http://localhost:3000/admin/users`, { params }).subscribe({
@@ -293,6 +350,7 @@ export class AdminUsuariosRolesPage {
           email: u.email,
           role: mapRole(u.role)
         }) as UserVM);
+        this.allUsers.set(vm);
         this.users.set(vm);
         this.error.set(null);
       },
@@ -329,11 +387,11 @@ export class AdminUsuariosRolesPage {
       return;
     }
     if (!this.isValidEmail(email)) {
-      this.newUserError = 'El correo no es válido.';
+      this.newUserError = 'El correo no es vÃ¡lido.';
       return;
     }
     if (!password || password.length < 6) {
-      this.newUserError = 'La contraseña debe tener al menos 6 caracteres.';
+      this.newUserError = 'La contraseÃ±a debe tener al menos 6 caracteres.';
       return;
     }
 
@@ -354,7 +412,7 @@ export class AdminUsuariosRolesPage {
         this.saving = false;
         const issues = err?.error?.issues;
         if (Array.isArray(issues) && issues.length) {
-          this.newUserError = issues[0]?.message || 'Datos inválidos.';
+          this.newUserError = issues[0]?.message || 'Datos invÃ¡lidos.';
           return;
         }
         this.newUserError = err?.error?.message || 'No se pudo crear el usuario.';
@@ -373,15 +431,17 @@ export class AdminUsuariosRolesPage {
   changeRole() {
     const sel = this.users().filter(u => u.selected);
     if (sel.length === 0) return;
-    const to = prompt('Nuevo rol para seleccionados (admin|user|operator):', 'user');
-    if (!to) return;
-    const normalized = to.trim().toLowerCase();
-    if (!['admin', 'user', 'operator'].includes(normalized)) {
-      alert('Rol no valido. Usa admin, user u operator.');
-      return;
-    }
-    sel.forEach(u => {
-      this.http.patch(`http://localhost:3000/admin/users/${u.id}`, { role: normalized }).subscribe(() => this.load());
+    this.roleIds = sel.map(s => s.id);
+    this.roleChoice = 'user';
+    this.showRoleModal = true;
+  }
+  closeRoleModal() { this.showRoleModal = false; }
+  applyRoleChange() {
+    const role = this.roleChoice;
+    const ids = [...this.roleIds];
+    this.showRoleModal = false;
+    ids.forEach(id => {
+      this.http.patch(`http://localhost:3000/admin/users/${id}`, { role }).subscribe({ next: () => this.load() });
     });
   }
 
@@ -397,3 +457,5 @@ export class AdminUsuariosRolesPage {
     return pattern.test(email);
   }
 }
+
+

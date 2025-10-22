@@ -1,67 +1,50 @@
-<ion-content class="ion-padding">
-  <h1>Mi Perfil</h1>
+<ion-content class="profile-content">
+  <div class="profile-wrap">
+    <div class="card">
+      <div class="card-head">
+        <div class="avatar"><span>{{ (form.value.fullName || auth.getEmail() || '?').slice(0,1).toUpperCase() }}</span></div>
+        <div class="head-info">
+          <h1>Mi Perfil</h1>
+          <p class="muted">{{ form.get('email')?.value }}</p>
+        </div>
+      </div>
 
-  <form [formGroup]="form" (ngSubmit)="onSubmit()">
-    <ion-list lines="full">
-      <ion-item>
-        <ion-label position="stacked">Correo electrónico</ion-label>
-        <ion-input type="email" formControlName="email"></ion-input>
-      </ion-item>
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <h3>Información personal</h3>
+        <div class="grid">
+          <ion-item class="field"><ion-label position="stacked">Correo electrónico</ion-label><ion-input type="email" formControlName="email"></ion-input></ion-item>
+          <ion-item class="field"><ion-label position="stacked">Nombre completo</ion-label><ion-input type="text" formControlName="fullName" placeholder="Tu nombre"></ion-input></ion-item>
+        </div>
 
-      <ion-item>
-        <ion-label position="stacked">Nombre completo</ion-label>
-        <ion-input type="text" formControlName="fullName" placeholder="Tu nombre"></ion-input>
-      </ion-item>
-      <!-- Campos de perfil de cliente -->
-      <ion-item>
-        <ion-label position="stacked">RUT</ion-label>
-        <ion-input type="text" [formControl]="clientForm.controls.rut"></ion-input>
-      </ion-item>
-      <ion-item>
-        <ion-label position="stacked">Teléfono</ion-label>
-        <ion-input type="tel" [formControl]="clientForm.controls.telefono"></ion-input>
-      </ion-item>
-      <ion-item>
-        <ion-label position="stacked">Dirección</ion-label>
-        <ion-input type="text" [formControl]="clientForm.controls.direccion"></ion-input>
-      </ion-item>
-      <ion-item>
-        <ion-label position="stacked">Comuna</ion-label>
-        <ion-input type="text" [formControl]="clientForm.controls.comuna"></ion-input>
-      </ion-item>
-      <ion-item>
-        <ion-label position="stacked">Ciudad</ion-label>
-        <ion-input type="text" [formControl]="clientForm.controls.ciudad"></ion-input>
-      </ion-item>
-    </ion-list>
+        <h3>Datos de contacto</h3>
+        <div class="grid">
+          <ion-item class="field"><ion-label position="stacked">RUT</ion-label><ion-input type="text" [formControl]="clientForm.controls.rut"></ion-input></ion-item>
+          <ion-item class="field"><ion-label position="stacked">Teléfono</ion-label><ion-input type="tel" [formControl]="clientForm.controls.telefono"></ion-input></ion-item>
+          <ion-item class="field"><ion-label position="stacked">Dirección</ion-label><ion-input type="text" [formControl]="clientForm.controls.direccion"></ion-input></ion-item>
+          <ion-item class="field"><ion-label position="stacked">Comuna</ion-label><ion-input type="text" [formControl]="clientForm.controls.comuna"></ion-input></ion-item>
+          <ion-item class="field"><ion-label position="stacked">Ciudad</ion-label><ion-input type="text" [formControl]="clientForm.controls.ciudad"></ion-input></ion-item>
+        </div>
 
-    <ion-button expand="block" class="ion-margin-top" type="submit" [disabled]="form.invalid || loading()">
-      Guardar perfil
-    </ion-button>
-  </form>
+        <div class="actions">
+          <ion-button type="submit" [disabled]="form.invalid || loading()">Guardar perfil</ion-button>
+          <ion-button color="medium" fill="outline" (click)="logout()">Cerrar sesión</ion-button>
+        </div>
+      </form>
+    </div>
 
-  <h2 class="ion-margin-top">Cambiar contraseña</h2>
-  <form [formGroup]="passForm" (ngSubmit)="onSubmitPassword()">
-    <ion-list lines="full">
-      <ion-item>
-        <ion-label position="stacked">Contraseña actual</ion-label>
-        <ion-input type="password" formControlName="currentPassword" placeholder="Tu contraseña actual"></ion-input>
-      </ion-item>
-      <ion-item>
-        <ion-label position="stacked">Nueva contraseña</ion-label>
-        <ion-input type="password" formControlName="newPassword" placeholder="Mínimo 6 caracteres"></ion-input>
-      </ion-item>
-      <ion-item>
-        <ion-label position="stacked">Confirmar nueva contraseña</ion-label>
-        <ion-input type="password" formControlName="confirmNewPassword" placeholder="Repite la nueva contraseña"></ion-input>
-      </ion-item>
-    </ion-list>
-    <ion-button expand="block" class="ion-margin-top" type="submit" [disabled]="passForm.invalid || loading()">
-      Actualizar contraseña
-    </ion-button>
-  </form>
-
-  <ion-button expand="block" color="medium" fill="outline" class="ion-margin-top" (click)="logout()">
-    Cerrar sesion
-  </ion-button>
+    <div class="card">
+      <h3>Cambiar contraseña</h3>
+      <form [formGroup]="passForm" (ngSubmit)="onSubmitPassword()">
+        <div class="grid">
+          <ion-item class="field"><ion-label position="stacked">Contraseña actual</ion-label><ion-input type="password" formControlName="currentPassword" placeholder="Tu contraseña actual"></ion-input></ion-item>
+          <ion-item class="field"><ion-label position="stacked">Nueva contraseña</ion-label><ion-input type="password" formControlName="newPassword" placeholder="Mínimo 6 caracteres"></ion-input></ion-item>
+          <ion-item class="field"><ion-label position="stacked">Confirmar nueva contraseña</ion-label><ion-input type="password" formControlName="confirmNewPassword" placeholder="Repite la nueva contraseña"></ion-input></ion-item>
+        </div>
+        <div class="actions">
+          <ion-button type="submit" [disabled]="passForm.invalid || loading()">Actualizar contraseña</ion-button>
+        </div>
+      </form>
+    </div>
+  </div>
 </ion-content>
+

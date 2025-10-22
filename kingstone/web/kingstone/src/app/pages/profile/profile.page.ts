@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+﻿import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { IonContent, IonItem, IonLabel, IonInput, IonButton, IonList } from '@ionic/angular/standalone';
 import { AuthService } from '../../core/auth.service';
@@ -14,7 +14,7 @@ import { Router } from '@angular/router';
 })
 export class ProfilePage {
   private fb = inject(FormBuilder);
-  private auth = inject(AuthService);
+  readonly auth = inject(AuthService);
   private toast = inject(ToastController);
   private router = inject(Router);
 
@@ -96,7 +96,7 @@ export class ProfilePage {
     if (this.passForm.invalid) return;
     const { currentPassword, newPassword, confirmNewPassword } = this.passForm.value;
     if (newPassword !== confirmNewPassword) {
-      const t = await this.toast.create({ message: 'Las contraseñas no coinciden', duration: 2000, position: 'top', color: 'warning' });
+      const t = await this.toast.create({ message: 'Las contraseñÃ±as no coinciden', duration: 2000, position: 'top', color: 'warning' });
       await t.present();
       return;
     }
@@ -120,3 +120,6 @@ export class ProfilePage {
     this.router.navigateByUrl('/login', { replaceUrl: true });
   }
 }
+
+
+

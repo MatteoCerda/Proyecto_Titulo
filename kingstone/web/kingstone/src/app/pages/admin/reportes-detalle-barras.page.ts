@@ -40,6 +40,33 @@ export class AdminReporteBarrasPage {
   constructor(private router: Router) {}
   back(){ this.router.navigateByUrl('/admin/reportes'); }
   exportPNG(src: string, name: string){ const a = document.createElement('a'); a.href = src; a.download = `${name}.png`; a.click(); }
-  exportPDF(src: string, name: string){ const w = window.open('', '_blank'); if(!w) return; w.document.write(`<html><head><title>${name}</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;"><img src="${src}" style="max-width:100%;max-height:100vh;"/></body></html>`); w.document.close(); w.focus(); setTimeout(()=>w.print(),300); }
+  async exportPDF(src: string, name: string){
+    try {
+      const dataUrl = await this.imageToDataUrl(src);
+      const mod: any = await import('jspdf').catch(() => null);
+      if (mod && mod.jsPDF) {
+        const pdf = new mod.jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+        const img = await this.loadImage(dataUrl);
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const margin = 36;
+        const maxW = pageW - margin * 2;
+        const maxH = pageH - margin * 2;
+        const ratio = Math.min(maxW / img.width, maxH / img.height);
+        const w = img.width * ratio;
+        const h = img.height * ratio;
+        const x = (pageW - w) / 2;
+        const y = (pageH - h) / 2;
+        pdf.addImage(dataUrl, 'PNG', x, y, w, h);
+        pdf.save(`${name}.pdf`);
+        return;
+      }
+      const a = document.createElement('a'); a.href = dataUrl; a.download = `${name}.png`; a.click();
+    } catch(e){ console.error('Export PDF failed', e); }
+  }
+  private async imageToDataUrl(src: string): Promise<string> {
+    const resp = await fetch(src); const blob = await resp.blob();
+    return await new Promise<string>(resolve => { const fr = new FileReader(); fr.onload = () => resolve(fr.result as string); fr.readAsDataURL(blob); });
+  }
+  private loadImage(dataUrl: string): Promise<HTMLImageElement> { return new Promise(res => { const img = new Image(); img.onload = () => res(img); img.src = dataUrl; }); }
 }
-

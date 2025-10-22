@@ -26,6 +26,7 @@ import { OperatorInboxStore } from '../services/operator-inbox.store';
             <a routerLink="/operador/pagos" routerLinkActive="active">Pagos</a>
           </nav>
           <div class="op-actions">
+            <span class="welcome" *ngIf="auth.isAuthenticated()">Bienvenido/a, {{ auth.displayName() }}</span>
             <button type="button" class="icon-btn" (click)="goProfile()" aria-label="Perfil operador">
               <ion-icon name="person-circle-outline"></ion-icon>
             </button>
@@ -44,7 +45,7 @@ import { OperatorInboxStore } from '../services/operator-inbox.store';
   styleUrls: ['./operator-shell.component.scss']
 })
 export class OperatorShellComponent implements OnInit, OnDestroy {
-  private readonly auth = inject(AuthService);
+  readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly inbox = inject(OperatorInboxStore);
 
@@ -52,6 +53,7 @@ export class OperatorShellComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.inbox.start();
+    this.auth.ensureMe();
   }
 
   ngOnDestroy(): void {
@@ -63,7 +65,8 @@ export class OperatorShellComponent implements OnInit, OnDestroy {
       this.router.navigateByUrl('/login');
       return;
     }
-    this.router.navigateByUrl('/perfil');
+    // Mantener el layout de operador
+    this.router.navigateByUrl('/operador/perfil');
   }
 
   logout(): void {

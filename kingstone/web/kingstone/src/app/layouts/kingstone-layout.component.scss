@@ -38,30 +38,15 @@
 }
 
 /* Contenedor interno en flex para logo | nav | acciones */
-.ks-toolbar { padding-inline: 12px; }
-.ks-bar {
-  display: grid;
-  grid-template-columns: auto 1fr auto; /* logo | nav (centro) | acciones */
-  align-items: center;
-  gap: 16px;
-  height: 56px;
-  width: 100%;
-}
+.ks-toolbar { padding-inline: 0; }
+.ks-bar { position: relative; display: flex; align-items: center; justify-content: center; min-height: 56px; width: 100%; padding: 0 72px; }
 
 /* Logo */
-.ks-logo-wrap { display: flex; align-items: center; flex: 0 0 auto; }
+.ks-logo-wrap { display:flex; align-items:center; position:absolute; left:8px; top:50%; transform:translateY(-50%); }
 .ks-logo { height: 30px; display: block; object-fit: contain; }
 
 /* MenÃƒÂº centrado */
-.ks-nav {
-  flex: 1 1 auto;
-  display: flex;
-  justify-content: center; /* contenido centrado dentro del ÃƒÂ¡rea central */
-  align-items: center;
-  gap: 36px;
-  /* Color por defecto del texto del menÃƒÂº (visible sobre fondo claro) */
-  color: #ffffff !important;
-}
+.ks-nav { display:flex; align-items:center; gap:36px; color:#ffffff !important; }
 .ks-nav a {
   position: relative;
   color: #ffffff !important;
@@ -93,14 +78,7 @@
 .ks-nav a.active::after { transform: scaleX(1); }
 
 /* Acciones (iconos) a la derecha */
-.ks-actions {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  /* Color por defecto de iconos (visible sobre fondo claro) */
-  color: #ffffff !important;
-}
+.ks-actions { position:absolute; right:8px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:14px; color:#ffffff !important; }
 .icon-btn {
   display: inline-flex;
   align-items: center;
@@ -145,6 +123,14 @@ ion-header.ks-header .ks-nav a { color: #ffffff !important; opacity: 0.95; }
 ion-header.ks-header .ks-actions,
 ion-header.ks-header .ks-actions .icon-btn,
 ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important; opacity: 1 !important; }
+
+.ks-actions .welcome {
+  margin-right: 8px;
+  font-size: 14px;
+  color: #ffffff;
+  opacity: .9;
+  white-space: nowrap;
+}
 
 /* Popover simple del usuario */
 .ks-user-menu {
@@ -209,8 +195,8 @@ ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important;
 
 /* Responsive: escondemos el menÃƒÂº en mÃƒÂ³viles (hamburguesa futura) */
 @media (max-width: 640px) {
-  .ks-nav { display: none; }
-  .ks-bar { height: 56px; }
+  .ks-nav { display:flex; align-items:center; gap:36px; color:#ffffff !important; }
+  .ks-bar { position: relative; display: flex; align-items: center; justify-content: center; min-height: 56px; width: 100%; padding: 0 72px; }
 }
 
 
@@ -344,4 +330,5 @@ ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important;
 .ks-footer.ks-slim .ks-socials a { width: 28px; height: 28px; }
 .ks-footer.ks-slim .ks-footer-middle ul { margin: 0; padding: 0; }
 .ks-footer.ks-slim .ks-footer-middle li { list-style: none; display: inline; margin-right: 10px; }
+
 

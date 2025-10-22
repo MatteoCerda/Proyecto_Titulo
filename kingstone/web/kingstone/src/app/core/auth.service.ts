@@ -29,6 +29,21 @@ export class AuthService {
     return true;
   }
 
+  async ensureMe() {
+    if (!this.isAuthenticated()) return null;
+    if (!this.user() || !this.user()!.email) {
+      try { return await this.getMe(); } catch { return null; }
+    }
+    return this.user();
+  }
+
+  displayName(): string {
+    const u = this.user();
+    if (u?.fullName && u.fullName.trim().length > 0) return u.fullName;
+    const email = u?.email || this.getEmail();
+    return email ? (email.split('@')[0] || email) : '';
+  }
+
   async getMe() {
     const res = await firstValueFrom(this.http.get<{ user: { email: string; role: string; fullName?: string } }>(`${this.api}/me`));
     const roleMap: Record<string, UserRole> = { ADMIN: 'ADMIN', admin: 'ADMIN', OPERATOR: 'OPERATOR', operator: 'OPERATOR', USER: 'CLIENT', user: 'CLIENT' };

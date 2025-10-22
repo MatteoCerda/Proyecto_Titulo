@@ -52,7 +52,8 @@ export const routes: Routes = [
       { path: '', redirectTo: 'solicitudes', pathMatch: 'full' },
       { path: 'solicitudes', loadComponent: () => import('./pages/operador/dashboard.page').then(m => m.OperatorDashboardPage) },
       { path: 'cotizaciones', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorInboxPlaceholderPage), data: { view: 'cotizaciones' } },
-      { path: 'pagos', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorInboxPlaceholderPage), data: { view: 'pagos' } }
+      { path: 'pagos', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorInboxPlaceholderPage), data: { view: 'pagos' } },
+      { path: 'perfil', canMatch: [authGuard], loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage) }
     ]
   }
 ];

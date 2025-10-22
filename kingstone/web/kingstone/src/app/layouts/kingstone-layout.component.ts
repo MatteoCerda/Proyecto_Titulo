@@ -52,6 +52,7 @@ addIcons({ cartOutline, searchOutline, personOutline });
 
         <!-- Derecha: iconos -->
         <div class="ks-actions" style="color:#ffffff;">
+          <span class="welcome" *ngIf="auth.isAuthenticated()">Bienvenido/a, {{ auth.user()?.fullName || auth.getEmail() }}</span>
           <button type="button" class="icon-btn" aria-label="Buscar" (click)="toggleSearch()">
             <ion-icon name="search-outline"></ion-icon>
           </button>

@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
@@ -24,6 +24,7 @@ import { AuthService } from '../core/auth.service';
           <a routerLink="/admin/stock" routerLinkActive="active">Administrar stock</a>
         </nav>
         <div class="ks-actions">
+          <span class="welcome" *ngIf="auth.isAuthenticated()">Bienvenido/a, {{ auth.displayName() }}</span>
           <button type="button" class="icon-btn" aria-label="Cuenta" (click)="onProfileClick()">
             <ion-icon name="person-outline"></ion-icon>
           </button>
@@ -38,9 +39,14 @@ import { AuthService } from '../core/auth.service';
   `,
   styleUrls: ['./admin-layout.component.scss']
 })
-export class AdminLayoutComponent {
-  private readonly auth = inject(AuthService);
+export class AdminLayoutComponent implements OnInit {
+  readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+
+  ngOnInit(): void {
+    // precarga de datos para el saludo (evita llamadas en plantilla)
+    this.auth.ensureMe();
+  }
 
   onProfileClick() {
     if (!this.auth.isAuthenticated()) {

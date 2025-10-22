@@ -19,7 +19,7 @@
     <ion-note color="danger" class="error-note" *ngIf="fieldErrors.email">{{ fieldErrors.email }}</ion-note>
 
     <ion-item [class.invalid]="fieldErrors.password">
-      <ion-label position="floating">Contrasena</ion-label>
+      <ion-label position="floating">Contraseña</ion-label>
       <ion-input type="password" [(ngModel)]="password" name="password" required></ion-input>
     </ion-item>
     <ion-note color="danger" class="error-note" *ngIf="fieldErrors.password">{{ fieldErrors.password }}</ion-note>
