@@ -10,24 +10,38 @@
       <h1 class="title">Iniciar sesión</h1>
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="form">
-        <ion-item>
+        <ion-item lines="none">
           <ion-label position="stacked">Correo electrónico</ion-label>
           <ion-input type="email" formControlName="email"></ion-input>
         </ion-item>
 
-      <ion-item>
-        <ion-label position="stacked">Contraseña</ion-label>
-        <ion-input type="password" formControlName="password" placeholder="Ingresa tu contraseña"></ion-input>
-      </ion-item>
+        <ion-item lines="none">
+          <ion-label position="stacked">Contraseña</ion-label>
+          <ion-input [type]="showPassword ? 'text' : 'password'" formControlName="password" placeholder="Ingresa tu contraseña"></ion-input>
+          <ion-button slot="end" fill="clear" class="eye-btn" (click)="showPassword = !showPassword" aria-label="Mostrar u ocultar contraseña">
+            <ng-container *ngIf="!showPassword; else eyeOffSvg">
+              <svg class="eye-svg" width="22" height="22" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"></path>
+                <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+              </svg>
+            </ng-container>
+            <ng-template #eyeOffSvg>
+              <svg class="eye-svg" width="22" height="22" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"></path>
+                <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="2"></line>
+              </svg>
+            </ng-template>
+          </ion-button>
+        </ion-item>
 
-      <div class="recover">
-        <a routerLink="/recuperar" class="recover-link">¿Olvidaste tu contraseña?</a>
-      </div>
+        <div class="recover">
+          <a routerLink="/recuperar" class="recover-link">¿Olvidaste tu contraseña?</a>
+        </div>
 
-      <ion-button expand="block" class="ion-margin-top"
-                  [disabled]="form.invalid || loading()" type="submit">
-        Iniciar sesión
-      </ion-button>
+        <ion-button expand="block" class="ion-margin-top"
+                    [disabled]="form.invalid || loading()" type="submit">
+          Iniciar sesión
+        </ion-button>
         <ion-button routerLink="/registro" expand="block" fill="outline">Registrarse</ion-button>
       </form>
 

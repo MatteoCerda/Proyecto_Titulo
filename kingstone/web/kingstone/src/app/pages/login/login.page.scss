@@ -1,4 +1,4 @@
-/* Tema claro para la página de login */
+﻿/* Tema claro para la pÃ¡gina de login */
 :host {
   --ion-background-color: #ffffff;
   color: #0f172a;
@@ -19,11 +19,13 @@ ion-content.login {
 
 .login-wrap {
   width: 100%;
-  max-width: 980px;
+  max-width: 1100px;
+  margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(300px, 520px) minmax(320px, 520px);
+  justify-content: center; /* centra el bloque de dos columnas */
+  align-items: center;      /* alinea verticalmente logo y caja */
   gap: 32px;
-  align-items: center;
   padding: 8px 12px;
 }
 
@@ -73,7 +75,7 @@ ion-item {
 ion-label { color: #0f172a; opacity: 0.9; }
 ion-input { --placeholder-color: #64748b; color: #0f172a; }
 
-/* Link recuperar contraseña */
+/* Link recuperar Contraseña */
 .recover { text-align: right; margin: 2px 2px 8px; }
 .recover-link {
   color: #0c4a6e;
@@ -105,8 +107,34 @@ ion-button[disabled] {
 }
 
 /* Responsive: apilar en pantallas pequeñas */
-@media (max-width: 900px) {
-  .login-wrap { grid-template-columns: 1fr; gap: 16px; }
+/* En pantallas pequeñas, apilar y centrar */
+@media (max-width: 960px) {
+  .login-wrap { grid-template-columns: 1fr; justify-items: center; gap: 16px; }
   .box { max-width: 420px; margin: 12px auto; }
   .login-left .logo { width: 180px; }
 }
+
+/* Icono de mostrar/ocultar contraseña */
+.toggle-eye { font-size: 22px; color: #0c4a6e; cursor: pointer; padding: 6px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; }
+.toggle-eye:hover { background: rgba(12,74,110,.08); }
+
+/* Botón del ojo: neutraliza estilos globales de ion-button */
+.eye-btn {
+  --background: transparent !important;
+  --background-activated: transparent !important;
+  --background-hover: transparent !important;
+  --box-shadow: none !important;
+  --padding-start: 6px;
+  --padding-end: 6px;
+  color: #111111;
+}
+.eye-btn::part(native) {
+  background: transparent !important;
+  box-shadow: none !important;
+  min-width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: #111111 !important;
+}
+.eye-btn ion-icon { font-size: 22px; color: #111111 !important; fill: #111111 !important; stroke: #111111 !important; opacity: 1 !important; }
+.eye-btn .eye-svg { color: #111111; display: block; }

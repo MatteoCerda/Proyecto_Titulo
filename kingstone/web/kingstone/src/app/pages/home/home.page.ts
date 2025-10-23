@@ -34,6 +34,7 @@ export class HomePage {
     this.cargarOfertas();
   }
 
+
   cargarOfertas() {
     this.cargando.set(true);
     this.http.get<OfertaCliente[]>(`http://localhost:3000/offers`).subscribe({
@@ -49,4 +50,6 @@ export class HomePage {
       }
     });
   }
+
+  // Footer hide/show se maneja globalmente en el layout
 }

@@ -62,6 +62,8 @@ ion-footer.ks-footer {
   --background: #0c4a6e !important;
   background: #0c4a6e !important;
   color: #ffffff !important;
+  transition: transform .25s ease, opacity .25s ease;
+  will-change: transform, opacity;
 }
 
 /* Forzar visibilidad de enlaces e iconos del header sobre fondo azul */
@@ -70,3 +72,13 @@ ion-header.ks-header .ks-nav a { color: #ffffff !important; opacity: 1 !importan
 ion-header.ks-header .ks-actions .icon-btn { color: #ffffff !important; }
 ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important; opacity: 1 !important; }
 ion-header.ks-header a, ion-header.ks-header button { color: #ffffff !important; }
+
+/* Ocultar footer al hacer scroll (controlado por HomePage) */
+body.footer-hidden ion-footer.ks-footer { transform: translateY(100%); opacity: 0; pointer-events: none; }
+
+/* Reservar espacio superior e inferior para header/footer comunes
+   cuando las páginas manejan su propio ion-content */
+ion-content {
+  --offset-top: calc(var(--ks-header-h, 56px) + 8px);
+  --offset-bottom: calc(var(--ks-footer-h, 120px) + 8px);
+}

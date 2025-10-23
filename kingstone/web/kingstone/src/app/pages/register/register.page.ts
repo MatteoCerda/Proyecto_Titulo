@@ -1,4 +1,4 @@
-﻿import { Component, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, ToastController } from '@ionic/angular';
@@ -9,6 +9,7 @@ import { AuthService } from '../../services/auth';
   selector: 'app-register',
   templateUrl: './register.page.html',
   standalone: true,
+  styleUrls: ['./register.page.scss'],
   imports: [CommonModule, FormsModule, IonicModule],
 })
 export class RegisterPage {
@@ -23,6 +24,7 @@ export class RegisterPage {
   comuna = '';
   ciudad = '';
   loading = false;
+  showPassword = false;
   fieldErrors: Partial<Record<'fullName' | 'email' | 'password' | 'rut', string>> = {};
   generalError = '';
 
@@ -50,7 +52,7 @@ export class RegisterPage {
 
     this.auth.register(fullName, email, password, extra).subscribe({
       next: async () => {
-        // Burbuja por creaciÃ³n de usuario
+        // Burbuja por creación de usuario
         const t = await this.toast.create({
           message: 'Haz creado usuario existosamente',
           duration: 2000,
@@ -59,14 +61,23 @@ export class RegisterPage {
         });
         await t.present();
 
-        // Tras registrar, inicia sesiÃ³n automÃ!ticamente y va a /inicio
+        // Tras registrar, inicia sesión automáticamente y va a /inicio
         this.auth.login(this.email, this.password).subscribe({
-          next: () => { this.loading = false; this.router.navigateByUrl('/inicio'); },
-          error: () => { this.loading = false; alert('Error al iniciar sesiÃ³n tras registro'); }
+          next: () => {
+            this.loading = false;
+            this.showPassword = false;
+            this.router.navigateByUrl('/inicio');
+          },
+          error: () => {
+            this.loading = false;
+            this.showPassword = false;
+            alert('Error al iniciar sesión tras registro');
+          }
         });
       },
       error: (e) => {
         this.loading = false;
+        this.showPassword = false;
         const serverMessage = e?.error?.message;
         if (serverMessage === 'Email ya registrado') {
           const message = 'El correo ingresado ya esta registrado.';
@@ -119,21 +130,21 @@ export class RegisterPage {
     if (!email) {
       errors.email = 'El correo es obligatorio.';
     } else if (!this.isValidEmail(email)) {
-      errors.email = 'Ingresa un correo valido.';
+      errors.email = 'Ingresa un correo válido.';
     }
 
     if (!password) {
-      errors.password = 'La contrasena es obligatoria.';
+      errors.password = 'La contraseña es obligatoria.';
     } else if (password.length < 6) {
-      errors.password = 'La contrasena debe tener al menos 6 caracteres.';
+      errors.password = 'La contraseña debe tener al menos 6 caracteres.';
     }
 
     if (rutInput) {
       const normalized = this.normalizeRut(rutInput);
       if (!normalized) {
-        errors.rut = 'Ingresa un RUT valido.';
+        errors.rut = 'Ingresa un RUT válido.';
       } else if (!this.isValidRut(normalized.body, normalized.dv)) {
-        errors.rut = 'El RUT ingresado no es valido.';
+        errors.rut = 'El RUT ingresado no es válido.';
       } else {
         this.rut = this.formatRut(normalized.body, normalized.dv);
       }
@@ -191,8 +202,3 @@ export class RegisterPage {
     await t.present();
   }
 }
-
-
-
-
-

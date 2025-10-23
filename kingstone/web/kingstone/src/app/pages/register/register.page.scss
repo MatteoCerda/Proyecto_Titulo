@@ -1,18 +1,113 @@
-form {
-  .form-error {
-    display: block;
-    margin-bottom: 12px;
-    font-size: 0.95rem;
-    font-weight: 500;
-  }
-
-  ion-item.invalid {
-    --highlight-color-focused: var(--ion-color-danger);
-    --border-color: var(--ion-color-danger);
-  }
-
-  .error-note {
-    margin: 4px 0 12px;
-    font-size: 0.85rem;
-  }
+:host {
+  --brand: #0c4a6e;
+  --brand-2: #2563eb;
+  --brand-3: #14b8a6;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --muted: #64748b;
 }
+
+/* Fondo llamativo con gradientes y luces difusas */
+.register-content {
+  --background:
+    radial-gradient(1200px 800px at -10% -10%, rgba(12,74,110,.12) 0, rgba(12,74,110,0) 60%),
+    radial-gradient(1000px 700px at 120% 0%, rgba(37,99,235,.10) 0, rgba(37,99,235,0) 60%),
+    radial-gradient(900px 600px at 110% 100%, rgba(20,184,166,.10) 0, rgba(20,184,166,0) 60%),
+    linear-gradient(180deg,#f7fafc 0%, #eef2f7 40%, #eef2f7 100%);
+}
+
+.register-wrap {
+  position: relative;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  display: grid;
+  gap: 16px;
+}
+
+.register-wrap::before,
+.register-wrap::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: .45;
+  z-index: 0;
+  pointer-events: none;
+}
+.register-wrap::before { width: 520px; height: 520px; top: -140px; left: -140px; background: radial-gradient(circle at 30% 30%, var(--brand-2), transparent 60%); }
+.register-wrap::after  { width: 460px; height: 460px; bottom: -120px; right: -120px; background: radial-gradient(circle at 70% 70%, var(--brand-3), transparent 60%); }
+
+.card {
+  position: relative;
+  z-index: 1;
+  background: var(--card-bg);
+  border: 1px solid transparent;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 18px 40px rgba(15,23,42,.10);
+  background:
+    linear-gradient(#fff,#fff) padding-box,
+    linear-gradient(120deg, rgba(12,74,110,.35), rgba(37,99,235,.25), rgba(20,184,166,.35)) border-box;
+}
+
+.card-head { display:flex; align-items:center; gap: 14px; margin-bottom: 12px; }
+.avatar { width: 56px; height:56px; border-radius:50%; background: linear-gradient(135deg, var(--brand), #0ea5e9); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:22px; box-shadow: 0 8px 20px rgba(14,165,233,.35); }
+.avatar ion-icon { font-size: 28px; }
+.head-info h1 { margin: 0; font-size: 22px; }
+.head-info .muted { margin:0; color: var(--muted); font-size: 13px; }
+
+.grid { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+.field {
+  --background: #ffffff;
+  --inner-padding-start: 12px;
+  --inner-padding-end: 12px;
+  --min-height: 56px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+
+ion-item.field::part(native) {
+  padding-inline-start: 12px;
+  padding-inline-end: 12px;
+}
+
+.field:hover { border-color: #94a3b8; }
+.field:focus-within { border-color: var(--brand-2); box-shadow: 0 0 0 4px rgba(37,99,235,.08); }
+
+.field ion-label { font-weight: 600; color: #334155; }
+.field ion-input { --color: #0f172a; --placeholder-color: #94a3b8; }
+
+.actions { display:flex; gap: 10px; margin-top: 14px; align-items:center; }
+.actions ion-button:first-child { --background: var(--brand-2); --background-activated: #1d4ed8; box-shadow: 0 10px 24px rgba(37,99,235,.25); }
+
+.form-error { display:block; margin-bottom:12px; font-size:.95rem; font-weight:500; }
+
+ion-item.invalid { --highlight-color-focused: var(--ion-color-danger); --border-color: var(--ion-color-danger); }
+
+/* Icono de mostrar/ocultar contraseña */
+.toggle-eye { font-size: 22px; color: #0c4a6e; cursor: pointer; padding: 6px; border-radius: 8px; }
+.toggle-eye:hover { background: rgba(12,74,110,.08); }
+
+/* Variante con botón y SVG, igual a login */
+.eye-btn {
+  --background: transparent !important;
+  --background-activated: transparent !important;
+  --background-hover: transparent !important;
+  --box-shadow: none !important;
+  --padding-start: 6px;
+  --padding-end: 6px;
+  color: #111111;
+}
+.eye-btn::part(native) {
+  background: transparent !important;
+  box-shadow: none !important;
+  min-width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: #111111 !important;
+}
+.eye-btn .eye-svg { color: #111111; display: block; }

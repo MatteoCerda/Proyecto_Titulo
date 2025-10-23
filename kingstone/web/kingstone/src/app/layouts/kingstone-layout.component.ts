@@ -2,12 +2,12 @@
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import {
-  IonContent,
   IonHeader,
   IonToolbar,
   IonFooter,
   IonIcon,
   IonSearchbar,
+  IonRouterOutlet,
 } from '@ionic/angular/standalone';
 import { AuthService } from '../core/auth.service';
 import { CartService } from '../services/cart.service';
@@ -26,14 +26,14 @@ addIcons({ cartOutline, searchOutline, personOutline });
     RouterLinkActive,
     IonHeader,
     IonToolbar,
-    IonContent,
+    IonRouterOutlet,
     IonFooter,
     IonIcon,
     IonSearchbar,
   ],
   template: `
   <!-- === HEADER === -->
-  <ion-header class="ks-header" style="--background:#0c4a6e; --ion-background-color:#0c4a6e; color:#ffffff;">
+  <ion-header #appHeader class="ks-header" style="--background:#0c4a6e; --ion-background-color:#0c4a6e; color:#ffffff;">
     <!-- Barra principal -->
     <ion-toolbar class="ks-toolbar" style="--background:#0c4a6e; --ion-toolbar-background:#0c4a6e; color:#ffffff;">
       <div class="ks-bar">
@@ -88,13 +88,11 @@ addIcons({ cartOutline, searchOutline, personOutline });
     </ion-toolbar>
   </ion-header>
 
-  <!-- === CONTENIDO === -->
-  <ion-content class="ks-main-content">
-    <router-outlet></router-outlet>
-  </ion-content>
+  <!-- === CONTENIDO (sin ion-content para evitar doble scroll) === -->
+  <ion-router-outlet></ion-router-outlet>
 
   <!-- === FOOTER === -->
-<ion-footer class="ks-footer ks-slim" style="--background:#0c4a6e; --ion-background-color:#0c4a6e; background:#0c4a6e; color:#ffffff;">
+<ion-footer #appFooter class="ks-footer ks-slim" style="--background:#0c4a6e; --ion-background-color:#0c4a6e; background:#0c4a6e; color:#ffffff;">
   <div class="ks-footer-wrap" style="color:#ffffff;">
     <!-- Columna izquierda: logo + datos -->
     <div class="ks-footer-left">
@@ -162,6 +160,64 @@ export class KingstoneLayoutComponent {
   showSearch = false;
   showUserMenu = false;
   cartCount = this.cart.totalItems;
+  private footerHidden = false;
+  private lastTouchY: number | null = null;
+  // Template refs to measure header/footer and set content offsets
+  // Note: ViewChild is typed at runtime via Angular; keep as any to avoid SSR issues
+  // Using non-strict here deliberately
+  headerRef: any;
+  footerRef: any;
+
+  ngOnInit() {
+    window.addEventListener('wheel', this.onWheel as any, { passive: true } as any);
+    window.addEventListener('touchstart', this.onTouchStart as any, { passive: true } as any);
+    window.addEventListener('touchmove', this.onTouchMove as any, { passive: true } as any);
+    const applyOffsets = () => {
+      const h = document.querySelector('ion-header.ks-header') as HTMLElement | null;
+      const f = document.querySelector('ion-footer.ks-footer') as HTMLElement | null;
+      const hh = h?.getBoundingClientRect().height || 56;
+      const fh = f?.getBoundingClientRect().height || 120;
+      document.documentElement.style.setProperty('--ks-header-h', `${Math.round(hh)}px`);
+      document.documentElement.style.setProperty('--ks-footer-h', `${Math.round(fh)}px`);
+    };
+    setTimeout(applyOffsets, 0);
+    window.addEventListener('resize', applyOffsets as any, { passive: true } as any);
+  }
+
+  ngOnDestroy() {
+    window.removeEventListener('wheel', this.onWheel as any);
+    window.removeEventListener('touchstart', this.onTouchStart as any);
+    window.removeEventListener('touchmove', this.onTouchMove as any);
+    document.body.classList.remove('footer-hidden');
+  }
+
+  onWheel = (e: WheelEvent) => {
+    if (e.deltaY > 0) this.hideFooter();
+    else if (e.deltaY < 0) this.showFooter();
+  };
+
+  onTouchStart = (e: TouchEvent) => {
+    this.lastTouchY = e.touches?.[0]?.clientY ?? null;
+  };
+  onTouchMove = (e: TouchEvent) => {
+    if (this.lastTouchY == null) return;
+    const y = e.touches?.[0]?.clientY ?? this.lastTouchY;
+    const dy = y - this.lastTouchY;
+    if (dy < -2) this.hideFooter();
+    else if (dy > 2) this.showFooter();
+    this.lastTouchY = y;
+  };
+
+  private hideFooter() {
+    if (this.footerHidden) return;
+    this.footerHidden = true;
+    document.body.classList.add('footer-hidden');
+  }
+  private showFooter() {
+    if (!this.footerHidden) return;
+    this.footerHidden = false;
+    document.body.classList.remove('footer-hidden');
+  }
 
   toggleSearch() {
     this.showSearch = !this.showSearch;

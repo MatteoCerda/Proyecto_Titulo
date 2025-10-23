@@ -1,61 +1,80 @@
-<ion-header>
-  <ion-toolbar><ion-title>Crear cuenta</ion-title></ion-toolbar>
-</ion-header>
+<ion-content class="register-content">
+  <div class="register-wrap">
+    <div class="card">
+      <div class="card-head">
+        <div class="avatar"><ion-icon name="person-outline"></ion-icon></div>
+        <div class="head-info">
+          <h1>Crear cuenta</h1>
+          <p class="muted">Completa tus datos para comenzar.</p>
+        </div>
+      </div>
 
-<ion-content class="ion-padding">
-  <form (ngSubmit)="onSubmit()">
-    <ion-text color="danger" *ngIf="generalError" class="form-error">{{ generalError }}</ion-text>
+      <form (ngSubmit)="onSubmit()">
+        <ion-text color="danger" *ngIf="generalError" class="form-error">{{ generalError }}</ion-text>
 
-    <ion-item [class.invalid]="fieldErrors.fullName">
-      <ion-label position="floating">Nombre completo</ion-label>
-      <ion-input type="text" [(ngModel)]="fullName" name="fullName" required></ion-input>
-    </ion-item>
-    <ion-note color="danger" class="error-note" *ngIf="fieldErrors.fullName">{{ fieldErrors.fullName }}</ion-note>
+        <h3>Información personal</h3>
+        <div class="grid">
+          <ion-item class="field" lines="none" [class.invalid]="fieldErrors.fullName">
+            <ion-label position="stacked">Nombre completo</ion-label>
+            <ion-input type="text" [(ngModel)]="fullName" name="fullName" required></ion-input>
+          </ion-item>
+          <ion-item class="field" lines="none" [class.invalid]="fieldErrors.email">
+            <ion-label position="stacked">Email</ion-label>
+            <ion-input type="email" [(ngModel)]="email" name="email" required></ion-input>
+          </ion-item>
+          <ion-item class="field" lines="none" [class.invalid]="fieldErrors.password">
+            <ion-label position="stacked">Contraseña</ion-label>
+            <ion-input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="password" name="password" required></ion-input>
+            <ion-button slot="end" fill="clear" class="eye-btn" (click)="showPassword = !showPassword" aria-label="Mostrar u ocultar contraseña">
+              <ng-container *ngIf="!showPassword; else eyeOffSvg">
+                <svg class="eye-svg" width="22" height="22" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                  <path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"></path>
+                  <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                </svg>
+              </ng-container>
+              <ng-template #eyeOffSvg>
+                <svg class="eye-svg" width="22" height="22" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                  <path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"></path>
+                  <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="2"></line>
+                </svg>
+              </ng-template>
+            </ion-button>
+          </ion-item>
+        </div>
 
-    <ion-item [class.invalid]="fieldErrors.email">
-      <ion-label position="floating">Email</ion-label>
-      <ion-input type="email" [(ngModel)]="email" name="email" required></ion-input>
-    </ion-item>
-    <ion-note color="danger" class="error-note" *ngIf="fieldErrors.email">{{ fieldErrors.email }}</ion-note>
+        <h3>Datos de contacto</h3>
+        <div class="grid">
+          <ion-item class="field" lines="none" [class.invalid]="fieldErrors.rut">
+            <ion-label position="stacked">RUT</ion-label>
+            <ion-input type="text" [(ngModel)]="rut" name="rut"></ion-input>
+          </ion-item>
+          <ion-item class="field" lines="none">
+            <ion-label position="stacked">Nombre de contacto</ion-label>
+            <ion-input type="text" [(ngModel)]="nombre_contacto" name="nombre_contacto"></ion-input>
+          </ion-item>
+          <ion-item class="field" lines="none">
+            <ion-label position="stacked">Teléfono</ion-label>
+            <ion-input type="tel" [(ngModel)]="telefono" name="telefono"></ion-input>
+          </ion-item>
+          <ion-item class="field" lines="none">
+            <ion-label position="stacked">Dirección</ion-label>
+            <ion-input type="text" [(ngModel)]="direccion" name="direccion"></ion-input>
+          </ion-item>
+          <ion-item class="field" lines="none">
+            <ion-label position="stacked">Comuna</ion-label>
+            <ion-input type="text" [(ngModel)]="comuna" name="comuna"></ion-input>
+          </ion-item>
+          <ion-item class="field" lines="none">
+            <ion-label position="stacked">Ciudad</ion-label>
+            <ion-input type="text" [(ngModel)]="ciudad" name="ciudad"></ion-input>
+          </ion-item>
+        </div>
 
-    <ion-item [class.invalid]="fieldErrors.password">
-      <ion-label position="floating">Contraseña</ion-label>
-      <ion-input type="password" [(ngModel)]="password" name="password" required></ion-input>
-    </ion-item>
-    <ion-note color="danger" class="error-note" *ngIf="fieldErrors.password">{{ fieldErrors.password }}</ion-note>
-
-    <!-- Perfil de cliente -->
-    <ion-item [class.invalid]="fieldErrors.rut">
-      <ion-label position="floating">RUT</ion-label>
-      <ion-input type="text" [(ngModel)]="rut" name="rut"></ion-input>
-    </ion-item>
-    <ion-note color="danger" class="error-note" *ngIf="fieldErrors.rut">{{ fieldErrors.rut }}</ion-note>
-
-    <ion-item>
-      <ion-label position="floating">Nombre de contacto</ion-label>
-      <ion-input type="text" [(ngModel)]="nombre_contacto" name="nombre_contacto"></ion-input>
-    </ion-item>
-    <ion-item>
-      <ion-label position="floating">Telefono</ion-label>
-      <ion-input type="tel" [(ngModel)]="telefono" name="telefono"></ion-input>
-    </ion-item>
-    <ion-item>
-      <ion-label position="floating">Direccion</ion-label>
-      <ion-input type="text" [(ngModel)]="direccion" name="direccion"></ion-input>
-    </ion-item>
-    <ion-item>
-      <ion-label position="floating">Comuna</ion-label>
-      <ion-input type="text" [(ngModel)]="comuna" name="comuna"></ion-input>
-    </ion-item>
-    <ion-item>
-      <ion-label position="floating">Ciudad</ion-label>
-      <ion-input type="text" [(ngModel)]="ciudad" name="ciudad"></ion-input>
-    </ion-item>
-
-    <ion-button expand="block" class="ion-margin-top" type="submit" [disabled]="loading">
-      {{ loading ? 'Creando...' : 'Crear cuenta' }}
-    </ion-button>
-
-    <ion-button fill="clear" expand="block" (click)="goLogin()">Ya tienes cuenta? Inicia sesion</ion-button>
-  </form>
+        <div class="actions">
+          <ion-button type="submit" [disabled]="loading">{{ loading ? 'Creando...' : 'Crear cuenta' }}</ion-button>
+          <ion-button fill="clear" color="medium" (click)="goLogin()">¿Ya tienes cuenta? Inicia sesión</ion-button>
+        </div>
+      </form>
+    </div>
+  </div>
 </ion-content>
