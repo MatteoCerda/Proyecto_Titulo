@@ -1,7 +1,7 @@
 ﻿import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { IonContent, IonItem, IonLabel, IonInput, IonButton, IonImg, IonIcon } from '@ionic/angular/standalone';
+import { IonContent, IonItem, IonLabel, IonInput, IonButton, IonImg } from '@ionic/angular/standalone';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { ToastController } from '@ionic/angular';
@@ -9,7 +9,7 @@ import { ToastController } from '@ionic/angular';
 @Component({
   standalone: true,
   selector: 'app-login',
-  imports: [CommonModule, IonContent, IonItem, IonLabel, IonInput, IonButton, IonImg, IonIcon, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, IonContent, IonItem, IonLabel, IonInput, IonButton, IonImg, ReactiveFormsModule, RouterLink],
   templateUrl: './login.page.html',
   styleUrls: ['./login.page.scss']
 })

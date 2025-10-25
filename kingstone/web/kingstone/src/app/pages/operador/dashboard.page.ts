@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { OperatorInboxStore } from '../../services/operator-inbox.store';
 import { AuthService } from '../../core/auth.service';
 import { PedidoResumen } from '../../services/pedidos.service';
@@ -46,6 +46,9 @@ import { PedidoResumen } from '../../services/pedidos.service';
             <strong>{{ pendingCount() }}</strong>
             <span>nuevas solicitudes pendientes de revision.</span>
           </div>
+          <div class="alert" [ngClass]="actionFeedback()?.type" *ngIf="actionFeedback() as action">
+            <span>{{ action.message }}</span>
+          </div>
           <div class="alert warn" *ngIf="error()">{{ error() }}</div>
         </div>
 
@@ -78,6 +81,7 @@ import { PedidoResumen } from '../../services/pedidos.service';
             </div>
             <div class="cell actions">
               <button type="button" class="ghost" (click)="markSeen(order, $event)">Marcar revision</button>
+              <button type="button" class="ghost send-payments" (click)="sendToPayments(order, $event)">Enviar a pagos</button>
               <button type="button" class="primary" (click)="viewDetails(order, $event)">Ver detalle</button>
             </div>
           </div>
@@ -95,9 +99,16 @@ import { PedidoResumen } from '../../services/pedidos.service';
 
     <section class="detail-panel" *ngIf="selectedOrder() as selection">
       <header>
-        <h2>Resumen de la solicitud</h2>
+        <div class="title-wrap">
+          <h2>Resumen de la solicitud</h2>
+          <span class="status-tag" [ngClass]="statusClass(selection.estado)">{{ labelEstado(selection.estado) }}</span>
+        </div>
         <button type="button" (click)="closeDetail()">Cerrar</button>
       </header>
+      <div class="review-banner" *ngIf="selection.estado === 'EN_REVISION'">
+        <h3>Solicitud en revision</h3>
+        <p>Revisa cada detalle para informar al cliente el avance y tomar la siguiente accion.</p>
+      </div>
       <ul>
         <li><span>ID pedido</span><strong>#{{ selection.id }}</strong></li>
         <li><span>Cliente</span><strong>{{ selection.cliente }}</strong></li>
@@ -135,6 +146,7 @@ import { PedidoResumen } from '../../services/pedidos.service';
 export class OperatorDashboardPage implements OnInit, OnDestroy {
   private readonly inbox = inject(OperatorInboxStore);
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
 
   readonly orders = this.inbox.orders;
   readonly loading = this.inbox.loading;
@@ -144,6 +156,9 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
   readonly account = computed(() => this.auth.user());
 
   readonly selectedOrder = signal<PedidoResumen | null>(null);
+  readonly actionFeedback = signal<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  private actionTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
     this.inbox.start();
@@ -152,10 +167,15 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.selectedOrder.set(null);
+    if (this.actionTimer) {
+      clearTimeout(this.actionTimer);
+      this.actionTimer = null;
+    }
   }
 
   refresh(): void {
     this.inbox.refresh();
+    this.clearActionFeedback();
   }
 
   select(order: PedidoResumen): void {
@@ -166,9 +186,30 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
     this.selectedOrder.set(null);
   }
 
-  markSeen(order: PedidoResumen, event: Event): void {
+  async markSeen(order: PedidoResumen, event: Event): Promise<void> {
     event.stopPropagation();
-    this.inbox.markAsSeen(order.id);
+    const result = await this.inbox.markAsSeen(order.id, 'EN_REVISION');
+    if (result.success) {
+      const reviewOrder = result.order ?? { ...order, estado: 'EN_REVISION' };
+      this.router.navigate(['/operador/cotizaciones'], {
+        queryParams: { selected: reviewOrder.id }
+      });
+    } else {
+      this.pushActionFeedback('error', 'No pudimos actualizar el estado del pedido.');
+    }
+  }
+
+  async sendToPayments(order: PedidoResumen, event: Event): Promise<void> {
+    event.stopPropagation();
+    const result = await this.inbox.markAsSeen(order.id, 'POR_PAGAR');
+    if (result.success) {
+      const updatedOrder = result.order ?? { ...order, estado: 'POR_PAGAR' };
+      this.router.navigate(['/operador/pagos'], {
+        queryParams: { selected: updatedOrder.id }
+      });
+    } else {
+      this.pushActionFeedback('error', 'No pudimos mover el pedido a pagos.');
+    }
   }
 
   viewDetails(order: PedidoResumen, event: Event): void {
@@ -195,6 +236,8 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
         return 'pending';
       case 'EN_REVISION':
         return 'review';
+      case 'POR_PAGAR':
+        return 'por-pagar';
       case 'EN_PRODUCCION':
         return 'in-progress';
       case 'COMPLETADO':
@@ -208,9 +251,30 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
     const labels: Record<string, string> = {
       PENDIENTE: 'Pendiente',
       EN_REVISION: 'En revision',
+      POR_PAGAR: 'Por pagar',
       EN_PRODUCCION: 'En produccion',
       COMPLETADO: 'Completado'
     };
     return labels[estado] || estado;
+
+  }
+
+  private pushActionFeedback(type: 'success' | 'error', message: string) {
+    this.actionFeedback.set({ type, message });
+    if (this.actionTimer) {
+      clearTimeout(this.actionTimer);
+    }
+    this.actionTimer = setTimeout(() => {
+      this.actionFeedback.set(null);
+      this.actionTimer = null;
+    }, 4000);
+  }
+
+  private clearActionFeedback() {
+    this.actionFeedback.set(null);
+    if (this.actionTimer) {
+      clearTimeout(this.actionTimer);
+      this.actionTimer = null;
+    }
   }
 }

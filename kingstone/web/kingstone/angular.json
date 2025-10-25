@@ -40,6 +40,10 @@
                                                                                  "scripts":  [
 
                                                                                              ],
+                                                                                 "allowedCommonJsDependencies":  [
+                                                                                                                    "rgbcolor",
+                                                                                                                    "html2canvas"
+                                                                                                                ],
                                                                                  "webWorkerTsConfig":  "tsconfig.worker.json"
                                                                              },
                                                                  "configurations":  {

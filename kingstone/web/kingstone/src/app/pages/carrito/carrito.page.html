@@ -14,6 +14,11 @@
       </div>
     </header>
 
+    <div *ngIf="requestFeedback() as feedback" class="request-feedback" [class.error]="feedback.type === 'error'">
+      {{ feedback.message }}
+    </div>
+
+
     <section *ngIf="!hasItems()" class="empty">
       <ion-icon name="cart-outline"></ion-icon>
       <h2>Tu carrito está vacío</h2>
@@ -102,7 +107,12 @@
 
     <footer *ngIf="hasItems()" class="cta">
       <p>Revisa tu carrito y continúa con el proceso de compra desde tu cuenta o escribiendo a nuestros canales.</p>
+      <p class="request-hint">Las solicitudes suelen responderse durante el dia.</p>
       <div class="buttons">
+        <ion-button color="success" (click)="submitOrder()" [disabled]="submitting() || !hasItems()">
+          <ng-container *ngIf="!submitting(); else sendingState">Pedir ya</ng-container>
+        </ion-button>
+        <ng-template #sendingState>Enviando...</ng-template>
         <a routerLink="/crea-tu-diseno">
           <ion-button fill="outline" color="primary">Editar cotización</ion-button>
         </a>

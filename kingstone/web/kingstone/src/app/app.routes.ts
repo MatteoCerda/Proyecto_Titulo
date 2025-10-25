@@ -19,7 +19,9 @@ export const routes: Routes = [
       { path: 'perfil', canMatch: [authGuard], loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage) },
       { path: 'crea-tu-diseno', canMatch: [authGuard], loadComponent: () => import('./pages/cliente/nuevo-pedido.page').then(m => m.NuevoPedidoPage) },
       { path: 'redir', loadComponent: () => import('./pages/role-redirect/role-redirect.page').then(m => m.RoleRedirectPage) },
-      { path: 'cliente', loadComponent: () => import('./pages/cliente/mis-pedidos.page').then(m => m.MisPedidosPage) }
+      { path: 'cliente', redirectTo: 'cliente/mis-pedidos', pathMatch: 'full' },
+      { path: 'cliente/mis-pedidos', canMatch: [authGuard], loadComponent: () => import('./pages/cliente/mis-pedidos.page').then(m => m.MisPedidosPage) },
+      { path: 'cliente/metodos-pago', canMatch: [authGuard], loadComponent: () => import('./pages/cliente/metodos-pago.page').then(m => m.MetodosPagoPage) }
     ]
   },
   // Area de administracion
@@ -51,8 +53,8 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'solicitudes', pathMatch: 'full' },
       { path: 'solicitudes', loadComponent: () => import('./pages/operador/dashboard.page').then(m => m.OperatorDashboardPage) },
-      { path: 'cotizaciones', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorInboxPlaceholderPage), data: { view: 'cotizaciones' } },
-      { path: 'pagos', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorInboxPlaceholderPage), data: { view: 'pagos' } },
+      { path: 'cotizaciones', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorOrdersPage), data: { view: 'cotizaciones' } },
+      { path: 'pagos', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorOrdersPage), data: { view: 'pagos' } },
       { path: 'perfil', canMatch: [authGuard], loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage) }
     ]
   }

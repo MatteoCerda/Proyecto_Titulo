@@ -52,6 +52,41 @@ export interface CreatePedidoRequest {
   }>;
 }
 
+export interface CartPedidoProduct {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  itemType?: string;
+  color?: string;
+  provider?: string;
+  imageUrl?: string | null;
+}
+
+export interface CartPedidoQuoteItem {
+  name: string;
+  quantity: number;
+  widthCm: number;
+  heightCm: number;
+}
+
+export interface CartPedidoQuote {
+  materialId: string;
+  materialLabel: string;
+  totalPrice: number;
+  usedHeight: number;
+  note?: string;
+  items: CartPedidoQuoteItem[];
+  createdAt?: string;
+}
+
+export interface CartPedidoRequest {
+  source: 'cart';
+  products: CartPedidoProduct[];
+  quote?: CartPedidoQuote | null;
+  note?: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PedidosService {
   private http = inject(HttpClient);
@@ -60,8 +95,24 @@ export class PedidosService {
     return this.http.post<{ id: number }>(`/api/pedidos`, payload);
   }
 
+  submitPedidoFromCart(payload: CartPedidoRequest): Observable<{ id: number }> {
+    return this.http.post<{ id: number }>(`/api/pedidos`, payload);
+  }
+
   listPending(): Observable<PedidoResumen[]> {
-    return this.http.get<PedidoResumen[]>(`/api/pedidos`, { params: { status: 'PENDIENTE' } });
+    return this.listByStatus('PENDIENTE');
+  }
+
+  listByStatus(status: string): Observable<PedidoResumen[]> {
+    return this.http.get<PedidoResumen[]>(`/api/pedidos`, { params: { status } });
+  }
+
+  listMine(status?: string): Observable<PedidoResumen[]> {
+    const params: Record<string, string> = { mine: '1' };
+    if (status) {
+      params['status'] = status;
+    }
+    return this.http.get<PedidoResumen[]>(`/api/pedidos`, { params });
   }
 
   markAsSeen(id: number, estado?: string): Observable<{ id: number; estado: string; notificado: boolean }> {
@@ -86,3 +137,4 @@ export class PedidosService {
     return this.http.post(`/api/pedidos/${id}/send-to-print`, payload);
   }
 }
+

@@ -259,6 +259,34 @@
   --border-radius: 14px;
 }
 
+.request-feedback {
+  background: rgba(34, 197, 94, 0.18);
+  color: #166534;
+  border-radius: 18px;
+  padding: 12px 18px;
+  font-weight: 600;
+  margin: 0 0 18px;
+}
+
+.request-feedback.error {
+  background: rgba(248, 113, 113, 0.18);
+  color: #b91c1c;
+}
+
+.request-hint {
+  margin: 0 0 18px;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.buttons ion-button[color='success'] {
+  --background: #22c55e;
+  --background-focused: #16a34a;
+  --background-activated: #16a34a;
+  --border-radius: 14px;
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   .card {
     flex-direction: column;

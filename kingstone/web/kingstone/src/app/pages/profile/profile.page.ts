@@ -1,6 +1,6 @@
 ﻿import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { IonContent, IonItem, IonLabel, IonInput, IonButton, IonList } from '@ionic/angular/standalone';
+import { IonContent, IonItem, IonLabel, IonInput, IonButton } from '@ionic/angular/standalone';
 import { AuthService } from '../../core/auth.service';
 import { ToastController } from '@ionic/angular';
 import { Router } from '@angular/router';
@@ -8,7 +8,7 @@ import { Router } from '@angular/router';
 @Component({
   standalone: true,
   selector: 'app-profile',
-  imports: [IonContent, IonItem, IonLabel, IonInput, IonButton, IonList, ReactiveFormsModule],
+  imports: [IonContent, IonItem, IonLabel, IonInput, IonButton, ReactiveFormsModule],
   templateUrl: './profile.page.html',
   styleUrls: ['./profile.page.scss']
 })

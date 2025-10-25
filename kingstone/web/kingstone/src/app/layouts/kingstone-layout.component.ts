@@ -1,6 +1,6 @@
-﻿import { Component, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 import {
   IonHeader,
   IonToolbar,
@@ -21,7 +21,6 @@ addIcons({ cartOutline, searchOutline, personOutline });
   standalone: true,
   imports: [
     CommonModule,
-    RouterOutlet,
     RouterLink,
     RouterLinkActive,
     IonHeader,
@@ -42,7 +41,7 @@ addIcons({ cartOutline, searchOutline, personOutline });
           <img src="assets/kingston-estampados.png" alt="Kingstone logo" class="ks-logo" />
         </a>
 
-        <!-- Centro: menÃƒÂº -->
+        <!-- Centro: menÃº -->
         <nav class="ks-nav" style="color:#ffffff;">
           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
           <a routerLink="/productos" routerLinkActive="active">Productos</a>
@@ -68,13 +67,15 @@ addIcons({ cartOutline, searchOutline, personOutline });
           </button>
           <div class="ks-user-menu" *ngIf="showUserMenu">
             <a routerLink="/perfil">Mi perfil</a>
-            <button type="button" (click)="logout()">Cerrar sesi&oacute;n</button>
+            <a routerLink="/cliente/mis-pedidos">Mis pedidos</a>
+            <a routerLink="/cliente/metodos-pago">Metodos de pago</a>
+            <button type="button" (click)="logout()">Cerrar sesion</button>
           </div>
         </div>
       </div>
     </ion-toolbar>
 
-    <!-- Barra de bÃƒÂºsqueda desplegable -->
+    <!-- Barra de bÃºsqueda desplegable -->
     <ion-toolbar *ngIf="showSearch" class="ks-toolbar-search">
       <ion-searchbar
         placeholder="Busca en toda la tienda..."
@@ -125,7 +126,7 @@ addIcons({ cartOutline, searchOutline, personOutline });
       </div>
     </div>
 
-    <!-- Columna centro: EnvÃƒÂ­os/retiros -->
+    <!-- Columna centro: EnvÃ­os/retiros -->
     <div class="ks-footer-middle">
       <p><strong>Retiros en nuestro taller</strong></p>
       <p><strong>Delivery en RM</strong></p>
@@ -225,7 +226,7 @@ export class KingstoneLayoutComponent {
 
   onSearch(ev: any) {
     const q = (ev?.detail?.value ?? '').trim();
-    // TODO: dispara tu bÃƒÂºsqueda global aquÃƒÂ­
+    // TODO: dispara tu bÃºsqueda global aquÃ­
     // console.log('buscar:', q);
   }
 
@@ -234,12 +235,13 @@ export class KingstoneLayoutComponent {
       (window as any).location.href = '/login';
       return;
     }
-    // Si es ADMIN, lleva al panel admin para activar el header de administraciÃ³n
+    // Si es ADMIN, lleva al panel admin para activar el header de administración
     const role = this.auth.getRole();
     if (role === 'ADMIN') {
       (window as any).location.href = '/admin/inicio';
     } else {
-      (window as any).location.href = '/perfil';
+            const target = role === 'OPERATOR' ? '/operador/solicitudes' : '/cliente/mis-pedidos';
+      (window as any).location.href = target;
     }
   }
 
@@ -249,6 +251,8 @@ export class KingstoneLayoutComponent {
     (window as any).location.href = '/login';
   }
 }
+
+
 
 
 

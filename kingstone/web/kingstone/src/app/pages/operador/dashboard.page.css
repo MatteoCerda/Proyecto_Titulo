@@ -150,6 +150,16 @@ button.ghost:hover {
   font-size: 14px;
 }
 
+.alert.success {
+  background: rgba(21, 128, 61, 0.16);
+  color: #4ade80;
+}
+
+.alert.error {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+}
+
 .alert.warn {
   background: rgba(239, 68, 68, 0.16);
   color: #f87171;
@@ -246,6 +256,11 @@ button.ghost:hover {
   color: #60a5fa;
 }
 
+.status.por-pagar {
+  background: rgba(250, 204, 21, 0.18);
+  color: #fde047;
+}
+
 .status.in-progress {
   background: rgba(234, 179, 8, 0.2);
   color: #facc15;
@@ -259,6 +274,16 @@ button.ghost:hover {
 .actions {
   flex-direction: row;
   gap: 8px;
+}
+
+.actions .send-payments {
+  border-color: rgba(250, 204, 21, 0.5);
+  color: #fde047;
+}
+
+.actions .send-payments:hover {
+  border-color: rgba(250, 204, 21, 0.8);
+  color: #fef08a;
 }
 
 .actions .primary {
@@ -313,6 +338,49 @@ button.ghost:hover {
   justify-content: space-between;
 }
 
+.detail-panel .title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.status-tag.review {
+  background: rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+}
+
+.status-tag.por-pagar {
+  background: rgba(250, 204, 21, 0.25);
+  color: #fef08a;
+}
+
+.status-tag.pending {
+  background: rgba(249, 115, 22, 0.25);
+  color: #fb923c;
+}
+
+.status-tag.in-progress {
+  background: rgba(234, 179, 8, 0.25);
+  color: #fde047;
+}
+
+.status-tag.done {
+  background: rgba(34, 197, 94, 0.25);
+  color: #86efac;
+}
+
 .detail-panel header h2 {
   margin: 0;
   font-size: 18px;
@@ -326,6 +394,28 @@ button.ghost:hover {
   border-radius: 12px;
   padding: 6px 12px;
   cursor: pointer;
+}
+
+.review-banner {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-banner h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #93c5fd;
+}
+
+.review-banner p {
+  margin: 0;
+  font-size: 14px;
+  color: #cbd5f5;
 }
 
 .detail-panel ul {
@@ -452,3 +542,47 @@ button.ghost:hover {
   .table-row .cell:nth-child(4) { grid-area: recibido; }
   .table-row .cell:nth-child(5) { grid-area: acciones; flex-direction: row; }
 }
+
+.status-view {
+  margin-bottom: 24px;
+}
+
+.payments-banner {
+  background: rgba(250, 204, 21, 0.12);
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.payments-banner h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #fef08a;
+}
+
+.payments-banner p {
+  margin: 0;
+  font-size: 14px;
+  color: #fde68a;
+}
+
+.detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.detail-actions .primary {
+  background: #fbbf24;
+  color: #0b1320;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+

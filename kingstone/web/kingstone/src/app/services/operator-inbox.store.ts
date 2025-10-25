@@ -56,13 +56,25 @@ export class OperatorInboxStore {
     }
   }
 
-  async markAsSeen(id: number) {
+  async markAsSeen(
+    id: number,
+    estado?: 'EN_REVISION' | 'POR_PAGAR'
+  ): Promise<{ success: boolean; order: PedidoResumen | null }> {
     try {
-      await firstValueFrom(this.pedidos.markAsSeen(id));
+      const current = this.orders().find(item => item.id === id) ?? null;
+      await firstValueFrom(this.pedidos.markAsSeen(id, estado));
       this.orders.update(list => list.filter(item => item.id !== id));
       this.refresh(false);
+      const updated =
+        current && estado
+          ? { ...current, estado }
+          : current
+            ? { ...current, estado: current.estado === 'PENDIENTE' ? 'EN_REVISION' : current.estado }
+            : null;
+      return { success: true, order: updated };
     } catch (err) {
       console.error('No se pudo marcar la solicitud como revisada', err);
+      return { success: false, order: null };
     }
   }
 }
