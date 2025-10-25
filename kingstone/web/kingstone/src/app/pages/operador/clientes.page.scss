@@ -1,0 +1,122 @@
+.clientes::part(scroll) {
+  padding: 32px 16px 48px;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 40%, #0f172a 100%);
+}
+
+.wrap {
+  width: 100%;
+  max-width: 960px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  padding: 24px;
+  border-radius: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.header p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+}
+
+.notice {
+  border-radius: 16px;
+  padding: 14px 18px;
+  background: rgba(30, 41, 59, 0.85);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.notice.error {
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+}
+
+.table {
+  display: grid;
+  gap: 12px;
+}
+
+.table-head,
+.table-row {
+  display: grid;
+  grid-template-columns: 2fr 0.6fr 1fr 1fr 1.2fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.table-head {
+  color: #94a3b8;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.table-row {
+  background: rgba(15, 23, 42, 0.88);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+}
+
+.cliente {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cliente strong {
+  font-size: 16px;
+}
+
+.cliente small {
+  color: #94a3b8;
+}
+
+.estado {
+  font-weight: 600;
+}
+
+.empty {
+  background: rgba(15, 23, 42, 0.88);
+  color: #e2e8f0;
+  border-radius: 18px;
+  padding: 32px 24px;
+  text-align: center;
+  border: 1px dashed rgba(148, 163, 184, 0.25);
+}
+
+@media (max-width: 900px) {
+  .table-head,
+  .table-row {
+    grid-template-columns: 1.6fr 0.5fr 1fr;
+    grid-template-areas:
+      'cliente cliente cliente'
+      'cantidad estado total'
+      'fecha fecha fecha';
+  }
+
+  .table-row > :nth-child(1) { grid-area: cliente; }
+  .table-row > :nth-child(2) { grid-area: cantidad; }
+  .table-row > :nth-child(3) { grid-area: estado; }
+  .table-row > :nth-child(4) { grid-area: total; }
+  .table-row > :nth-child(5) { grid-area: fecha; }
+}

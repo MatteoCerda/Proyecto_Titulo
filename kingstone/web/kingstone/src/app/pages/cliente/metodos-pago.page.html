@@ -1,0 +1,95 @@
+<ion-content class="metodos-pago">
+  <div class="wrap">
+    <header class="header">
+      <div>
+        <h1>Metodos de pago</h1>
+        <p>Completa el pago de tus pedidos pendientes y confirma con nuestro equipo.</p>
+      </div>
+      <div class="header-actions">
+        <ion-button fill="outline" color="primary" (click)="refresh()" [disabled]="loading()">Actualizar</ion-button>
+        <ion-button color="medium" routerLink="/cliente/mis-pedidos">Ver mis pedidos</ion-button>
+      </div>
+    </header>
+
+    <section class="notice" *ngIf="loading()">Buscando pedidos por pagar...</section>
+    <section class="notice error" *ngIf="error()">{{ error() }}</section>
+
+    <section class="cards" *ngIf="orders().length > 0; else emptyState">
+      <article class="card" *ngFor="let order of orders(); trackBy: trackById">
+        <header>
+          <div>
+            <h2>#{{ order.id }}</h2>
+            <small>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</small>
+          </div>
+          <div class="meta">
+            <div>
+              <span>Estado</span>
+              <strong>{{ order.estado | uppercase }}</strong>
+            </div>
+            <div>
+              <span>Total pedido</span>
+              <strong>{{ formatCurrency(order.total ?? null) }}</strong>
+            </div>
+          </div>
+        </header>
+
+        <section class="summary">
+          <div>
+            <span>Area total adjuntos</span>
+            <strong>{{ totalsOf(order).area ? (totalsOf(order).area | number:'1.0-0') + ' cm²' : '-' }}</strong>
+          </div>
+          <div>
+            <span>Largo total</span>
+            <strong>{{ totalsOf(order).length ? (totalsOf(order).length | number:'1.0-1') + ' cm' : '-' }}</strong>
+          </div>
+          <div>
+            <span>Importe estimado</span>
+            <strong>{{ formatCurrency(totalsOf(order).price) }}</strong>
+          </div>
+        </section>
+
+        <section class="attachments" *ngIf="attachmentsOf(order).length; else noFiles">
+          <h3>Archivos actuales</h3>
+          <ul>
+            <li *ngFor="let file of attachmentsOf(order)">
+              <div class="file-info">
+                <strong>{{ file.filename }}</strong>
+                <span *ngIf="file.areaCm2">Area: {{ file.areaCm2 | number:'1.0-0' }} cm²</span>
+                <span *ngIf="file.lengthCm">Largo: {{ file.lengthCm | number:'1.0-1' }} cm</span>
+                <span>{{ file.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+              <ion-button fill="clear" size="small" (click)="downloadAttachment(order.id, file)">
+                Descargar
+              </ion-button>
+            </li>
+          </ul>
+        </section>
+        <ng-template #noFiles>
+          <section class="attachments empty-files">
+            <p>Aun no subes archivos para este pedido.</p>
+          </section>
+        </ng-template>
+
+        <section class="uploader">
+          <label>
+            Adjuntar archivos (PDF o PNG)
+            <input type="file" accept=".pdf,.png" multiple (change)="onFilesSelected(order.id, $event)" [disabled]="uploadingId() === order.id" />
+          </label>
+          <small *ngIf="uploadingId() === order.id">Subiendo archivos...</small>
+        </section>
+
+        <div class="actions">
+          <ion-button color="success" href="https://wa.me/56986412218" target="_blank">Confirmar pago</ion-button>
+        </div>
+      </article>
+    </section>
+
+    <ng-template #emptyState>
+      <section class="empty">
+        <h2>No tienes pedidos por pagar</h2>
+        <p>Cuando un pedido sea aprobado aparecera aqui para completar el pago.</p>
+        <ion-button color="primary" routerLink="/cliente/mis-pedidos">Volver al historial</ion-button>
+      </section>
+    </ng-template>
+  </div>
+</ion-content>

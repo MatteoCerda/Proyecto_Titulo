@@ -90,8 +90,27 @@ model Pedido {
   payload        Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  adjuntos       PedidoAdjunto[]
 
   @@map("pedido")
+}
+
+model PedidoAdjunto {
+  id        Int      @id @default(autoincrement())
+  pedidoId  Int
+  pedido    Pedido   @relation(fields: [pedidoId], references: [id])
+  filename  String
+  mimeType  String
+  sizeBytes Int
+  widthCm   Float?
+  heightCm  Float?
+  areaCm2   Float?
+  lengthCm  Float?
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  @@index([pedidoId])
+  @@map("pedido_adjunto")
 }
 
 model Cotizacion {

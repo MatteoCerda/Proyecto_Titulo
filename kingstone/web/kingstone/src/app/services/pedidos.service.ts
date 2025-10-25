@@ -16,6 +16,29 @@ export interface PedidoResumen {
   payload?: any;
 }
 
+export interface PedidoAttachment {
+  id: number;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  widthCm?: number;
+  lengthCm?: number;
+  areaCm2?: number;
+  createdAt: string;
+}
+
+export interface ClientePedidosResumen {
+  email: string | null;
+  nombre: string | null;
+  pedidos: Array<{
+    id: number;
+    estado: string;
+    createdAt: string;
+    total: number | null;
+    material: string | null;
+  }>;
+}
+
 export interface CreatePedidoRequest {
   materialId: string;
   materialLabel: string;
@@ -135,6 +158,24 @@ export class PedidosService {
     }
   ) {
     return this.http.post(`/api/pedidos/${id}/send-to-print`, payload);
+  }
+
+  listAttachments(pedidoId: number): Observable<PedidoAttachment[]> {
+    return this.http.get<PedidoAttachment[]>(`/api/pedidos/${pedidoId}/files`);
+  }
+
+  uploadAttachments(pedidoId: number, files: File[]): Observable<{ ok: boolean; created: any[]; errors: any[] }> {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    return this.http.post<{ ok: boolean; created: any[]; errors: any[] }>(`/api/pedidos/${pedidoId}/files`, formData);
+  }
+
+  downloadAttachment(pedidoId: number, fileId: number) {
+    return this.http.get(`/api/pedidos/${pedidoId}/files/${fileId}`, { responseType: 'blob' });
+  }
+
+  listClientesResumen(): Observable<ClientePedidosResumen[]> {
+    return this.http.get<ClientePedidosResumen[]>(`/api/pedidos/admin/clientes`);
   }
 }
 

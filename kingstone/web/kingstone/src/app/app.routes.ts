@@ -53,6 +53,7 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'solicitudes', pathMatch: 'full' },
       { path: 'solicitudes', loadComponent: () => import('./pages/operador/dashboard.page').then(m => m.OperatorDashboardPage) },
+      { path: 'clientes', loadComponent: () => import('./pages/operador/clientes.page').then(m => m.OperatorClientesPage) },
       { path: 'cotizaciones', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorOrdersPage), data: { view: 'cotizaciones' } },
       { path: 'pagos', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorOrdersPage), data: { view: 'pagos' } },
       { path: 'perfil', canMatch: [authGuard], loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage) }

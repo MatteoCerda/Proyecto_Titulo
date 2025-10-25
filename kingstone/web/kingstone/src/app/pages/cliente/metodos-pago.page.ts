@@ -3,53 +3,21 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { IonContent, IonButton } from '@ionic/angular/standalone';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { PedidosService, PedidoResumen } from '../../services/pedidos.service';
+import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/pedidos.service';
+
+interface PedidoPayload {
+  attachments?: PedidoAttachment[];
+  filesTotalAreaCm2?: number;
+  filesTotalLengthCm?: number;
+  filesTotalPrice?: number;
+  note?: string;
+}
 
 @Component({
   standalone: true,
   selector: 'app-metodos-pago',
   imports: [CommonModule, IonContent, IonButton, DatePipe, RouterLink],
-  template: `
-    <ion-content class="metodos-pago">
-      <div class="wrap">
-        <header class="header">
-          <div>
-            <h1>Metodos de pago</h1>
-            <p>Revisa los pedidos que estan listos para pago.</p>
-          </div>
-          <div class="header-actions">
-            <ion-button fill="outline" color="primary" (click)="refresh()">Actualizar</ion-button>
-            <ion-button color="medium" routerLink="/cliente/mis-pedidos">Ver mis pedidos</ion-button>
-          </div>
-        </header>
-
-        <section class="notice" *ngIf="loading()">Buscando pedidos por pagar...</section>
-        <section class="notice error" *ngIf="error()">{{ error() }}</section>
-
-        <section class="statuses" *ngIf="orders().length > 0; else emptyState">
-          <article class="status-card" *ngFor="let order of orders(); trackBy: trackById">
-            <header>
-              <h2>#{{ order.id }}</h2>
-              <span>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
-            </header>
-            <div class="status-label por-pagar">Por pagar</div>
-            <div class="actions">
-              <ion-button fill="outline" color="primary" routerLink="/cliente/mis-pedidos">Detalle del pedido</ion-button>
-              <ion-button color="success" href="https://wa.me/56986412218" target="_blank">Confirmar pago</ion-button>
-            </div>
-          </article>
-        </section>
-
-        <ng-template #emptyState>
-          <section class="empty">
-            <h2>No tienes pedidos por pagar</h2>
-            <p>Cuando un pedido sea aprobado aparecera aqui para completar el pago.</p>
-            <ion-button color="primary" routerLink="/cliente/mis-pedidos">Volver al historial</ion-button>
-          </section>
-        </ng-template>
-      </div>
-    </ion-content>
-  `,
+  templateUrl: './metodos-pago.page.html',
   styleUrls: ['./metodos-pago.page.scss']
 })
 export class MetodosPagoPage implements OnInit {
@@ -58,6 +26,7 @@ export class MetodosPagoPage implements OnInit {
   readonly orders = signal<PedidoResumen[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly uploadingId = signal<number | null>(null);
 
   ngOnInit(): void {
     this.refresh();
@@ -82,6 +51,69 @@ export class MetodosPagoPage implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  payloadOf(order: PedidoResumen): PedidoPayload {
+    if (order?.payload && typeof order.payload === 'object') {
+      return order.payload as PedidoPayload;
+    }
+    try {
+      return JSON.parse(order?.payload ?? '{}') as PedidoPayload;
+    } catch {
+      return {};
+    }
+  }
+
+  attachmentsOf(order: PedidoResumen): PedidoAttachment[] {
+    return this.payloadOf(order).attachments ?? [];
+  }
+
+  totalsOf(order: PedidoResumen) {
+    const payload = this.payloadOf(order);
+    return {
+      area: payload?.filesTotalAreaCm2 ?? null,
+      length: payload?.filesTotalLengthCm ?? null,
+      price: payload?.filesTotalPrice ?? null
+    };
+  }
+
+  async onFilesSelected(orderId: number, event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+    this.uploadingId.set(orderId);
+    try {
+      const fileArray = Array.from(files);
+      await firstValueFrom(this.pedidos.uploadAttachments(orderId, fileArray));
+      await this.refresh();
+    } catch (error) {
+      console.error('No se pudo subir los archivos', error);
+      this.error.set('No pudimos subir los archivos. Intenta mas tarde.');
+    } finally {
+      this.uploadingId.set(null);
+      input.value = '';
+    }
+  }
+
+  async downloadAttachment(orderId: number, attachment: PedidoAttachment): Promise<void> {
+    try {
+      const blob = await firstValueFrom(this.pedidos.downloadAttachment(orderId, attachment.id));
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = attachment.filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('No se pudo descargar el archivo', error);
+    }
+  }
+
+  formatCurrency(value?: number | null): string {
+    if (value == null) return '-';
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
   }
 
   trackById(_: number, order: PedidoResumen): number {

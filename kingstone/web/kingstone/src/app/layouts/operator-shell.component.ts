@@ -23,6 +23,7 @@ import { OperatorInboxStore } from '../services/operator-inbox.store';
               <span *ngIf="pendingCount() > 0" class="bubble">{{ pendingCount() }}</span>
             </a>
             <a routerLink="/operador/cotizaciones" routerLinkActive="active">Cotizaciones</a>
+            <a routerLink="/operador/clientes" routerLinkActive="active">Clientes</a>
             <a routerLink="/operador/pagos" routerLinkActive="active">Pagos</a>
           </nav>
           <div class="op-actions">
@@ -74,3 +75,4 @@ export class OperatorShellComponent implements OnInit, OnDestroy {
     this.router.navigateByUrl('/login');
   }
 }
+

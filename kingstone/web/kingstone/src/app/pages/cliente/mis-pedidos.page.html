@@ -1,0 +1,105 @@
+<ion-content class="mis-pedidos">
+  <div class="wrap">
+    <header class="header">
+      <div>
+        <h1>Mis pedidos</h1>
+        <p>Revisa el estado de tus solicitudes enviadas.</p>
+      </div>
+      <div class="header-actions">
+        <ion-button fill="outline" color="primary" (click)="refresh()">Actualizar</ion-button>
+        <ion-button fill="outline" color="medium" routerLink="/cliente/metodos-pago">Metodos de pago</ion-button>
+        <ion-button color="primary" routerLink="/crea-tu-diseno">Nuevo pedido</ion-button>
+      </div>
+    </header>
+
+    <section class="notice" *ngIf="loading()">Cargando tus pedidos...</section>
+    <section class="notice error" *ngIf="error()">{{ error() }}</section>
+
+    <section class="cards" *ngIf="orders().length > 0; else emptyState">
+      <article class="card" *ngFor="let order of orders(); trackBy: trackById">
+        <header>
+          <div>
+            <h2>#{{ order.id }}</h2>
+            <small>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</small>
+          </div>
+          <div class="header-meta">
+            <span class="status" [ngClass]="statusClass(order.estado)">{{ labelEstado(order.estado) }}</span>
+            <ion-button fill="clear" size="small" (click)="toggle(order.id)">
+              {{ expandedId() === order.id ? 'Ocultar detalle' : 'Ver detalle' }}
+            </ion-button>
+          </div>
+        </header>
+
+        <div class="card-body" *ngIf="expandedId() === order.id">
+          <ng-container *ngIf="productsOf(order) as products">
+            <section class="section" *ngIf="products.length">
+              <h3>Productos del catalogo</h3>
+              <ul>
+                <li *ngFor="let product of products">
+                  <strong>{{ product.name || 'Producto' }}</strong>
+                  <span>Cantidad: {{ product.quantity || 0 }}</span>
+                  <span *ngIf="product.price">Precio unitario: {{ product.price | currency:'CLP':'symbol-narrow':'1.0-0' }}</span>
+                </li>
+              </ul>
+            </section>
+          </ng-container>
+
+          <ng-container *ngIf="quoteItemsOf(order) as quoteItems">
+            <section class="section" *ngIf="quoteItems.length">
+              <h3>Detalle de cotizacion</h3>
+              <ul>
+                <li *ngFor="let item of quoteItems">
+                  <strong>{{ item.name }}</strong>
+                  <span>Cantidad: {{ item.quantity }}</span>
+                  <span *ngIf="item.widthCm && item.heightCm">Dimensiones: {{ item.widthCm }} x {{ item.heightCm }} cm</span>
+                </li>
+              </ul>
+            </section>
+          </ng-container>
+
+          <ng-container *ngIf="attachmentsOf(order) as attachments">
+            <section class="section" *ngIf="attachments.length">
+              <h3>Archivos adjuntos</h3>
+              <ul>
+                <li *ngFor="let file of attachments">
+                  <div class="file-line">
+                    <strong>{{ file.filename }}</strong>
+                    <span *ngIf="file.areaCm2">Area: {{ file.areaCm2 | number:'1.0-0' }} cm2</span>
+                    <span *ngIf="file.lengthCm">Largo: {{ file.lengthCm | number:'1.0-1' }} cm</span>
+                    <span *ngIf="file.createdAt">{{ file.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                  </div>
+                  <ion-button fill="clear" size="small" (click)="downloadAttachment(order.id, file)">Descargar</ion-button>
+                </li>
+              </ul>
+            </section>
+          </ng-container>
+
+          <ng-container *ngIf="totalsOf(order) as totals">
+            <section class="section totals" *ngIf="totals.area || totals.price">
+              <div>
+                <span>Area total</span>
+                <strong>{{ totals.area ? (totals.area | number:'1.0-0') + ' cm2' : '-' }}</strong>
+              </div>
+              <div>
+                <span>Largo total</span>
+                <strong>{{ totals.length ? (totals.length | number:'1.0-1') + ' cm' : '-' }}</strong>
+              </div>
+              <div>
+                <span>Total estimado</span>
+                <strong>{{ formatCurrency(totals.price) }}</strong>
+              </div>
+            </section>
+          </ng-container>
+        </div>
+      </article>
+    </section>
+
+    <ng-template #emptyState>
+      <section class="empty">
+        <h2>Aun no tienes pedidos</h2>
+        <p>Cuando envies tu primera cotizacion aparecera aqui con su estado.</p>
+        <ion-button color="primary" routerLink="/crea-tu-diseno">Crear pedido</ion-button>
+      </section>
+    </ng-template>
+  </div>
+</ion-content>

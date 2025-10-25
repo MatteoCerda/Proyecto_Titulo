@@ -3,52 +3,30 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { IonContent, IonButton } from '@ionic/angular/standalone';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { PedidosService, PedidoResumen } from '../../services/pedidos.service';
+import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/pedidos.service';
+
+interface PedidoPayload {
+  products?: Array<{ name?: string; quantity?: number; price?: number }>;
+  quote?: {
+    materialLabel?: string;
+    materialId?: string;
+    materialWidthCm?: number;
+    usedHeight?: number;
+    items?: Array<{ name?: string; quantity?: number; widthCm?: number; heightCm?: number }>;
+    totalPrice?: number;
+  } | null;
+  attachments?: PedidoAttachment[];
+  filesTotalAreaCm2?: number;
+  filesTotalLengthCm?: number;
+  filesTotalPrice?: number;
+  note?: string;
+}
 
 @Component({
   standalone: true,
   selector: 'app-mis-pedidos',
   imports: [CommonModule, IonContent, IonButton, DatePipe, RouterLink],
-  template: `
-    <ion-content class="mis-pedidos">
-      <div class="wrap">
-        <header class="header">
-          <div>
-            <h1>Mis pedidos</h1>
-            <p>Revisa el estado de tus solicitudes enviadas.</p>
-          </div>
-          <div class="header-actions">
-            <ion-button fill="outline" color="primary" (click)="refresh()">Actualizar</ion-button>
-            <ion-button fill="outline" color="medium" routerLink="/cliente/metodos-pago">Metodos de pago</ion-button>
-            <ion-button color="primary" routerLink="/crea-tu-diseno">Nuevo pedido</ion-button>
-          </div>
-        </header>
-
-        <section class="notice" *ngIf="loading()">Cargando tus pedidos...</section>
-        <section class="notice error" *ngIf="error()">{{ error() }}</section>
-
-        <section class="statuses" *ngIf="orders().length > 0; else emptyState">
-          <article class="status-card" *ngFor="let order of orders(); trackBy: trackById">
-            <header>
-              <h2>#{{ order.id }}</h2>
-              <span>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
-            </header>
-            <div class="status-label" [ngClass]="statusClass(order.estado)">
-              {{ labelEstado(order.estado) }}
-            </div>
-          </article>
-        </section>
-
-        <ng-template #emptyState>
-          <section class="empty">
-            <h2>Aun no tienes pedidos</h2>
-            <p>Cuando envies tu primera cotizacion aparecera aqui el estado.</p>
-            <ion-button color="primary" routerLink="/crea-tu-diseno">Crear pedido</ion-button>
-          </section>
-        </ng-template>
-      </div>
-    </ion-content>
-  `,
+  templateUrl: './mis-pedidos.page.html',
   styleUrls: ['./mis-pedidos.page.scss']
 })
 export class MisPedidosPage implements OnInit {
@@ -57,6 +35,7 @@ export class MisPedidosPage implements OnInit {
   readonly orders = signal<PedidoResumen[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly expandedId = signal<number | null>(null);
 
   ngOnInit(): void {
     this.refresh();
@@ -81,6 +60,61 @@ export class MisPedidosPage implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  toggle(id: number): void {
+    this.expandedId.set(this.expandedId() === id ? null : id);
+  }
+
+  payloadOf(order: PedidoResumen): PedidoPayload {
+    if (order?.payload && typeof order.payload === 'object') {
+      return order.payload as PedidoPayload;
+    }
+    try {
+      return JSON.parse(order?.payload ?? '{}') as PedidoPayload;
+    } catch {
+      return {};
+    }
+  }
+
+  productsOf(order: PedidoResumen) {
+    return this.payloadOf(order)?.products ?? [];
+  }
+
+  quoteItemsOf(order: PedidoResumen) {
+    return this.payloadOf(order)?.quote?.items ?? [];
+  }
+
+  attachmentsOf(order: PedidoResumen): PedidoAttachment[] {
+    return this.payloadOf(order)?.attachments ?? [];
+  }
+
+  totalsOf(order: PedidoResumen) {
+    const payload = this.payloadOf(order);
+    return {
+      area: payload?.filesTotalAreaCm2 ?? null,
+      length: payload?.filesTotalLengthCm ?? null,
+      price: payload?.filesTotalPrice ?? null
+    };
+  }
+
+  async downloadAttachment(orderId: number, attachment: PedidoAttachment): Promise<void> {
+    try {
+      const blob = await firstValueFrom(this.pedidos.downloadAttachment(orderId, attachment.id));
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = attachment.filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('No se pudo descargar el archivo', error);
+    }
+  }
+
+  formatCurrency(value?: number | null): string {
+    if (value == null) return '-';
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
   }
 
   trackById(_: number, order: PedidoResumen): number {

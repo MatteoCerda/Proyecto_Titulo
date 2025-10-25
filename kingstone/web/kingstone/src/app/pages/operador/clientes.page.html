@@ -1,0 +1,41 @@
+<ion-content class="clientes">
+  <div class="wrap">
+    <header class="header">
+      <div>
+        <h1>Clientes y pedidos</h1>
+        <p>Revisa rapidamente los pedidos asociados a cada cliente.</p>
+      </div>
+      <ion-button fill="outline" color="primary" (click)="refresh()" [disabled]="loading()">Actualizar</ion-button>
+    </header>
+
+    <section class="notice" *ngIf="loading()">Cargando clientes...</section>
+    <section class="notice error" *ngIf="error()">{{ error() }}</section>
+
+    <section class="table" *ngIf="clientes().length > 0; else emptyState">
+      <div class="table-head">
+        <span>Cliente</span>
+        <span>Pedidos</span>
+        <span>Ultimo estado</span>
+        <span>Total ultimo</span>
+        <span>Actualizado</span>
+      </div>
+      <div class="table-row" *ngFor="let cliente of clientes(); trackBy: trackByEmail">
+        <div class="cliente">
+          <strong>{{ cliente.nombre || 'Sin nombre' }}</strong>
+          <small>{{ cliente.email || 'Sin correo' }}</small>
+        </div>
+        <div class="cantidad">{{ cliente.pedidos.length }}</div>
+        <div class="estado">{{ cliente.pedidos[0]?.estado || '-' }}</div>
+        <div class="total">{{ (cliente.pedidos[0]?.total ?? 0) | currency:'CLP':'symbol-narrow':'1.0-0' }}</div>
+        <div class="fecha">{{ cliente.pedidos[0]?.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
+      </div>
+    </section>
+
+    <ng-template #emptyState>
+      <section class="empty">
+        <h2>No hay pedidos registrados</h2>
+        <p>Cuando los clientes envien solicitudes apareceran aqui.</p>
+      </section>
+    </ng-template>
+  </div>
+</ion-content>
