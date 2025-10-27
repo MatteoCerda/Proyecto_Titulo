@@ -47,7 +47,10 @@
             </div>
             <div class="work-schedule">
               <label>Programado para</label>
-              <input type="datetime-local" [value]="toInputValue(item.programadoPara)" (change)="updateSchedule(item, $any($event.target).value)" />
+              <div class="schedule-inputs">
+                <input type="date" [value]="toDateValue(item.programadoPara)" (change)="updateScheduleDate(item, $any($event.target).value)" />
+                <input type="time" [value]="toTimeValue(item.programadoPara)" (change)="updateScheduleTime(item, $any($event.target).value)" />
+              </div>
             </div>
             <div class="work-notes">
               <label>Notas</label>

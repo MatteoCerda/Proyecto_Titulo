@@ -137,6 +137,15 @@
   gap: 6px;
 }
 
+.schedule-inputs {
+  display: flex;
+  gap: 8px;
+}
+
+.schedule-inputs input {
+  flex: 1;
+}
+
 .work-stage label,
 .work-schedule label,
 .work-notes label {

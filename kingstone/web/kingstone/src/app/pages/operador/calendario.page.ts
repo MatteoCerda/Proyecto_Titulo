@@ -141,11 +141,26 @@ export class OperatorCalendarPage implements OnInit {
     await this.updateWorkOrder(item, { estado: stage });
   }
 
-  async updateSchedule(item: CalendarWorkOrder, value: string): Promise<void> {
-    const payload = value
-      ? { programadoPara: this.normalizeDateTimeValue(value) }
-      : { programadoPara: null };
-    await this.updateWorkOrder(item, payload);
+  async updateScheduleDate(item: CalendarWorkOrder, dateValue: string): Promise<void> {
+    if (!dateValue) {
+      await this.updateWorkOrder(item, { programadoPara: null });
+      return;
+    }
+    const currentTime = this.toTimeValue(item.programadoPara) || '08:00';
+    await this.updateWorkOrder(item, { programadoPara: this.combineDateTime(dateValue, currentTime) });
+  }
+
+  async updateScheduleTime(item: CalendarWorkOrder, timeValue: string): Promise<void> {
+    if (!timeValue) {
+      const dateValue = this.toDateValue(item.programadoPara);
+      await this.updateWorkOrder(item, { programadoPara: dateValue ? this.combineDateTime(dateValue, '00:00') : null });
+      return;
+    }
+    const dateValue = this.toDateValue(item.programadoPara) || this.toDateValue(this.rangeStart().toISOString());
+    if (!dateValue) {
+      return;
+    }
+    await this.updateWorkOrder(item, { programadoPara: this.combineDateTime(dateValue, timeValue) });
   }
 
   async updateNotes(item: CalendarWorkOrder, notes: string): Promise<void> {
@@ -196,14 +211,10 @@ export class OperatorCalendarPage implements OnInit {
   }
 
   private toLabel(date: Date): string {
-    return date.toLocaleDateString(undefined, {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short'
-    });
+    return new Intl.DateTimeFormat('es-CL', { weekday: 'short', day: 'numeric', month: 'short' }).format(date);
   }
 
-  toInputValue(value: string | null | undefined): string {
+  toDateValue(value: string | null | undefined): string {
     if (!value) {
       return '';
     }
@@ -213,7 +224,22 @@ export class OperatorCalendarPage implements OnInit {
     }
     const offset = date.getTimezoneOffset() * 60000;
     const local = new Date(date.getTime() - offset);
-    return local.toISOString().slice(0, 16);
+    return local.toISOString().slice(0, 10);
+  }
+
+  toTimeValue(value: string | null | undefined): string {
+    if (!value) {
+      return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    return date.toISOString().slice(11, 16);
+  }
+
+  private formatRangeLabel(date: Date): string {
+    return new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
   }
 
   private normalizeDateTimeValue(value: string): string {
@@ -226,4 +252,12 @@ export class OperatorCalendarPage implements OnInit {
     }
     return date.toISOString();
   }
+
+  private combineDateTime(dateValue: string, timeValue: string): string {
+    const normalizedTime = timeValue && timeValue.length >= 4 ? timeValue : '00:00';
+    const iso = `${dateValue}T${normalizedTime}`;
+    const date = new Date(iso);
+    return this.normalizeDateTimeValue(date.toISOString());
+  }
 }
+
