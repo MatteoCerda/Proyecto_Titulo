@@ -710,6 +710,51 @@ router.get('/admin/clientes', async (req, res) => {
       return res.status(403).json({ message: 'Requiere rol operador' });
     }
 
+    const clientes = await prisma.user.findMany({
+      orderBy: [{ createdAt: 'desc' }],
+      include: {
+        cliente: true,
+        pedidos: {
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    });
+
+    const response = clientes
+      .filter(user => {
+        const role = (user.role || '').toUpperCase();
+        return role !== 'ADMIN' && role !== 'OPERATOR';
+      })
+      .map(user => {
+        const pedidos = (user.pedidos ?? []).map(pedido => ({
+          id: pedido.id,
+          estado: pedido.estado,
+          createdAt: pedido.createdAt,
+          total: pedido.total ?? null,
+          material: pedido.materialLabel ?? null
+        }));
+        return {
+          id: user.id,
+          email: user.email,
+          nombre: user.cliente?.nombre_contacto || user.fullName || null,
+          pedidos
+        };
+      });
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error listando clientes con pedidos', error);
+    res.status(500).json({ message: 'Error interno' });
+  }
+});
+
+router.get('/admin/clientes/legacy', async (req, res) => {
+  try {
+    const user = (req as any).user as JwtUser | undefined;
+    if (!isOperator(user?.role)) {
+      return res.status(403).json({ message: 'Requiere rol operador' });
+    }
+
     const pedidos = await prisma.pedido.findMany({
       orderBy: { createdAt: 'desc' }
     });

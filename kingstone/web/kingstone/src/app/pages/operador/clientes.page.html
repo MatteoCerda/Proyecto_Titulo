@@ -1,41 +1,102 @@
 <ion-content class="clientes">
-  <div class="wrap">
+  <div class="layout">
     <header class="header">
       <div>
         <h1>Clientes y pedidos</h1>
-        <p>Revisa rapidamente los pedidos asociados a cada cliente.</p>
+        <p>Explora los pedidos asociados a cada cliente y revisa su estado actual.</p>
       </div>
       <ion-button fill="outline" color="primary" (click)="refresh()" [disabled]="loading()">Actualizar</ion-button>
     </header>
 
-    <section class="notice" *ngIf="loading()">Cargando clientes...</section>
-    <section class="notice error" *ngIf="error()">{{ error() }}</section>
+    <section class="main">
+      <aside class="client-list">
+        <div class="state" *ngIf="loading()">Cargando clientes...</div>
+        <div class="state error" *ngIf="error()">{{ error() }}</div>
 
-    <section class="table" *ngIf="clientes().length > 0; else emptyState">
-      <div class="table-head">
-        <span>Cliente</span>
-        <span>Pedidos</span>
-        <span>Ultimo estado</span>
-        <span>Total ultimo</span>
-        <span>Actualizado</span>
-      </div>
-      <div class="table-row" *ngFor="let cliente of clientes(); trackBy: trackByEmail">
-        <div class="cliente">
-          <strong>{{ cliente.nombre || 'Sin nombre' }}</strong>
-          <small>{{ cliente.email || 'Sin correo' }}</small>
-        </div>
-        <div class="cantidad">{{ cliente.pedidos.length }}</div>
-        <div class="estado">{{ cliente.pedidos[0]?.estado || '-' }}</div>
-        <div class="total">{{ (cliente.pedidos[0]?.total ?? 0) | currency:'CLP':'symbol-narrow':'1.0-0' }}</div>
-        <div class="fecha">{{ cliente.pedidos[0]?.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
-      </div>
-    </section>
+        <ng-container *ngIf="!loading() && !error()">
+          <div class="empty" *ngIf="!clientes().length">
+            <h3>No hay clientes registrados</h3>
+            <p>Cuando se creen pedidos veras la lista de clientes aqui.</p>
+          </div>
+          <div class="list" *ngIf="clientes().length">
+            <button
+              type="button"
+              class="client-item"
+              *ngFor="let cliente of clientes(); let i = index; trackBy: trackByEmail"
+              [class.active]="isSelected(cliente)"
+              (click)="selectCliente(cliente)"
+            >
+              <div class="badge">#{{ i + 1 }}</div>
+              <div class="name">
+                <strong>{{ cliente.nombre || cliente.email || 'Cliente sin nombre' }}</strong>
+                <small>{{ cliente.email || 'Sin correo' }}</small>
+              </div>
+              <div class="meta">
+                <span>{{ cliente.pedidos.length }} pedidos</span>
+                <span *ngIf="cliente.pedidos[0] as ultimo">{{ ultimo.createdAt | date:'dd/MM/yyyy' }}</span>
+              </div>
+            </button>
+          </div>
+        </ng-container>
+      </aside>
 
-    <ng-template #emptyState>
-      <section class="empty">
-        <h2>No hay pedidos registrados</h2>
-        <p>Cuando los clientes envien solicitudes apareceran aqui.</p>
+      <section class="client-detail">
+        <ng-container *ngIf="selectedCliente() as cliente; else placeholder">
+          <header class="detail-header">
+            <div>
+              <h2>
+                <span *ngIf="selectedIndex() !== null" class="client-number">Cliente #{{ (selectedIndex() ?? -1) + 1 }}</span>
+                {{ cliente.nombre || cliente.email || 'Cliente sin nombre' }}
+              </h2>
+              <p>{{ cliente.email || 'Sin correo registrado' }}</p>
+            </div>
+          </header>
+
+          <section class="highlight-cards">
+            <article>
+              <span>Pedidos totales</span>
+              <strong>{{ pedidosTotales(cliente) }}</strong>
+            </article>
+            <article>
+              <span>En revision / pendientes</span>
+              <strong>{{ pedidosPendientes(cliente) }}</strong>
+            </article>
+          </section>
+
+          <section class="orders" *ngIf="cliente.pedidos.length; else sinPedidos">
+            <article class="order-card" *ngFor="let pedido of cliente.pedidos; trackBy: trackByPedido">
+              <header>
+                <h3>#{{ pedido.id }}</h3>
+                <span class="status" [ngClass]="statusClass(pedido.estado)">{{ labelEstado(pedido.estado) }}</span>
+              </header>
+              <ul class="order-meta">
+                <li>
+                  <span>Estado</span>
+                  <strong>{{ labelEstado(pedido.estado) }}</strong>
+                </li>
+                <li>
+                  <span>Fecha</span>
+                  <strong>{{ pedido.createdAt | date:'dd/MM/yyyy HH:mm' }}</strong>
+                </li>
+                <li>
+                  <span>Total</span>
+                  <strong>{{ formatCurrency(pedido.total) }}</strong>
+                </li>
+                <li *ngIf="pedido.material">
+                  <span>Material</span>
+                  <strong>{{ pedido.material }}</strong>
+                </li>
+              </ul>
+            </article>
+          </section>
+          <ng-template #sinPedidos>
+            <p class="placeholder">Este cliente aun no tiene pedidos registrados.</p>
+          </ng-template>
+        </ng-container>
+        <ng-template #placeholder>
+          <p class="placeholder">Selecciona un cliente de la lista para revisar sus pedidos.</p>
+        </ng-template>
       </section>
-    </ng-template>
+    </section>
   </div>
 </ion-content>

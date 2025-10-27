@@ -28,6 +28,7 @@ export interface PedidoAttachment {
 }
 
 export interface ClientePedidosResumen {
+  id: number;
   email: string | null;
   nombre: string | null;
   pedidos: Array<{

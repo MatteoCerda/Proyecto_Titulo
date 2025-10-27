@@ -28,6 +28,7 @@
     "@capacitor/status-bar": "7.0.3",
     "@ionic/angular": "^8.0.0",
     "ionicons": "^7.0.0",
+    "jspdf": "^3.0.3",
     "jsqr": "^1.4.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",

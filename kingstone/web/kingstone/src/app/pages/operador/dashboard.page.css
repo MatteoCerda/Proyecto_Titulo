@@ -503,6 +503,21 @@ button.ghost:hover {
   text-align: right;
 }
 
+.items-summary {
+  margin-top: 12px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  border-radius: 12px;
+  background: rgba(15, 27, 40, 0.65);
+  border: 1px solid rgba(248, 250, 252, 0.08);
+  color: #cbd5f5;
+}
+
+.items-summary strong {
+  color: #f8fafc;
+}
+
 @media (max-width: 1024px) {
   .operator-layout {
     grid-template-columns: 1fr;
@@ -574,6 +589,7 @@ button.ghost:hover {
   display: flex;
   justify-content: flex-end;
   margin-top: 18px;
+  gap: 12px;
 }
 
 .detail-actions .primary {
@@ -584,5 +600,200 @@ button.ghost:hover {
   padding: 10px 18px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.cliente-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(9, 13, 25, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.cliente-modal {
+  background: #0f1f31;
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  width: min(960px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cliente-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 24px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.cliente-modal-header h2 {
+  margin: 0 0 6px;
+  color: #f8fafc;
+}
+
+.cliente-modal-header p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.cliente-modal-body {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 380px;
+}
+
+.cliente-modal-list {
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(8, 16, 26, 0.55);
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.cliente-modal-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cliente-modal-list li {
+  padding: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  background: rgba(30, 41, 59, 0.5);
+  color: #e2e8f0;
+  border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: transform 0.2s ease, border 0.2s ease;
+}
+
+.cliente-modal-list li:hover {
+  transform: translateX(2px);
+  border-color: rgba(248, 250, 252, 0.25);
+}
+
+.cliente-modal-list li.active {
+  border-color: rgba(250, 204, 21, 0.65);
+  background: rgba(250, 204, 21, 0.1);
+}
+
+.cliente-modal-list li strong {
+  font-size: 14px;
+}
+
+.cliente-modal-list li span {
+  font-size: 12px;
+  color: #cbd5f5;
+}
+
+.cliente-modal-list .estado {
+  color: #cbd5f5;
+  font-size: 14px;
+}
+
+.cliente-modal-list .estado.error {
+  color: #f87171;
+}
+
+.cliente-modal-detail {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cliente-modal-detail header h3 {
+  margin: 0;
+  color: #f8fafc;
+}
+
+.cliente-modal-detail header p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.cliente-orders {
+  display: grid;
+  gap: 12px;
+}
+
+.cliente-order-card {
+  background: rgba(15, 27, 40, 0.75);
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cliente-order-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cliente-order-card header strong {
+  color: #f8fafc;
+  font-size: 16px;
+}
+
+.cliente-order-card header .status {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.cliente-order-card .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+  color: #cbd5f5;
+}
+
+.cliente-placeholder {
+  margin: 40px 0;
+  text-align: center;
+  color: #cbd5f5;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .cliente-modal-body {
+    grid-template-columns: 1fr;
+  }
+
+  .cliente-modal-list {
+    border-right: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    max-height: 180px;
+  }
+}
+
+@media (max-width: 600px) {
+  .cliente-modal {
+    padding: 0;
+  }
+
+  .cliente-modal-header {
+    flex-direction: column;
+    gap: 12px;
+  }
 }
 
