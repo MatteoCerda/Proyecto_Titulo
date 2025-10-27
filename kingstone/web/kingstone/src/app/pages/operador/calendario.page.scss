@@ -1,0 +1,177 @@
+﻿.calendar::part(scroll) {
+  padding: 32px 16px 48px;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 40%, #0f172a 100%);
+}
+
+.calendar-layout {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.calendar-header {
+  background: rgba(15, 23, 42, 0.92);
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  color: #e2e8f0;
+}
+
+.calendar-header h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.calendar-header p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+}
+
+.calendar-header .actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.range-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px;
+  color: #94a3b8;
+}
+
+.range-info .error {
+  color: #f87171;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.calendar-column {
+  background: rgba(15, 23, 42, 0.88);
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #e2e8f0;
+}
+
+.calendar-column header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calendar-column header strong {
+  font-size: 16px;
+}
+
+.column-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.column-body.empty {
+  justify-content: center;
+}
+
+.empty-message {
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.work-card {
+  background: rgba(11, 19, 32, 0.9);
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.work-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.work-head button {
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: #93c5fd;
+  cursor: pointer;
+}
+
+.work-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #cbd5f5;
+}
+
+.work-stage,
+.work-schedule,
+.work-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.work-stage label,
+.work-schedule label,
+.work-notes label {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.work-stage select,
+.work-schedule input,
+.work-notes textarea {
+  background: rgba(14, 26, 40, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  color: #e2e8f0;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.work-notes textarea {
+  resize: vertical;
+}
+
+.work-status {
+  font-size: 12px;
+  color: #38bdf8;
+}
+
+@media (max-width: 768px) {
+  .calendar-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .calendar-header .actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

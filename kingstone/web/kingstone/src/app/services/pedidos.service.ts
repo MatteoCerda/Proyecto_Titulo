@@ -2,6 +2,20 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+export interface WorkOrderSummary {
+  id: number;
+  pedidoId: number;
+  tecnica: string;
+  maquina?: string | null;
+  estado: string;
+  programadoPara?: string | null;
+  iniciaEn?: string | null;
+  terminaEn?: string | null;
+  notas?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PedidoResumen {
   id: number;
   cliente: string;
@@ -14,6 +28,7 @@ export interface PedidoResumen {
   materialLabel?: string;
   note?: string;
   payload?: any;
+  workOrder?: WorkOrderSummary | null;
 }
 
 export interface PedidoAttachment {
@@ -177,6 +192,51 @@ export class PedidosService {
 
   listClientesResumen(): Observable<ClientePedidosResumen[]> {
     return this.http.get<ClientePedidosResumen[]>(`/api/pedidos/admin/clientes`);
+  }
+
+  createWorkOrder(
+    pedidoId: number,
+    payload: { tecnica: string; maquina?: string | null; programadoPara?: string | null; notas?: string | null }
+  ): Observable<WorkOrderSummary> {
+    return this.http.post<WorkOrderSummary>(`/api/pedidos/${pedidoId}/work-orders`, payload);
+  }
+
+  updateWorkOrder(
+    workOrderId: number,
+    payload: Partial<{ estado: string; maquina: string | null; programadoPara: string | null; notas: string | null; iniciaEn: string | null; terminaEn: string | null }>
+  ): Observable<WorkOrderSummary> {
+    return this.http.patch<WorkOrderSummary>(`/api/pedidos/work-orders/${workOrderId}`, payload);
+  }
+
+  listWorkOrdersCalendar(params?: { from?: string; to?: string }): Observable<Array<
+    WorkOrderSummary & {
+      pedido: {
+        id: number;
+        clienteNombre: string | null;
+        clienteEmail: string | null;
+        estado: string;
+        materialLabel: string | null;
+      };
+    }
+  >> {
+    const httpParams: Record<string, string> = {};
+    if (params?.from) {
+      httpParams['from'] = params.from;
+    }
+    if (params?.to) {
+      httpParams['to'] = params.to;
+    }
+    return this.http.get<Array<
+    WorkOrderSummary & {
+      pedido: {
+        id: number;
+        clienteNombre: string | null;
+        clienteEmail: string | null;
+        estado: string;
+        materialLabel: string | null;
+      };
+    }
+  >>(`/api/pedidos/work-orders/calendar`, { params: httpParams });
   }
 }
 

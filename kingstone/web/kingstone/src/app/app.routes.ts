@@ -56,7 +56,9 @@ export const routes: Routes = [
       { path: 'clientes', loadComponent: () => import('./pages/operador/clientes.page').then(m => m.OperatorClientesPage) },
       { path: 'cotizaciones', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorOrdersPage), data: { view: 'cotizaciones' } },
       { path: 'pagos', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorOrdersPage), data: { view: 'pagos' } },
+      { path: 'calendario', loadComponent: () => import('./pages/operador/calendario.page').then(m => m.OperatorCalendarPage) },
       { path: 'perfil', canMatch: [authGuard], loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage) }
     ]
   }
 ];
+

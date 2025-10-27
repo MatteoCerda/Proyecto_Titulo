@@ -602,6 +602,100 @@ button.ghost:hover {
   cursor: pointer;
 }
 
+.work-order-section {
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(14, 26, 40, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.work-order-section h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #f8fafc;
+}
+
+.work-order-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wo-stage-tag {
+  background: rgba(96, 165, 250, 0.2);
+  color: #93c5fd;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.work-order-form {
+  display: grid;
+  gap: 12px;
+}
+
+.work-order-form .form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.work-order-form label {
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.work-order-form input,
+.work-order-form select,
+.work-order-form textarea {
+  background: rgba(14, 26, 40, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+.work-order-form textarea {
+  resize: vertical;
+}
+
+.work-order-form .form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.work-order-form .form-actions .primary {
+  background: #38bdf8;
+  color: #0f172a;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.work-order-form .muted {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.work-order-form .form-error {
+  background: rgba(248, 113, 113, 0.16);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #fca5a5;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
 .cliente-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -796,4 +890,5 @@ button.ghost:hover {
     gap: 12px;
   }
 }
+
 

@@ -1,13 +1,15 @@
+
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { PedidosService, PedidoResumen } from '../../services/pedidos.service';
 
 @Component({
   standalone: true,
   selector: 'app-operator-orders',
-  imports: [CommonModule, DatePipe],
+  imports: [CommonModule, DatePipe, ReactiveFormsModule],
   template: `
     <div class="operator-content status-view">
       <header class="content-header">
@@ -59,12 +61,7 @@ import { PedidosService, PedidoResumen } from '../../services/pedidos.service';
           </div>
           <div class="cell actions">
             <button type="button" class="ghost" (click)="select(order, $event)">Ver detalle</button>
-            <button
-              type="button"
-              class="primary"
-              *ngIf="view === 'cotizaciones'"
-              (click)="sendToPayments(order, $event)"
-            >
+            <button type="button" class="primary" *ngIf="view === 'cotizaciones'" (click)="sendToPayments(order, $event)">
               Enviar a pagos
             </button>
           </div>
@@ -89,12 +86,12 @@ import { PedidosService, PedidoResumen } from '../../services/pedidos.service';
         <button type="button" (click)="closeDetail()">Cerrar</button>
       </header>
       <div class="review-banner" *ngIf="selection.estado === 'EN_REVISION'">
-        <h3>Pedido en revisión</h3>
+        <h3>Pedido en revision</h3>
         <p>Valida cantidades, materiales y comentarios antes de enviarlo a la etapa de pago.</p>
       </div>
       <div class="payments-banner" *ngIf="selection.estado === 'POR_PAGAR'">
         <h3>Pedido por pagar</h3>
-        <p>Comparte el enlace de pago con el cliente y espera la confirmación antes de producir.</p>
+        <p>Comparte el enlace de pago con el cliente y espera la confirmacion antes de producir.</p>
       </div>
       <ul>
         <li><span>ID pedido</span><strong>#{{ selection.id }}</strong></li>
@@ -102,7 +99,10 @@ import { PedidosService, PedidoResumen } from '../../services/pedidos.service';
         <li><span>Correo</span><strong>{{ selection.email }}</strong></li>
         <li><span>Estado</span><strong>{{ labelEstado(selection.estado) }}</strong></li>
         <li><span>Actualizado</span><strong>{{ selection.createdAt | date:'medium' }}</strong></li>
-        <li><span>Total estimado</span><strong>{{ selection.total ? ('$' + (selection.total | number:'1.0-0')) : 'Por definir' }}</strong></li>
+        <li>
+          <span>Total estimado</span>
+          <strong>{{ selection.total !== null && selection.total !== undefined ? formatCurrency(selection.total) : 'Por definir' }}</strong>
+        </li>
         <li><span>Nro de items</span><strong>{{ selection.items || '-' }}</strong></li>
         <li><span>Material</span><strong>{{ selection.materialLabel || 'Por definir' }}</strong></li>
       </ul>
@@ -110,23 +110,97 @@ import { PedidosService, PedidoResumen } from '../../services/pedidos.service';
         <h3>Notas del cliente</h3>
         <p>{{ selection.note }}</p>
       </div>
-      <ng-container *ngIf="selection.payload as payload">
+      <ng-container *ngIf="orderPayload(selection) as payload">
         <div class="note-block" *ngIf="!selection.note && payload?.note">
           <h3>Notas del cliente</h3>
           <p>{{ payload.note }}</p>
         </div>
-        <div class="items-block" *ngIf="payload?.items?.length">
-          <h3>Diseños solicitados</h3>
-          <h3>Disenos solicitados</h3>
-          <ul>
-            <li *ngFor="let item of payload.items">
-              <span class="item-name">{{ item.displayName || item.name }}</span>
-              <span class="item-size">{{ item.widthCm | number:'1.0-1' }} x {{ item.heightCm | number:'1.0-1' }} cm</span>
-              <span class="item-qty">{{ item.quantity }} uds</span>
-            </li>
-          </ul>
-        </div>
+        <ng-container *ngIf="payloadItems(payload) as items">
+          <div class="items-block" *ngIf="items.length">
+            <h3>Items solicitados</h3>
+            <ul>
+              <li *ngFor="let item of items; trackBy: trackByItem">
+                <span class="item-name">{{ item.name }}</span>
+                <span class="item-size" *ngIf="item.size">{{ item.size }}</span>
+                <span class="item-qty">{{ item.quantity }} m</span>
+              </li>
+            </ul>
+            <div class="items-summary">
+              <span>Total metros solicitados</span>
+              <strong>{{ totalItemsQuantity(items) }} m</strong>
+            </div>
+          </div>
+        </ng-container>
       </ng-container>
+
+      <section class="work-order-section" *ngIf="view === 'pagos'">
+        <ng-container *ngIf="selection.workOrder as workOrder; else createWorkOrderTpl">
+          <header class="work-order-header">
+            <h3>Orden de trabajo</h3>
+            <span class="wo-stage-tag">{{ stageLabel(workOrder.estado) }}</span>
+          </header>
+          <form [formGroup]="editWorkOrderForm" (ngSubmit)="submitWorkOrderUpdate()" class="work-order-form">
+            <div class="form-row">
+              <label for="wo-estado">Etapa</label>
+              <select id="wo-estado" formControlName="estado">
+                <option *ngFor="let stage of workOrderStages" [value]="stage.value">{{ stage.label }}</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="wo-maquina">Maquina / tecnica</label>
+              <input id="wo-maquina" type="text" formControlName="maquina" />
+            </div>
+            <div class="form-row">
+              <label for="wo-programado">Programado para</label>
+              <input id="wo-programado" type="datetime-local" formControlName="programadoPara" />
+            </div>
+            <div class="form-row">
+              <label for="wo-notas">Notas internas</label>
+              <textarea id="wo-notas" rows="2" formControlName="notas"></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary" [disabled]="editWorkOrderForm.invalid || updatingWorkOrder()">Actualizar OT</button>
+              <span class="muted" *ngIf="updatingWorkOrder()">Actualizando...</span>
+            </div>
+            <div class="form-error" *ngIf="workOrderError()">{{ workOrderError() }}</div>
+          </form>
+        </ng-container>
+        <ng-template #createWorkOrderTpl>
+          <h3>Crear orden de trabajo</h3>
+          <p>Asigna tecnica, maquina y agenda este pedido para producirlo.</p>
+          <form [formGroup]="createWorkOrderForm" (ngSubmit)="submitWorkOrderCreation()" class="work-order-form">
+            <div class="form-row">
+              <label for="ot-tecnica">Tecnica</label>
+              <select id="ot-tecnica" formControlName="tecnica">
+                <option value="">Selecciona una tecnica</option>
+                <option value="DTF_TEXTIL">DTF textil</option>
+                <option value="DTF_UV">DTF UV</option>
+                <option value="VINILO_CORTE">Corte de vinilo</option>
+                <option value="PVC_TELA">Impresion en tela PVC</option>
+                <option value="OTRA">Otra tecnica</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="ot-maquina">Maquina / equipo</label>
+              <input id="ot-maquina" type="text" formControlName="maquina" placeholder="Nombre o codigo de maquina" />
+            </div>
+            <div class="form-row">
+              <label for="ot-programado">Programado para</label>
+              <input id="ot-programado" type="datetime-local" formControlName="programadoPara" />
+            </div>
+            <div class="form-row">
+              <label for="ot-notas">Notas internas</label>
+              <textarea id="ot-notas" rows="2" formControlName="notas" placeholder="Observaciones para produccion"></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary" [disabled]="createWorkOrderForm.invalid || creatingWorkOrder()">Crear OT</button>
+              <span class="muted" *ngIf="creatingWorkOrder()">Creando...</span>
+            </div>
+            <div class="form-error" *ngIf="workOrderError()">{{ workOrderError() }}</div>
+          </form>
+        </ng-template>
+      </section>
+
       <div class="detail-actions" *ngIf="view === 'cotizaciones'">
         <button type="button" class="primary" (click)="sendToPayments(selection, $event)">Enviar a pagos</button>
       </div>
@@ -138,6 +212,46 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
   private readonly pedidos = inject(PedidosService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
+  private readonly currencyFormatter = new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  });
+
+  readonly workOrderStages = [
+    { value: 'cola', label: 'En cola' },
+    { value: 'produccion', label: 'En produccion' },
+    { value: 'control_calidad', label: 'Control de calidad' },
+    { value: 'listo_retiro', label: 'Listo para retiro' }
+  ];
+
+  readonly orders = signal<PedidoResumen[]>([]);
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
+  readonly selectedOrder = signal<PedidoResumen | null>(null);
+  readonly actionFeedback = signal<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  readonly createWorkOrderForm = this.fb.group({
+    tecnica: ['', Validators.required],
+    maquina: [''],
+    programadoPara: [''],
+    notas: ['']
+  });
+
+  readonly editWorkOrderForm = this.fb.group({
+    estado: ['', Validators.required],
+    maquina: [''],
+    programadoPara: [''],
+    notas: ['']
+  });
+
+  readonly creatingWorkOrder = signal(false);
+  readonly updatingWorkOrder = signal(false);
+  readonly workOrderError = signal<string | null>(null);
+
+  private paramsSub?: Subscription;
 
   readonly view: 'cotizaciones' | 'pagos' =
     (this.route.snapshot.data['view'] as string) === 'pagos' ? 'pagos' : 'cotizaciones';
@@ -148,17 +262,9 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
 
   readonly description = computed(() =>
     this.view === 'pagos'
-      ? 'Gestiona los pedidos listos para pago y coordina la documentacion con el cliente.'
-      : 'Revisa las solicitudes tomadas por el equipo antes de enviarlas a la etapa de pago.'
+      ? 'Gestiona los pedidos listos para pago y coordina la produccion.'
+      : 'Revisa las solicitudes tomadas por el equipo antes de enviarlas a pago.'
   );
-
-  readonly orders = signal<PedidoResumen[]>([]);
-  readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
-  readonly selectedOrder = signal<PedidoResumen | null>(null);
-  readonly actionFeedback = signal<{ type: 'success' | 'error'; message: string } | null>(null);
-
-  private paramsSub?: Subscription;
 
   ngOnInit(): void {
     this.refresh();
@@ -171,14 +277,32 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
 
   refresh(): void {
     this.actionFeedback.set(null);
+    this.workOrderError.set(null);
+    this.creatingWorkOrder.set(false);
+    this.updatingWorkOrder.set(false);
     this.load();
   }
 
   private async load(): Promise<void> {
     this.loading.set(true);
     try {
-      const status = this.view === 'pagos' ? 'POR_PAGAR' : 'EN_REVISION';
-      const data = await firstValueFrom(this.pedidos.listByStatus(status));
+      let data: PedidoResumen[] = [];
+      if (this.view === 'pagos') {
+        const [porPagar, enImpresion, enProduccion] = await Promise.all([
+          firstValueFrom(this.pedidos.listByStatus('POR_PAGAR')),
+          firstValueFrom(this.pedidos.listByStatus('EN_IMPRESION')),
+          firstValueFrom(this.pedidos.listByStatus('EN_PRODUCCION'))
+        ]);
+        const merged = new Map<number, PedidoResumen>();
+        for (const list of [porPagar, enImpresion, enProduccion]) {
+          list?.forEach(item => merged.set(item.id, item));
+        }
+        data = Array.from(merged.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      } else {
+        data = await firstValueFrom(this.pedidos.listByStatus('EN_REVISION'));
+      }
       this.orders.set(data);
       this.error.set(null);
       this.applySelectionFromQuery(true);
@@ -193,6 +317,7 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
   select(order: PedidoResumen, event?: Event): void {
     event?.stopPropagation();
     this.selectedOrder.set(order);
+    this.prepareWorkOrderForms(order);
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { selected: order.id },
@@ -203,6 +328,7 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
 
   closeDetail(): void {
     this.selectedOrder.set(null);
+    this.prepareWorkOrderForms(null);
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { selected: null },
@@ -220,7 +346,7 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
       await firstValueFrom(this.pedidos.markAsSeen(order.id, 'POR_PAGAR'));
       this.actionFeedback.set({ type: 'success', message: `Pedido #${order.id} enviado a pagos.` });
       this.orders.update(items => items.filter(item => item.id !== order.id));
-      this.selectedOrder.set(null);
+      this.closeDetail();
       this.router.navigate(['/operador/pagos'], { queryParams: { selected: order.id } });
     } catch (err) {
       console.error('No se pudo enviar a pagos', err);
@@ -228,8 +354,255 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
     }
   }
 
+  async submitWorkOrderCreation(): Promise<void> {
+    const order = this.selectedOrder();
+    if (!order) {
+      return;
+    }
+    if (this.createWorkOrderForm.invalid) {
+      this.createWorkOrderForm.markAllAsTouched();
+      return;
+    }
+    const value = this.createWorkOrderForm.value;
+    this.creatingWorkOrder.set(true);
+    this.workOrderError.set(null);
+    try {
+      const payload: any = {
+        tecnica: value.tecnica!,
+        maquina: value.maquina?.trim() ? value.maquina.trim() : null,
+        notas: value.notas?.trim() ? value.notas.trim() : null
+      };
+      if (value.programadoPara) {
+        payload.programadoPara = this.normalizeDateTimeValue(value.programadoPara);
+      }
+      const created = await firstValueFrom(this.pedidos.createWorkOrder(order.id, payload));
+      const updatedOrder: PedidoResumen = { ...order, estado: 'EN_IMPRESION', workOrder: created };
+      this.orders.update(list => list.map(item => (item.id === order.id ? updatedOrder : item)));
+      this.selectedOrder.set(updatedOrder);
+      this.prepareWorkOrderForms(updatedOrder);
+      this.actionFeedback.set({ type: 'success', message: 'Orden de trabajo creada.' });
+    } catch (err) {
+      console.error('No se pudo crear la orden de trabajo', err);
+      this.workOrderError.set('No logramos crear la orden de trabajo. Intenta nuevamente.');
+    } finally {
+      this.creatingWorkOrder.set(false);
+    }
+  }
+
+  async submitWorkOrderUpdate(): Promise<void> {
+    const order = this.selectedOrder();
+    const workOrder = order?.workOrder;
+    if (!order || !workOrder || this.editWorkOrderForm.invalid) {
+      this.editWorkOrderForm.markAllAsTouched();
+      return;
+    }
+    const value = this.editWorkOrderForm.value;
+    this.updatingWorkOrder.set(true);
+    this.workOrderError.set(null);
+    try {
+      const payload: any = {
+        estado: value.estado,
+        maquina: value.maquina?.trim() ? value.maquina.trim() : null,
+        notas: value.notas?.trim() ? value.notas.trim() : null
+      };
+      if (typeof value.programadoPara === 'string') {
+        payload.programadoPara = value.programadoPara
+          ? this.normalizeDateTimeValue(value.programadoPara)
+          : null;
+      }
+      const updated = await firstValueFrom(this.pedidos.updateWorkOrder(workOrder.id, payload));
+      const nextEstado = this.derivePedidoEstadoFromStage(updated.estado) ?? order.estado;
+      const updatedOrder: PedidoResumen = { ...order, estado: nextEstado, workOrder: updated };
+      this.orders.update(list => list.map(item => (item.id === order.id ? updatedOrder : item)));
+      this.selectedOrder.set(updatedOrder);
+      this.prepareWorkOrderForms(updatedOrder);
+      this.actionFeedback.set({ type: 'success', message: 'Orden de trabajo actualizada.' });
+    } catch (err) {
+      console.error('No se pudo actualizar la orden de trabajo', err);
+      this.workOrderError.set('No pudimos actualizar la orden. Revisa los datos e intenta de nuevo.');
+    } finally {
+      this.updatingWorkOrder.set(false);
+    }
+  }
+
   trackById(_: number, item: PedidoResumen): number {
     return item.id;
+  }
+
+  trackByItem(_: number, item: { name: string; quantity: number; size?: string }): string {
+    return `${item.name}-${item.quantity}-${item.size ?? 'no-size'}`;
+  }
+
+  orderPayload(order: PedidoResumen | null): any {
+    if (!order || order.payload === null || order.payload === undefined) {
+      return null;
+    }
+    const raw = order.payload;
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+    return raw;
+  }
+
+  payloadItems(payload: any): Array<{ name: string; quantity: number; size?: string }> {
+    if (!payload) {
+      return [];
+    }
+    const items: Array<{ name: string; quantity: number; size?: string }> = [];
+
+    const pushItem = (
+      name: string | undefined,
+      quantity: number | string | undefined,
+      width?: number | string | null,
+      height?: number | string | null,
+      unit: string = 'cm'
+    ) => {
+      if (!name) {
+        return;
+      }
+      const qtyNumber = quantity !== null && quantity !== undefined ? Number(quantity) : NaN;
+      const qty = Number.isFinite(qtyNumber) && qtyNumber > 0 ? Math.round(qtyNumber) : 1;
+      const widthNumber = width !== null && width !== undefined ? Number(width) : undefined;
+      const heightNumber = height !== null && height !== undefined ? Number(height) : undefined;
+      const size =
+        widthNumber && heightNumber
+          ? `${this.formatDimension(widthNumber)} x ${this.formatDimension(heightNumber)} ${unit}`
+          : widthNumber
+            ? `${this.formatDimension(widthNumber)} ${unit}`
+            : undefined;
+      items.push({ name, quantity: qty, size });
+    };
+
+    if (Array.isArray(payload.items)) {
+      payload.items.forEach((item: any) => {
+        pushItem(
+          item.displayName || item.name,
+          item.quantity ?? item.qty ?? item.cantidad ?? item.count,
+          item.widthCm ?? item.width ?? item.anchoCm ?? item.ancho,
+          item.heightCm ?? item.height ?? item.altoCm ?? item.alto
+        );
+      });
+    }
+
+    if (Array.isArray(payload.quote?.items)) {
+      payload.quote.items.forEach((item: any) => {
+        pushItem(
+          item.name,
+          item.quantity ?? item.qty ?? item.cantidad ?? item.count,
+          item.widthCm ?? item.width ?? item.anchoCm ?? item.ancho,
+          item.heightCm ?? item.height ?? item.altoCm ?? item.alto
+        );
+      });
+    }
+
+    if (Array.isArray(payload.products)) {
+      payload.products.forEach((item: any) => {
+        pushItem(
+          item.name || item.displayName,
+          item.quantity ?? item.qty ?? item.cantidad ?? item.count,
+          item.widthCm ?? item.width,
+          item.heightCm ?? item.height
+        );
+      });
+    }
+
+    return items;
+  }
+
+  totalItemsQuantity(items: Array<{ quantity: number }>): number {
+    return items.reduce((acc, item) => acc + (item.quantity ?? 0), 0);
+  }
+
+  formatCurrency(value: number | null | undefined): string {
+    if (value === null || value === undefined || Number.isNaN(value)) {
+      return '-';
+    }
+    return this.currencyFormatter.format(value);
+  }
+
+  stageLabel(stage: string): string {
+    const map: Record<string, string> = {
+      cola: 'En cola',
+      produccion: 'En produccion',
+      control_calidad: 'Control de calidad',
+      listo_retiro: 'Listo para retiro'
+    };
+    return map[stage] || stage;
+  }
+
+  private prepareWorkOrderForms(order: PedidoResumen | null): void {
+    this.workOrderError.set(null);
+    if (order?.workOrder) {
+      const wo = order.workOrder;
+      this.editWorkOrderForm.setValue({
+        estado: wo.estado || 'cola',
+        maquina: wo.maquina || '',
+        programadoPara: wo.programadoPara ? this.toDateTimeLocalValue(wo.programadoPara) : '',
+        notas: wo.notas || ''
+      });
+      this.createWorkOrderForm.reset({
+        tecnica: '',
+        maquina: '',
+        programadoPara: '',
+        notas: ''
+      });
+    } else {
+      this.createWorkOrderForm.reset({
+        tecnica: '',
+        maquina: '',
+        programadoPara: '',
+        notas: ''
+      });
+      this.editWorkOrderForm.reset({
+        estado: 'cola',
+        maquina: '',
+        programadoPara: '',
+        notas: ''
+      });
+    }
+  }
+
+  private normalizeDateTimeValue(value: string): string {
+    if (!value) {
+      return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    return date.toISOString();
+  }
+
+  private toDateTimeLocalValue(value: string): string {
+    if (!value) {
+      return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    const local = new Date(date.getTime() - tzOffset);
+    return local.toISOString().slice(0, 16);
+  }
+
+  private derivePedidoEstadoFromStage(stage: string): string | null {
+    const normalized = (stage || '').toUpperCase();
+    if (normalized === 'COLA' || normalized === 'PRODUCCION' || normalized === 'PRODUCCIÓN' || normalized === 'CONTROL_CALIDAD') {
+      return 'EN_IMPRESION';
+    }
+    if (normalized === 'LISTO_RETIRO') {
+      return 'EN_PRODUCCION';
+    }
+    return null;
+  }
+
+  private formatDimension(value: number): string {
+    return Number(value).toFixed(1).replace(/\.0$/, '');
   }
 
   initials(name: string): string {
@@ -282,18 +655,22 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
       const match = this.orders().find(item => item.id === selectedId) || null;
       if (match) {
         this.selectedOrder.set(match);
+        this.prepareWorkOrderForms(match);
         return;
       }
       if (!forceFirst) {
         this.selectedOrder.set(null);
+        this.prepareWorkOrderForms(null);
         return;
       }
     }
     if (forceFirst && this.orders().length) {
-      this.selectedOrder.set(this.orders()[0]);
+      const first = this.orders()[0];
+      this.selectedOrder.set(first);
+      this.prepareWorkOrderForms(first);
     } else if (!this.orders().length) {
       this.selectedOrder.set(null);
+      this.prepareWorkOrderForms(null);
     }
   }
 }
-

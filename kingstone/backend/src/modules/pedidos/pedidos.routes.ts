@@ -678,6 +678,11 @@ router.get('/', async (req, res) => {
 
     const pedidos = await prisma.pedido.findMany({
       where,
+      include: {
+        ordenesTrabajo: {
+          orderBy: { createdAt: 'desc' }
+        }
+      },
       orderBy: { id: 'desc' },
       take: 100
     });
@@ -693,7 +698,8 @@ router.get('/', async (req, res) => {
       notificado: p.notificado,
       materialLabel: p.materialLabel || undefined,
       note: typeof p.payload === 'object' && p.payload !== null ? (p.payload as any).note ?? undefined : undefined,
-      payload: p.payload
+      payload: p.payload,
+      workOrder: p.ordenesTrabajo?.[0]
     }));
 
     res.json(respuesta);
@@ -744,6 +750,168 @@ router.get('/admin/clientes', async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error listando clientes con pedidos', error);
+    res.status(500).json({ message: 'Error interno' });
+  }
+});
+
+router.post('/:id/work-orders', async (req, res) => {
+  try {
+    const user = (req as any).user as JwtUser | undefined;
+    if (!isOperator(user?.role)) {
+      return res.status(403).json({ message: 'Requiere rol operador' });
+    }
+
+    const id = Number(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: 'ID invalido' });
+    }
+
+    const { tecnica, maquina, programadoPara, notas } = req.body || {};
+    if (!tecnica || typeof tecnica !== 'string' || !tecnica.trim()) {
+      return res.status(400).json({ message: 'Debes indicar la tecnica de impresion' });
+    }
+
+    const pedido = await prisma.pedido.findUnique({
+      where: { id },
+      include: { ordenesTrabajo: { orderBy: { createdAt: 'desc' } } }
+    });
+    if (!pedido) {
+      return res.status(404).json({ message: 'Pedido no encontrado' });
+    }
+
+    const alreadyExists = pedido.ordenesTrabajo?.some(ot => ot.estado !== 'finalizado');
+    if (alreadyExists) {
+      return res.status(409).json({ message: 'El pedido ya tiene una orden de trabajo activa' });
+    }
+
+    const scheduledAt =
+      programadoPara && typeof programadoPara === 'string'
+        ? new Date(programadoPara)
+        : null;
+
+    const workOrder = await prisma.ordenTrabajo.create({
+      data: {
+        pedidoId: id,
+        tecnica: tecnica.trim(),
+        maquina: typeof maquina === 'string' && maquina.trim().length ? maquina.trim() : null,
+        programadoPara: scheduledAt && !isNaN(scheduledAt.getTime()) ? scheduledAt : null,
+        notas: typeof notas === 'string' && notas.trim().length ? notas.trim() : null
+      }
+    });
+
+    if ((pedido.estado || '').toUpperCase() !== 'EN_IMPRESION') {
+      await prisma.pedido.update({
+        where: { id },
+        data: { estado: 'EN_IMPRESION' }
+      });
+    }
+
+    res.status(201).json(workOrder);
+  } catch (error) {
+    console.error('Error creando orden de trabajo', error);
+    res.status(500).json({ message: 'Error interno' });
+  }
+});
+
+router.patch('/work-orders/:workOrderId', async (req, res) => {
+  try {
+    const user = (req as any).user as JwtUser | undefined;
+    if (!isOperator(user?.role)) {
+      return res.status(403).json({ message: 'Requiere rol operador' });
+    }
+
+    const workOrderId = Number(req.params.workOrderId);
+    if (!workOrderId) {
+      return res.status(400).json({ message: 'ID invalido' });
+    }
+
+    const body = req.body || {};
+    const data: any = {};
+
+    if (typeof body.estado === 'string' && body.estado.trim().length) {
+      data.estado = body.estado.trim();
+    }
+    if (typeof body.maquina === 'string') {
+      data.maquina = body.maquina.trim().length ? body.maquina.trim() : null;
+    }
+    if (typeof body.notas === 'string') {
+      data.notas = body.notas.trim().length ? body.notas.trim() : null;
+    }
+    if (body.programadoPara) {
+      const parsed = new Date(body.programadoPara);
+      data.programadoPara = !isNaN(parsed.getTime()) ? parsed : null;
+    }
+    if (body.iniciaEn) {
+      const parsed = new Date(body.iniciaEn);
+      data.iniciaEn = !isNaN(parsed.getTime()) ? parsed : null;
+    }
+    if (body.terminaEn) {
+      const parsed = new Date(body.terminaEn);
+      data.terminaEn = !isNaN(parsed.getTime()) ? parsed : null;
+    }
+
+    if (!Object.keys(data).length) {
+      return res.status(400).json({ message: 'No se proporcionaron campos para actualizar' });
+    }
+
+    const updated = await prisma.ordenTrabajo.update({
+      where: { id: workOrderId },
+      data
+    });
+
+    if (data.estado && data.estado.toUpperCase() === 'LISTO_RETIRO') {
+      await prisma.pedido.update({
+        where: { id: updated.pedidoId },
+        data: { estado: 'EN_PRODUCCION' }
+      });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error actualizando orden de trabajo', error);
+    res.status(500).json({ message: 'Error interno' });
+  }
+});
+
+router.get('/work-orders/calendar', async (req, res) => {
+  try {
+    const user = (req as any).user as JwtUser | undefined;
+    if (!isOperator(user?.role)) {
+      return res.status(403).json({ message: 'Requiere rol operador' });
+    }
+
+    const fromParam = req.query.from as string | undefined;
+    const toParam = req.query.to as string | undefined;
+    const from = fromParam ? new Date(fromParam) : new Date();
+    const to = toParam ? new Date(toParam) : new Date(Date.now() + 1000 * 60 * 60 * 24 * 14);
+
+    const workOrders = await prisma.ordenTrabajo.findMany({
+      where: {
+        programadoPara: {
+          gte: isNaN(from.getTime()) ? undefined : from,
+          lte: isNaN(to.getTime()) ? undefined : to
+        }
+      },
+      include: {
+        pedido: {
+          select: {
+            id: true,
+            clienteNombre: true,
+            clienteEmail: true,
+            estado: true,
+            materialLabel: true
+          }
+        }
+      },
+      orderBy: [
+        { programadoPara: 'asc' },
+        { createdAt: 'asc' }
+      ]
+    });
+
+    res.json(workOrders);
+  } catch (error) {
+    console.error('Error listando calendario de ordenes de trabajo', error);
     res.status(500).json({ message: 'Error interno' });
   }
 });

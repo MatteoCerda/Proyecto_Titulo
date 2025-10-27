@@ -25,6 +25,7 @@ import { OperatorInboxStore } from '../services/operator-inbox.store';
             <a routerLink="/operador/cotizaciones" routerLinkActive="active">Cotizaciones</a>
             <a routerLink="/operador/clientes" routerLinkActive="active">Clientes</a>
             <a routerLink="/operador/pagos" routerLinkActive="active">Pagos</a>
+            <a routerLink="/operador/calendario" routerLinkActive="active">Calendario</a>
           </nav>
           <div class="op-actions">
             <span class="welcome" *ngIf="auth.isAuthenticated()">Bienvenido/a, {{ auth.displayName() }}</span>
@@ -75,4 +76,5 @@ export class OperatorShellComponent implements OnInit, OnDestroy {
     this.router.navigateByUrl('/login');
   }
 }
+
 

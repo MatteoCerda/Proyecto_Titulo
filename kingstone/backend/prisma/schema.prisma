@@ -91,6 +91,7 @@ model Pedido {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   adjuntos       PedidoAdjunto[]
+  ordenesTrabajo OrdenTrabajo[]
 
   @@map("pedido")
 }
@@ -201,6 +202,24 @@ model Oferta {
   @@index([startAt])
   @@index([endAt])
   @@map("oferta")
+}
+
+model OrdenTrabajo {
+  id             Int       @id @default(autoincrement())
+  pedidoId       Int
+  pedido         Pedido    @relation(fields: [pedidoId], references: [id])
+  tecnica        String    @db.VarChar(60)
+  maquina        String?   @db.VarChar(80)
+  estado         String    @default("cola") @db.VarChar(30)
+  programadoPara DateTime?
+  iniciaEn       DateTime?
+  terminaEn      DateTime?
+  notas          String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([pedidoId])
+  @@map("orden_trabajo")
 }
 
 

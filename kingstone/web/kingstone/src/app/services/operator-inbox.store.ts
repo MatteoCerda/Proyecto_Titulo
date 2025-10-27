@@ -64,7 +64,6 @@ export class OperatorInboxStore {
       const current = this.orders().find(item => item.id === id) ?? null;
       await firstValueFrom(this.pedidos.markAsSeen(id, estado));
       this.orders.update(list => list.filter(item => item.id !== id));
-      this.refresh(false);
       const updated =
         current && estado
           ? { ...current, estado }
@@ -78,3 +77,5 @@ export class OperatorInboxStore {
     }
   }
 }
+
+

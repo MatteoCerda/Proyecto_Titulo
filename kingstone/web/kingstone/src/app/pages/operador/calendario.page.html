@@ -1,0 +1,62 @@
+﻿<ion-content class="calendar">
+  <div class="calendar-layout">
+    <header class="calendar-header">
+      <div>
+        <h1>Planificacion de produccion</h1>
+        <p>Organiza las ordenes de trabajo y actualiza su avance.</p>
+      </div>
+      <div class="actions">
+        <ion-button fill="clear" color="medium" (click)="previousWeek()">Semana anterior</ion-button>
+        <ion-button fill="clear" color="medium" (click)="resetToday()">Semana actual</ion-button>
+        <ion-button fill="outline" color="primary" (click)="nextWeek()">Semana siguiente</ion-button>
+      </div>
+    </header>
+
+    <section class="range-info">
+      <span>{{ rangeLabel() }}</span>
+      <span *ngIf="loading()">Cargando calendario...</span>
+      <span class="error" *ngIf="error()">{{ error() }}</span>
+    </section>
+
+    <section class="calendar-grid">
+      <article class="calendar-column" *ngFor="let day of days()">
+        <header>
+          <strong>{{ day.label }}</strong>
+          <small>{{ day.date | date:'fullDate' }}</small>
+        </header>
+        <div class="column-body" [class.empty]="!day.items.length">
+          <p class="empty-message" *ngIf="!day.items.length">Sin OT programadas</p>
+          <div class="work-card" *ngFor="let item of day.items">
+            <div class="work-head">
+              <div>
+                <strong>Pedido #{{ item.pedido.id }}</strong>
+                <small>{{ item.pedido.clienteNombre || item.pedido.clienteEmail || 'Cliente' }}</small>
+              </div>
+              <button type="button" (click)="goToPedido(item)">Ver pedido</button>
+            </div>
+            <div class="work-meta">
+              <span>Tecnica: {{ item.tecnica }}</span>
+              <span *ngIf="item.maquina">Equipo: {{ item.maquina }}</span>
+              <span *ngIf="item.pedido.materialLabel">Material: {{ item.pedido.materialLabel }}</span>
+            </div>
+            <div class="work-stage">
+              <label>Etapa</label>
+              <select [value]="item.estado" (change)="updateStage(item, $any($event.target).value)">
+                <option *ngFor="let stage of stages" [value]="stage.value">{{ stage.label }}</option>
+              </select>
+            </div>
+            <div class="work-schedule">
+              <label>Programado para</label>
+              <input type="datetime-local" [value]="toInputValue(item.programadoPara)" (change)="updateSchedule(item, $any($event.target).value)" />
+            </div>
+            <div class="work-notes">
+              <label>Notas</label>
+              <textarea rows="2" [value]="item.notas || ''" (blur)="updateNotes(item, $any($event.target).value)"></textarea>
+            </div>
+            <div class="work-status" *ngIf="updatingId() === item.id">Actualizando...</div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </div>
+</ion-content>
