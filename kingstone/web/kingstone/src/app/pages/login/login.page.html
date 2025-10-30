@@ -7,18 +7,27 @@
 
     <!-- Derecha: formulario -->
     <div class="login-right box">
-      <h1 class="title">Iniciar sesión</h1>
+      <h1 class="title">{{ title }}</h1>
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="form">
         <ion-item lines="none">
-          <ion-label position="stacked">Correo electrónico</ion-label>
+          <ion-label position="stacked">Correo electronico</ion-label>
           <ion-input type="email" formControlName="email"></ion-input>
         </ion-item>
 
         <ion-item lines="none">
-          <ion-label position="stacked">Contraseña</ion-label>
-          <ion-input [type]="showPassword ? 'text' : 'password'" formControlName="password" placeholder="Ingresa tu contraseña"></ion-input>
-          <ion-button slot="end" fill="clear" class="eye-btn" (click)="showPassword = !showPassword" aria-label="Mostrar u ocultar contraseña">
+          <ion-label position="stacked">Contrasena</ion-label>
+          <ion-input
+            [type]="showPassword ? 'text' : 'password'"
+            formControlName="password"
+            placeholder="Ingresa tu contrasena">
+          </ion-input>
+          <ion-button
+            slot="end"
+            fill="clear"
+            class="eye-btn"
+            (click)="showPassword = !showPassword"
+            aria-label="Mostrar u ocultar contrasena">
             <ng-container *ngIf="!showPassword; else eyeOffSvg">
               <svg class="eye-svg" width="22" height="22" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                 <path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"></path>
@@ -34,21 +43,34 @@
           </ion-button>
         </ion-item>
 
-        <div class="recover">
-          <a routerLink="/recuperar" class="recover-link">¿Olvidaste tu contraseña?</a>
+        <div class="recover" *ngIf="showForgot">
+          <a routerLink="/recuperar" class="recover-link">Olvidaste tu contrasena?</a>
         </div>
 
-        <ion-button expand="block" class="ion-margin-top"
-                    [disabled]="form.invalid || loading()" type="submit">
-          Iniciar sesión
+        <ion-button
+          expand="block"
+          class="ion-margin-top"
+          [disabled]="form.invalid || loading()"
+          type="submit">
+          Iniciar sesion
         </ion-button>
-        <ion-button routerLink="/registro" expand="block" fill="outline">Registrarse</ion-button>
+        <ion-button
+          *ngIf="showRegister"
+          routerLink="/registro"
+          expand="block"
+          fill="outline">
+          Registrarse
+        </ion-button>
       </form>
 
-      <div class="divider">o</div>
+      <div class="divider" *ngIf="showGuest">o</div>
 
-      <ion-button fill="outline" expand="block" (click)="entrarComoInvitado()">
-        Entrar sin iniciar sesión
+      <ion-button
+        *ngIf="showGuest"
+        fill="outline"
+        expand="block"
+        (click)="entrarComoInvitado()">
+        Entrar sin iniciar sesion
       </ion-button>
     </div>
   </div>

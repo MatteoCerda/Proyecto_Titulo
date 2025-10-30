@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { IonContent, IonItem, IonLabel, IonInput, IonButton, IonList, IonSelect, IonSelectOption } from '@ionic/angular/standalone';
 import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 @Component({
   standalone: true,
@@ -40,7 +41,12 @@ export class AdminUserDetailPage {
   private http = inject(HttpClient);
   private fb = inject(FormBuilder);
   private router = inject(Router);
-  private api = 'http://localhost:3000';
+  private apiBase = (environment.apiUrl || '').replace(/\/$/, '');
+
+  private endpoint(path: string): string {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return this.apiBase ? `${this.apiBase}${normalized}` : normalized;
+  }
 
   id = Number(this.route.snapshot.paramMap.get('id'));
   loading = signal(false);
@@ -58,7 +64,7 @@ export class AdminUserDetailPage {
   ngOnInit() { this.load(); }
   load() {
     this.loading.set(true);
-    this.http.get<any>(`${this.api}/admin/users/${this.id}`).subscribe(u => {
+    this.http.get<any>(this.endpoint(`/admin/users/${this.id}`)).subscribe(u => {
       this.form.patchValue({
         email: u.email,
         fullName: u.fullName,
@@ -76,7 +82,7 @@ export class AdminUserDetailPage {
   onSave() {
     const v = this.form.getRawValue();
     this.loading.set(true);
-    this.http.patch(`${this.api}/admin/users/${this.id}`, {
+    this.http.patch(this.endpoint(`/admin/users/${this.id}`), {
       fullName: v.fullName,
       role: v.role,
       perfil: { rut: v.rut || null, telefono: v.telefono || null, direccion: v.direccion || null, comuna: v.comuna || null, ciudad: v.ciudad || null }

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, ToastController } from '@ionic/angular';
 import { Router } from '@angular/router';
-import { AuthService } from '../../services/auth';
+import { AuthService } from '../../core/auth.service';
 
 @Component({
   selector: 'app-register',
@@ -32,7 +32,7 @@ export class RegisterPage {
 
   constructor(private auth: AuthService, private router: Router) {}
 
-  onSubmit() {
+  async onSubmit() {
     if (!this.validateForm()) {
       this.presentToast(this.generalError || 'Corrige los errores antes de continuar');
       return;
@@ -50,62 +50,54 @@ export class RegisterPage {
     const email = this.email.trim();
     const password = this.password;
 
-    this.auth.register(fullName, email, password, extra).subscribe({
-      next: async () => {
-        // Burbuja por creación de usuario
-        const t = await this.toast.create({
-          message: 'Haz creado usuario existosamente',
-          duration: 2000,
-          position: 'top',
-          color: 'success'
-        });
-        await t.present();
+    try {
+      await this.auth.register(fullName, email, password, extra);
+      const successToast = await this.toast.create({
+        message: 'Haz creado usuario existosamente',
+        duration: 2000,
+        position: 'top',
+        color: 'success'
+      });
+      await successToast.present();
 
-        // Tras registrar, inicia sesión automáticamente y va a /inicio
-        this.auth.login(this.email, this.password).subscribe({
-          next: () => {
-            this.loading = false;
-            this.showPassword = false;
-            this.router.navigateByUrl('/inicio');
-          },
-          error: () => {
-            this.loading = false;
-            this.showPassword = false;
-            alert('Error al iniciar sesión tras registro');
-          }
-        });
-      },
-      error: (e) => {
-        this.loading = false;
-        this.showPassword = false;
-        const serverMessage = e?.error?.message;
-        if (serverMessage === 'Email ya registrado') {
-          const message = 'El correo ingresado ya esta registrado.';
-          this.fieldErrors = { email: message };
-          this.generalError = '';
-          this.presentToast(message);
-          return;
-        }
-        const issues = Array.isArray(e?.error?.issues) ? e.error.issues : [];
-        if (issues.length) {
-          const errors: typeof this.fieldErrors = {};
-          for (const issue of issues) {
-            const path = Array.isArray(issue?.path) ? issue.path[0] : undefined;
-            if (path && ['fullName', 'email', 'password', 'rut'].includes(path)) {
-              errors[path as keyof typeof this.fieldErrors] = issue.message;
-            }
-          }
-          this.fieldErrors = errors;
-          this.generalError = Object.keys(errors).length ? '' : serverMessage || 'Corrige los errores indicados.';
-          const message = this.generalError || serverMessage || 'Corrige los errores indicados.';
-          this.presentToast(message);
-          return;
-        }
-        this.fieldErrors = {};
-        this.generalError = serverMessage || 'No se pudo registrar. Intentalo nuevamente.';
-        this.presentToast(this.generalError);
+      try {
+        await this.auth.loginClient(this.email, this.password);
+        this.router.navigateByUrl('/inicio');
+      } catch (loginError) {
+        console.error('Login failed after register', loginError);
+        alert('Error al iniciar sesion tras registro');
       }
-    });
+    } catch (e: any) {
+      const serverMessage = e?.error?.message;
+      if (serverMessage === 'Email ya registrado') {
+        const message = 'El correo ingresado ya esta registrado.';
+        this.fieldErrors = { email: message };
+        this.generalError = '';
+        this.presentToast(message);
+        return;
+      }
+      const issues = Array.isArray(e?.error?.issues) ? e.error.issues : [];
+      if (issues.length) {
+        const errors: typeof this.fieldErrors = {};
+        for (const issue of issues) {
+          const path = Array.isArray(issue?.path) ? issue.path[0] : undefined;
+          if (path && ['fullName', 'email', 'password', 'rut'].includes(path)) {
+            errors[path as keyof typeof this.fieldErrors] = issue.message;
+          }
+        }
+        this.fieldErrors = errors;
+        this.generalError = Object.keys(errors).length ? '' : serverMessage || 'Corrige los errores indicados.';
+        const message = this.generalError || serverMessage || 'Corrige los errores indicados.';
+        this.presentToast(message);
+        return;
+      }
+      this.fieldErrors = {};
+      this.generalError = serverMessage || 'No se pudo registrar. Intentalo nuevamente.';
+      this.presentToast(this.generalError);
+    } finally {
+      this.loading = false;
+      this.showPassword = false;
+    }
   }
 
   goLogin() {
@@ -130,21 +122,21 @@ export class RegisterPage {
     if (!email) {
       errors.email = 'El correo es obligatorio.';
     } else if (!this.isValidEmail(email)) {
-      errors.email = 'Ingresa un correo válido.';
+      errors.email = 'Ingresa un correo valido.';
     }
 
     if (!password) {
-      errors.password = 'La contraseña es obligatoria.';
+      errors.password = 'La contrasena es obligatoria.';
     } else if (password.length < 6) {
-      errors.password = 'La contraseña debe tener al menos 6 caracteres.';
+      errors.password = 'La contrasena debe tener al menos 6 caracteres.';
     }
 
     if (rutInput) {
       const normalized = this.normalizeRut(rutInput);
       if (!normalized) {
-        errors.rut = 'Ingresa un RUT válido.';
+        errors.rut = 'Ingresa un RUT valido.';
       } else if (!this.isValidRut(normalized.body, normalized.dv)) {
-        errors.rut = 'El RUT ingresado no es válido.';
+        errors.rut = 'El RUT ingresado no es valido.';
       } else {
         this.rut = this.formatRut(normalized.body, normalized.dv);
       }

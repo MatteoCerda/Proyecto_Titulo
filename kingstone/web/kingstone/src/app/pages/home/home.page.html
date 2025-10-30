@@ -54,9 +54,9 @@
     <h2>Encuentra lo que necesitas</h2>
     <p>Consulta nuestro cat&aacute;logo con precios web y guarda tus cotizaciones para retomarlas cuando quieras.</p>
     <div class="quick-links">
-      <a routerLink="/productos">Vinilos textiles</a>
-      <a routerLink="/productos">Vinilo decorativo</a>
-      <a routerLink="/productos">Sublimaci&oacute;n y DTF</a>
+      <a [routerLink]="['/productos']" [queryParams]="{ search: 'Textil' }">Vinilos textiles</a>
+      <a [routerLink]="['/productos']" [queryParams]="{ search: 'Decorativo' }">Vinilo decorativo</a>
+      <a [routerLink]="['/productos']" [queryParams]="{ search: 'Sublimacion' }">Sublimaci&oacute;n y DTF</a>
       <a routerLink="/carrito">Revisa tu carrito</a>
     </div>
   </section>

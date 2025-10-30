@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { IonContent, IonButton } from '@ionic/angular/standalone';
 import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 interface OfertaCliente {
   id: number;
@@ -25,6 +26,12 @@ interface OfertaCliente {
 })
 export class HomePage {
   private readonly http = inject(HttpClient);
+  private readonly apiBase = (environment.apiUrl || '').replace(/\/$/, '');
+
+  private endpoint(path: string): string {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return this.apiBase ? `${this.apiBase}${normalized}` : normalized;
+  }
 
   ofertas = signal<OfertaCliente[]>([]);
   cargando = signal(false);
@@ -37,7 +44,7 @@ export class HomePage {
 
   cargarOfertas() {
     this.cargando.set(true);
-    this.http.get<OfertaCliente[]>(`http://localhost:3000/offers`).subscribe({
+    this.http.get<OfertaCliente[]>(this.endpoint('/offers')).subscribe({
       next: data => {
         this.ofertas.set(data);
         this.error.set(null);

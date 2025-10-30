@@ -87,7 +87,7 @@ function parseQrPayload(qrRaw?: string) {
 router.post('/users', async (req, res) => {
   try {
     const dto = validate('register', req.body);
-    const user = await registerUser(dto);
+    const user = await registerUser(dto, { allowRoleOverride: true, defaultRole: 'user' });
     res.status(201).json(user);
   } catch (err: any) {
     if (err instanceof ZodError) {

@@ -6,12 +6,29 @@ import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
-export async function register(dto: RegisterDTO) {
+const allowedRoles = ['user', 'admin', 'operator'] as const;
+type Role = (typeof allowedRoles)[number];
+
+function normalizeRole(role?: string | null): Role | null {
+  if (!role) return null;
+  const normalized = role.toLowerCase();
+  return allowedRoles.find(r => r === normalized) ?? null;
+}
+
+type RegisterOptions = {
+  allowRoleOverride?: boolean;
+  defaultRole?: Role;
+};
+
+type LoginOptions = {
+  allowedRoles?: Role[];
+};
+
+export async function register(dto: RegisterDTO, options?: RegisterOptions) {
   const exists = await prisma.user.findUnique({ where: { email: dto.email } });
   if (exists) throw new Error('EMAIL_IN_USE');
   const passwordHash = await bcrypt.hash(dto.password, 10);
-  const allowedRoles = ['user', 'admin', 'operator'];
-  const role = dto.role && allowedRoles.includes(dto.role) ? dto.role : 'user';
+  const role = options?.defaultRole ?? 'user';
   const user = await prisma.user.create({
     data: { email: dto.email, passwordHash, fullName: dto.fullName, role }
   });
@@ -39,11 +56,22 @@ export async function register(dto: RegisterDTO) {
   return { id: user.id, email: user.email, fullName: user.fullName, role: user.role };
 }
 
-export async function login(dto: LoginDTO) {
+export async function login(dto: LoginDTO, options?: LoginOptions) {
   const user = await prisma.user.findUnique({ where: { email: dto.email } });
   if (!user) throw new Error('INVALID_CREDENTIALS');
   const ok = await bcrypt.compare(dto.password, user.passwordHash);
   if (!ok) throw new Error('INVALID_CREDENTIALS');
+
+  if (options?.allowedRoles && options.allowedRoles.length) {
+    const currentRole = normalizeRole(user.role) ?? 'user';
+    const allowed = options.allowedRoles.map(r => normalizeRole(r)).filter(Boolean) as Role[];
+    if (!allowed.includes(currentRole)) {
+      throw Object.assign(new Error('ROLE_NOT_ALLOWED'), {
+        code: 'ROLE_NOT_ALLOWED',
+        role: user.role
+      });
+    }
+  }
 
   const payload: JwtPayload = { sub: user.id, email: user.email, role: user.role };
   const opts: SignOptions = { expiresIn: (process.env.JWT_EXPIRES_IN as any) || '1d' };

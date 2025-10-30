@@ -13,6 +13,7 @@ import {
 } from '@ionic/angular/standalone';
 import { CatalogService } from '../../services/catalog.service';
 import { CartService } from '../../services/cart.service';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   standalone: true,
@@ -35,6 +36,7 @@ import { CartService } from '../../services/cart.service';
 export class ProductosPage implements OnInit {
   private readonly catalog = inject(CatalogService);
   private readonly cart = inject(CartService);
+  private readonly route = inject(ActivatedRoute);
 
   readonly search = signal('');
   readonly items = computed(() => {
@@ -55,6 +57,8 @@ export class ProductosPage implements OnInit {
   readonly lastAddedId = signal<number | null>(null);
 
   async ngOnInit() {
+    const searchTerm = this.route.snapshot.queryParamMap.get('search') || '';
+    this.search.set(searchTerm);
     await this.catalog.loadCatalog();
   }
 

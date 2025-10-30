@@ -26,7 +26,7 @@ function tryHandleValidationError(err: unknown, res: Response): boolean {
 export async function postRegister(req: Request, res: Response) {
   try {
     const dto = validate('register', req.body);
-    const user = await svc.register(dto);
+    const user = await svc.register(dto, { allowRoleOverride: false, defaultRole: 'user' });
     res.status(201).json(user);
   } catch (err: any) {
     if (tryHandleValidationError(err, res)) return;
@@ -37,16 +37,48 @@ export async function postRegister(req: Request, res: Response) {
   }
 }
 
-export async function postLogin(req: Request, res: Response) {
+function handleLoginErrors(err: any, res: Response) {
+  if (tryHandleValidationError(err, res)) return true;
+  if (err?.message === 'INVALID_CREDENTIALS') {
+    res.status(401).json({ message: 'Credenciales invalidas' });
+    return true;
+  }
+  if (err?.message === 'ROLE_NOT_ALLOWED') {
+    res.status(403).json({ message: 'Rol no autorizado para este acceso' });
+    return true;
+  }
+  return false;
+}
+
+export async function postClientLogin(req: Request, res: Response) {
   try {
     const dto = validate('login', req.body);
-    const result = await svc.login(dto);
+    const result = await svc.login(dto, { allowedRoles: ['user'] });
     res.json(result);
   } catch (err: any) {
-    if (tryHandleValidationError(err, res)) return;
-    if (err?.message === 'INVALID_CREDENTIALS') {
-      return res.status(401).json({ message: 'Credenciales invalidas' });
-    }
+    if (handleLoginErrors(err, res)) return;
+    res.status(500).json({ message: 'Error interno' });
+  }
+}
+
+export async function postAdminLogin(req: Request, res: Response) {
+  try {
+    const dto = validate('login', req.body);
+    const result = await svc.login(dto, { allowedRoles: ['admin'] });
+    res.json(result);
+  } catch (err: any) {
+    if (handleLoginErrors(err, res)) return;
+    res.status(500).json({ message: 'Error interno' });
+  }
+}
+
+export async function postOperatorLogin(req: Request, res: Response) {
+  try {
+    const dto = validate('login', req.body);
+    const result = await svc.login(dto, { allowedRoles: ['operator', 'admin'] });
+    res.json(result);
+  } catch (err: any) {
+    if (handleLoginErrors(err, res)) return;
     res.status(500).json({ message: 'Error interno' });
   }
 }

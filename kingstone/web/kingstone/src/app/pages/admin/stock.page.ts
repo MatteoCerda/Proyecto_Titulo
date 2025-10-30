@@ -1,3 +1,4 @@
+﻿import { environment } from '../../../environments/environment';
 import { Component, signal, inject, ViewChild, ElementRef, OnDestroy } from '@angular/core';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
@@ -131,7 +132,7 @@ interface InventoryItem {
             <thead>
               <tr>
                 <th class="col-img">Imagen</th>
-                <th class="col-code">Código</th>
+                <th class="col-code">CÃ³digo</th>
                 <th class="col-name">Nombre</th>
                 <th class="col-meta">Tipo</th>
                 <th class="col-meta">Color</th>
@@ -296,6 +297,12 @@ interface InventoryItem {
 })
 export class AdminStockPage implements OnDestroy {
   private http = inject(HttpClient);
+  private apiBase = (environment.apiUrl || '').replace(/\/\/$/, '');
+
+  private endpoint(path: string): string {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return this.apiBase ? `${this.apiBase}${normalized}` : normalized;
+  }
   private sanitizer = inject(DomSanitizer);
   @ViewChild('qrVideo') qrVideo?: ElementRef<HTMLVideoElement>;
 
@@ -331,7 +338,7 @@ export class AdminStockPage implements OnDestroy {
 
   load() {
     this.loading = true;
-    this.http.get<InventoryItem[]>(`http://localhost:3000/admin/inventory`).subscribe({
+    this.http.get<InventoryItem[]>(this.endpoint('/admin/inventory')).subscribe({
       next: items => {
         this.items.set(items);
         this.loading = false;
@@ -369,13 +376,13 @@ export class AdminStockPage implements OnDestroy {
       return;
     }
     if (Number.isNaN(quantity) || quantity < 0) {
-      this.formError = 'La cantidad debe ser un número positivo.';
+      this.formError = 'La cantidad debe ser un nÃºmero positivo.';
       return;
     }
 
     this.formError = '';
     this.saving = true;
-    this.http.post<InventoryItem>(`http://localhost:3000/admin/inventory`, {
+    this.http.post<InventoryItem>(this.endpoint('/admin/inventory'), {
       qrRaw: this.form.qrRaw || undefined,
       code,
       name,
@@ -582,7 +589,7 @@ export class AdminStockPage implements OnDestroy {
     if (Number.isNaN(quantity) || quantity < 0) {
       item.quantity = 0;
     }
-    this.http.patch<InventoryItem>(`http://localhost:3000/admin/inventory/${item.id}`, {
+    this.http.patch<InventoryItem>(this.endpoint(`/admin/inventory/${item.id}`), {
       quantity: item.quantity
     }).subscribe({
       next: updated => {
@@ -600,7 +607,7 @@ export class AdminStockPage implements OnDestroy {
     if (Number.isNaN(umbral) || umbral < 0) {
       item.umbralBajoStock = 0;
     }
-    this.http.patch<InventoryItem>(`http://localhost:3000/admin/inventory/${item.id}`, {
+    this.http.patch<InventoryItem>(this.endpoint(`/admin/inventory/${item.id}`), {
       umbralBajoStock: item.umbralBajoStock
     }).subscribe({
       next: updated => {
@@ -614,7 +621,7 @@ export class AdminStockPage implements OnDestroy {
 
   remove(item: InventoryItem) {
     if (!confirm(`Eliminar ${item.name}?`)) return;
-    this.http.delete(`http://localhost:3000/admin/inventory/${item.id}`).subscribe({
+    this.http.delete(this.endpoint(`/admin/inventory/${item.id}`)).subscribe({
       next: () => {
         this.items.set(this.items().filter(i => i.id !== item.id));
       },
@@ -657,6 +664,12 @@ export class AdminStockPage implements OnDestroy {
       .toLowerCase();
   }
 }
+
+
+
+
+
+
 
 
 

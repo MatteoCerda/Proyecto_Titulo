@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import multer from 'multer';
 import { PDFDocument } from 'pdf-lib';
@@ -8,6 +8,8 @@ import type { Express } from 'express';
 
 const router = Router();
 const prisma = new PrismaClient();
+type DbClient = Prisma.TransactionClient | PrismaClient;
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024, files: 10 }
@@ -41,12 +43,16 @@ const MATERIAL_WIDTH_MAP: Record<string, number> = {
 
 type JwtUser = { sub?: number; email?: string; role?: string };
 
+function createStockError(details: Record<string, unknown> = {}) {
+  return Object.assign(new Error('INSUFFICIENT_STOCK'), { code: 'INSUFFICIENT_STOCK', details });
+}
+
 function normalizeMaterialKey(value?: string | null): string | null {
   if (!value || typeof value !== 'string') return null;
   return value.toLowerCase().replace(/[\s_\-]/g, '');
 }
 
-async function findInventoryByMaterial(materialId?: string | null) {
+async function findInventoryByMaterial(materialId?: string | null, client: DbClient = prisma) {
   const key = normalizeMaterialKey(materialId);
   if (!key) return null;
   const whereClauses: any[] = [];
@@ -60,7 +66,7 @@ async function findInventoryByMaterial(materialId?: string | null) {
   if (!whereClauses.length) {
     return null;
   }
-  const item = await prisma.inventoryItem.findFirst({
+  const item = await client.inventoryItem.findFirst({
     where: { OR: whereClauses }
   });
   return item;
@@ -192,69 +198,102 @@ async function calculateAttachmentMetrics(
   throw new Error('Formato de archivo no soportado');
 }
 
-async function adjustMaterialStock(materialId: string | null, deltaLengthCm: number) {
+async function adjustMaterialStock(
+  materialId: string | null,
+  deltaLengthCm: number,
+  client: DbClient = prisma
+) {
   if (!materialId) return;
   if (!deltaLengthCm || Math.abs(deltaLengthCm) < 0.01) return;
-  const inventory = await findInventoryByMaterial(materialId);
+  const inventory = await findInventoryByMaterial(materialId, client);
   if (!inventory) return;
   const meters = deltaLengthCm / 100;
   if (meters > 0) {
     const decrement = Math.max(1, Math.ceil(meters));
-    try {
-      await prisma.inventoryItem.update({
-        where: { id: inventory.id },
-        data: { quantity: { decrement } }
+    if (inventory.quantity < decrement) {
+      throw createStockError({
+        materialId,
+        inventoryId: inventory.id,
+        requested: decrement,
+        available: inventory.quantity ?? 0
       });
-    } catch {
-      await prisma.inventoryItem.updateMany({
-        where: { id: inventory.id, quantity: { gte: decrement } },
-        data: { quantity: { decrement } }
+    }
+    const result = await client.inventoryItem.updateMany({
+      where: { id: inventory.id, quantity: { gte: decrement } },
+      data: { quantity: { decrement } }
+    });
+    if (!result.count) {
+      throw createStockError({
+        materialId,
+        inventoryId: inventory.id,
+        requested: decrement,
+        available: inventory.quantity ?? 0
       });
     }
   } else {
     const increment = Math.max(1, Math.ceil(Math.abs(meters)));
-    await prisma.inventoryItem.update({
+    await client.inventoryItem.update({
       where: { id: inventory.id },
       data: { quantity: { increment } }
     });
   }
 }
 
-async function decrementInventoryItem(itemId: number, quantity: number) {
+async function decrementInventoryItem(
+  itemId: number,
+  quantity: number,
+  client: DbClient = prisma
+) {
   if (!itemId || quantity <= 0) return;
-  try {
-    await prisma.inventoryItem.update({
-      where: { id: itemId },
-      data: { quantity: { decrement: quantity } }
+  const item = await client.inventoryItem.findUnique({
+    where: { id: itemId },
+    select: { id: true, quantity: true, code: true, name: true }
+  });
+  if (!item) return;
+  if (item.quantity < quantity) {
+    throw createStockError({
+      itemId: item.id,
+      requested: quantity,
+      available: item.quantity,
+      code: item.code,
+      name: item.name
     });
-  } catch {
-    await prisma.inventoryItem.updateMany({
-      where: { id: itemId, quantity: { gte: quantity } },
-      data: { quantity: { decrement: quantity } }
+  }
+  const result = await client.inventoryItem.updateMany({
+    where: { id: item.id, quantity: { gte: quantity } },
+    data: { quantity: { decrement: quantity } }
+  });
+  if (!result.count) {
+    throw createStockError({
+      itemId: item.id,
+      requested: quantity,
+      available: item.quantity,
+      code: item.code,
+      name: item.name
     });
   }
 }
 
-async function adjustCatalogStock(products: any[] | undefined | null) {
+async function adjustCatalogStock(products: any[] | undefined | null, client: DbClient = prisma) {
   if (!Array.isArray(products)) return;
   for (const product of products) {
     const itemId = typeof product?.id === 'number' ? product.id : null;
     const quantity = typeof product?.quantity === 'number' ? product.quantity : null;
     if (itemId && quantity && quantity > 0) {
-      await decrementInventoryItem(itemId, quantity);
+      await decrementInventoryItem(itemId, quantity, client);
     }
   }
 }
 
-async function adjustQuoteStock(materialId: string | null, quote: any) {
+async function adjustQuoteStock(materialId: string | null, quote: any, client: DbClient = prisma) {
   if (!quote) return;
   const usedHeight = typeof quote?.usedHeight === 'number' ? quote.usedHeight : null;
   if (!usedHeight || usedHeight <= 0) return;
-  await adjustMaterialStock(materialId, usedHeight);
+  await adjustMaterialStock(materialId, usedHeight, client);
 }
 
-async function recomputePedidoAggregates(pedidoId: number) {
-  const pedido = await prisma.pedido.findUnique({
+async function recomputePedidoAggregates(pedidoId: number, client: DbClient = prisma) {
+  const pedido = await client.pedido.findUnique({
     where: { id: pedidoId },
     include: { adjuntos: true }
   });
@@ -285,7 +324,7 @@ async function recomputePedidoAggregates(pedidoId: number) {
   }
 
   let totalPrice: number | null = payload?.filesTotalPrice ?? null;
-  const inventory = await findInventoryByMaterial(materialId);
+  const inventory = await findInventoryByMaterial(materialId, client);
   if (inventory && widthCm && totalLength > 0) {
     const pricePerMeter = inventory.priceWeb ?? inventory.priceStore ?? inventory.priceWsp ?? null;
     if (typeof pricePerMeter === 'number' && pricePerMeter > 0) {
@@ -311,7 +350,7 @@ async function recomputePedidoAggregates(pedidoId: number) {
     filesTotalPrice: totalPrice ?? undefined
   };
 
-  await prisma.pedido.update({
+  await client.pedido.update({
     where: { id: pedidoId },
     data: {
       payload: nextPayload as any,
@@ -321,7 +360,7 @@ async function recomputePedidoAggregates(pedidoId: number) {
 
   const deltaLength = totalLength - (oldLength || 0);
   if (deltaLength) {
-    await adjustMaterialStock(materialId, deltaLength);
+    await adjustMaterialStock(materialId, deltaLength, client);
   }
 
   return { areaCm2: totalArea, lengthCm: totalLength, price: totalPrice };
@@ -543,17 +582,51 @@ router.post('/', async (req, res) => {
 
     const nowIso = new Date().toISOString();
 
-    if (isCartSource) {
-      const cartDto = dto as z.infer<typeof cartCreateSchema>;
-      const productsCount = cartDto.products.reduce((acc, item) => acc + item.quantity, 0);
-      const quoteCount = cartDto.quote?.items?.reduce((acc, item) => acc + item.quantity, 0) ?? 0;
-      const itemsCount = productsCount + quoteCount;
-      const catalogTotal = cartDto.products.reduce((acc, item) => acc + item.price * item.quantity, 0);
-      const total = Math.round(catalogTotal + (cartDto.quote?.totalPrice ?? 0));
-      const materialId = cartDto.quote?.materialId ?? null;
-      const materialLabel = cartDto.quote?.materialLabel ?? null;
+    const pedidoId = await prisma.$transaction(async tx => {
+      if (isCartSource) {
+        const cartDto = dto as z.infer<typeof cartCreateSchema>;
+        const productsCount = cartDto.products.reduce((acc, item) => acc + item.quantity, 0);
+        const quoteCount = cartDto.quote?.items?.reduce((acc, item) => acc + item.quantity, 0) ?? 0;
+        const itemsCount = productsCount + quoteCount;
+        const catalogTotal = cartDto.products.reduce((acc, item) => acc + item.price * item.quantity, 0);
+        const total = Math.round(catalogTotal + (cartDto.quote?.totalPrice ?? 0));
+        const materialId = cartDto.quote?.materialId ?? null;
+        const materialLabel = cartDto.quote?.materialLabel ?? null;
 
-      const pedido = await prisma.pedido.create({
+        const pedido = await tx.pedido.create({
+          data: {
+            userId,
+            clienteEmail: email,
+            clienteNombre: nombre,
+            estado: 'PENDIENTE',
+            notificado: true,
+            total,
+            itemsCount,
+            materialId,
+            materialLabel,
+            payload: {
+              source: 'cart',
+              products: cartDto.products,
+              quote: cartDto.quote ?? null,
+              note: cartDto.note ?? null,
+              createdAt: nowIso,
+              cliente: { email, nombre }
+            }
+          },
+          select: { id: true }
+        });
+
+        await adjustCatalogStock(cartDto.products, tx);
+        await adjustQuoteStock(materialId, cartDto.quote, tx);
+
+        return pedido.id;
+      }
+
+      const designerDto = dto as z.infer<typeof createSchema>;
+      const itemsCount = designerDto.items.reduce((acc, item) => acc + item.quantity, 0);
+      const total = Math.round(designerDto.totalPrice || 0);
+
+      const pedido = await tx.pedido.create({
         data: {
           userId,
           clienteEmail: email,
@@ -562,58 +635,34 @@ router.post('/', async (req, res) => {
           notificado: true,
           total,
           itemsCount,
-          materialId,
-          materialLabel,
+          materialId: designerDto.materialId,
+          materialLabel: designerDto.materialLabel,
           payload: {
-            source: 'cart',
-            products: cartDto.products,
-            quote: cartDto.quote ?? null,
-            note: cartDto.note ?? null,
+            source: 'designer',
+            ...designerDto,
             createdAt: nowIso,
-            cliente: { email, nombre }
+            cliente: {
+              email,
+              nombre
+            }
           }
         },
         select: { id: true }
       });
 
-      await adjustCatalogStock(cartDto.products);
-      await adjustQuoteStock(materialId, cartDto.quote);
+      await adjustMaterialStock(designerDto.materialId, designerDto.usedHeight, tx);
 
-      return res.status(201).json({ id: pedido.id });
-    }
-
-    const designerDto = dto as z.infer<typeof createSchema>;
-    const itemsCount = designerDto.items.reduce((acc, item) => acc + item.quantity, 0);
-    const total = Math.round(designerDto.totalPrice || 0);
-
-    const pedido = await prisma.pedido.create({
-      data: {
-        userId,
-        clienteEmail: email,
-        clienteNombre: nombre,
-        estado: 'PENDIENTE',
-        notificado: true,
-        total,
-        itemsCount,
-        materialId: designerDto.materialId,
-        materialLabel: designerDto.materialLabel,
-        payload: {
-          source: 'designer',
-          ...designerDto,
-          createdAt: nowIso,
-          cliente: {
-            email,
-            nombre
-          }
-        }
-      },
-      select: { id: true }
+      return pedido.id;
     });
 
-    await adjustMaterialStock(designerDto.materialId, designerDto.usedHeight);
-
-    res.status(201).json({ id: pedido.id });
-  } catch (error) {
+    res.status(201).json({ id: pedidoId });
+  } catch (error: any) {
+    if (error?.code === 'INSUFFICIENT_STOCK') {
+      return res.status(409).json({
+        message: 'No hay stock suficiente para completar el pedido.',
+        detalles: error?.details || null
+      });
+    }
     console.error('Error creando pedido', error);
     res.status(500).json({ message: 'Error interno' });
   }
@@ -1079,26 +1128,25 @@ router.post('/:id/files', upload.array('files', 10), async (req, res) => {
     const materialId = extractMaterialIdFromPedido(pedido);
     const fallbackWidth = extractMaterialWidthFromPedido(pedido);
 
-    const created: Array<{ id: number; filename: string }> = [];
     const errors: Array<{ filename: string; message: string }> = [];
+    const pending: Array<{
+      filename: string;
+      mimeType: string;
+      sizeBytes: number;
+      metrics: { widthCm: number; heightCm: number; areaCm2: number; lengthCm: number };
+      buffer: Buffer;
+    }> = [];
 
     for (const file of files) {
       try {
         const metrics = await calculateAttachmentMetrics(file, materialId, fallbackWidth);
-        const createdFile = await prisma.pedidoAdjunto.create({
-          data: {
-            pedidoId: id,
-            filename: file.originalname || file.filename || 'archivo',
-            mimeType: file.mimetype,
-            sizeBytes: file.size,
-            widthCm: metrics.widthCm,
-            heightCm: metrics.heightCm,
-            areaCm2: metrics.areaCm2,
-            lengthCm: metrics.lengthCm,
-            data: Buffer.from(file.buffer)
-          }
+        pending.push({
+          filename: file.originalname || file.filename || 'archivo',
+          mimeType: file.mimetype,
+          sizeBytes: file.size,
+          metrics,
+          buffer: Buffer.from(file.buffer)
         });
-        created.push({ id: createdFile.id, filename: createdFile.filename });
       } catch (inner) {
         console.error('Error procesando archivo adjunto', inner);
         errors.push({
@@ -1108,10 +1156,40 @@ router.post('/:id/files', upload.array('files', 10), async (req, res) => {
       }
     }
 
-    await recomputePedidoAggregates(id);
+    let created: Array<{ id: number; filename: string }> = [];
+
+    if (pending.length) {
+      created = await prisma.$transaction(async tx => {
+        const results: Array<{ id: number; filename: string }> = [];
+        for (const entry of pending) {
+          const createdFile = await tx.pedidoAdjunto.create({
+            data: {
+              pedidoId: id,
+              filename: entry.filename,
+              mimeType: entry.mimeType,
+              sizeBytes: entry.sizeBytes,
+              widthCm: entry.metrics.widthCm,
+              heightCm: entry.metrics.heightCm,
+              areaCm2: entry.metrics.areaCm2,
+              lengthCm: entry.metrics.lengthCm,
+              data: entry.buffer
+            }
+          });
+          results.push({ id: createdFile.id, filename: createdFile.filename });
+        }
+        await recomputePedidoAggregates(id, tx);
+        return results;
+      });
+    }
 
     res.status(201).json({ ok: true, created, errors });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'INSUFFICIENT_STOCK') {
+      return res.status(409).json({
+        message: 'No hay stock suficiente para registrar los archivos.',
+        detalles: error?.details || null
+      });
+    }
     console.error('Error subiendo archivos de pedido', error);
     res.status(500).json({ message: 'Error interno' });
   }

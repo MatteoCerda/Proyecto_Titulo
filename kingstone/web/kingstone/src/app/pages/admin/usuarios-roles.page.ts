@@ -5,6 +5,7 @@ import { IonContent, IonIcon } from '@ionic/angular/standalone';
 import { AlertController } from '@ionic/angular';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { environment } from '../../../environments/environment';
 
 type Role = 'ADMIN' | 'CLIENT' | 'OPERATOR';
 
@@ -258,6 +259,12 @@ interface NewUserPayload {
 export class AdminUsuariosRolesPage {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private apiBase = (environment.apiUrl || '').replace(/\/$/, '');
+
+  private endpoint(path: string): string {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return this.apiBase ? `${this.apiBase}${normalized}` : normalized;
+  }
 
   // Lista completa (todas las categorías)
   allUsers = signal<UserVM[]>([]);
@@ -335,7 +342,7 @@ export class AdminUsuariosRolesPage {
     const params: any = {};
     if (this.query?.trim()) params.q = this.query.trim();
 
-    this.http.get<any[]>(`http://localhost:3000/admin/users`, { params }).subscribe({
+    this.http.get<any[]>(this.endpoint('/admin/users'), { params }).subscribe({
       next: users => {
         const mapRole = (r: string): Role => {
           const key = r?.toLowerCase();
@@ -397,7 +404,7 @@ export class AdminUsuariosRolesPage {
 
     this.saving = true;
     this.newUserError = '';
-    this.http.post(`http://localhost:3000/admin/users`, {
+    this.http.post(this.endpoint('/admin/users'), {
       fullName,
       email,
       password,
@@ -441,7 +448,7 @@ export class AdminUsuariosRolesPage {
     const ids = [...this.roleIds];
     this.showRoleModal = false;
     ids.forEach(id => {
-      this.http.patch(`http://localhost:3000/admin/users/${id}`, { role }).subscribe({ next: () => this.load() });
+      this.http.patch(this.endpoint(`/admin/users/${id}`), { role }).subscribe({ next: () => this.load() });
     });
   }
 
@@ -449,7 +456,7 @@ export class AdminUsuariosRolesPage {
     const ids = this.users().filter(u => u.selected).map(u => u.id);
     if (ids.length === 0) return;
     if (!confirm('Eliminar usuarios seleccionados?')) return;
-    this.http.request('delete', `http://localhost:3000/admin/users`, { body: { ids } }).subscribe(() => this.load());
+    this.http.request('delete', this.endpoint('/admin/users'), { body: { ids } }).subscribe(() => this.load());
   }
 
   private isValidEmail(email: string) {
@@ -457,5 +464,7 @@ export class AdminUsuariosRolesPage {
     return pattern.test(email);
   }
 }
+
+
 
 

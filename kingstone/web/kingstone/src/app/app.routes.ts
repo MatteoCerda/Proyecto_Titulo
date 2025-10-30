@@ -24,6 +24,11 @@ export const routes: Routes = [
       { path: 'cliente/metodos-pago', canMatch: [authGuard], loadComponent: () => import('./pages/cliente/metodos-pago.page').then(m => m.MetodosPagoPage) }
     ]
   },
+  {
+    path: 'admin/login',
+    loadComponent: () => import('./pages/login/login.page').then(m => m.LoginPage),
+    data: { scope: 'admin' }
+  },
   // Area de administracion
   {
     path: 'admin',
@@ -44,6 +49,11 @@ export const routes: Routes = [
       { path: 'stock', loadComponent: () => import('./pages/admin/stock.page').then(m => m.AdminStockPage) },
       { path: 'perfil', loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage) }
     ]
+  },
+  {
+    path: 'operador/login',
+    loadComponent: () => import('./pages/login/login.page').then(m => m.LoginPage),
+    data: { scope: 'operator' }
   },
   // Panel del operador
   {

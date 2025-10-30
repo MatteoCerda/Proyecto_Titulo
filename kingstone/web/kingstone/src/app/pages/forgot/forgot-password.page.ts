@@ -1,7 +1,8 @@
 import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { IonContent, IonItem, IonLabel, IonInput, IonButton } from '@ionic/angular/standalone';
-import { RouterLink } from '@angular/router';
+import { IonContent, IonItem, IonLabel, IonInput, IonButton, ToastController } from '@ionic/angular/standalone';
+import { Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../core/auth.service';
 
 @Component({
   selector: 'app-forgot-password',
@@ -11,16 +12,20 @@ import { RouterLink } from '@angular/router';
   <ion-content class="forgot">
     <div class="box">
       <h1 class="title">Recuperar contraseña</h1>
-      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <p class="message" *ngIf="!sent()">Ingresa tu correo y te enviaremos un enlace para recuperar tu cuenta.</p>
+      <p class="message success" *ngIf="sent()">¡Revisa tu correo! Te hemos enviado las instrucciones. El enlace expirará en 30 minutos.</p>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" *ngIf="!sent()">
         <ion-item>
           <ion-label position="stacked">Correo electrónico</ion-label>
           <ion-input type="email" formControlName="email"></ion-input>
         </ion-item>
         <ion-button expand="block" class="ion-margin-top" [disabled]="form.invalid || sending()" type="submit">
-          Enviar instrucciones
+          {{ sending() ? 'Enviando...' : 'Enviar instrucciones' }}
         </ion-button>
-        <ion-button routerLink="/login" fill="clear" expand="block">Volver al inicio de sesión</ion-button>
       </form>
+
+      <ion-button routerLink="/login" fill="clear" expand="block">Volver al inicio de sesión</ion-button>
     </div>
   </ion-content>
   `,
@@ -28,7 +33,12 @@ import { RouterLink } from '@angular/router';
 })
 export class ForgotPasswordPage {
   private fb = inject(FormBuilder);
+  private auth = inject(AuthService);
+  private toast = inject(ToastController);
+  private router = inject(Router);
+
   sending = signal(false);
+  sent = signal(false);
 
   form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -37,7 +47,19 @@ export class ForgotPasswordPage {
   async onSubmit() {
     if (this.form.invalid) return;
     this.sending.set(true);
-    // TODO: integrar con backend para enviar correo de recuperación
-    setTimeout(() => this.sending.set(false), 800);
+    try {
+      const email = this.form.value.email!;
+      await this.auth.forgotPassword(email);
+      this.sent.set(true);
+    } catch (err) {
+      const toast = await this.toast.create({
+        message: 'No se pudo procesar la solicitud. Intenta nuevamente.',
+        duration: 3000,
+        color: 'danger'
+      });
+      toast.present();
+    } finally {
+      this.sending.set(false);
+    }
   }
 }
