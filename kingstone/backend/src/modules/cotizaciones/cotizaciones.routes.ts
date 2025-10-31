@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { authGuard } from '../common/middlewares/authGuard';
-
-const prisma = new PrismaClient();
+import { prisma } from '../../lib/prisma';
 const router = Router();
 
 const allowedQuoteStates = ['NUEVA', 'EN_REVISION', 'ENVIADA', 'ACEPTADA', 'RECHAZADA'] as const;

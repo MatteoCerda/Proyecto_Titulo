@@ -26,7 +26,7 @@ export interface CatalogFilters {
 })
 export class CatalogService {
   private readonly http = inject(HttpClient);
-  private readonly basePath = '/catalogo';
+  private readonly basePath = '/api/catalogo';
 
   private readonly itemsSignal = signal<CatalogItem[]>([]);
   private readonly loadingSignal = signal(false);

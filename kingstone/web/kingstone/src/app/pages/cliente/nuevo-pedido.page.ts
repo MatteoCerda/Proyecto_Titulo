@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent } from '@ionic/angular/standalone';
 import { RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { PedidosService, CreatePedidoRequest } from '../../services/pedidos.service';
 import { CartService } from '../../services/cart.service';
@@ -810,7 +811,12 @@ export class NuevoPedidoPage implements OnDestroy {
       this.clearOrder();
     } catch (error) {
       console.error('Error al enviar el pedido', error);
-      this.submitFeedback = { type: 'error', message: 'No pudimos enviar tu pedido. Intentalo nuevamente.' };
+      const status = (error as HttpErrorResponse)?.status;
+      const serverMessage = (error as HttpErrorResponse)?.error?.message;
+      this.submitFeedback = {
+        type: 'error',
+        message: serverMessage || 'No pudimos enviar tu pedido. Inténtalo nuevamente.'
+      };
     } finally {
       this.submitting = false;
     }

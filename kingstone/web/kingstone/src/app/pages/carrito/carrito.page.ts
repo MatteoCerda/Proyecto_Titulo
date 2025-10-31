@@ -5,6 +5,7 @@ import { CartService } from '../../services/cart.service';
 import { addIcons } from 'ionicons';
 import { trashOutline, addOutline, removeOutline, cartOutline, closeOutline } from 'ionicons/icons';
 import { RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { PedidosService, CartPedidoRequest } from '../../services/pedidos.service';
 
@@ -121,10 +122,11 @@ export class CarritoPage {
       this.cart.clearAll();
     } catch (error) {
       console.error('Error enviando pedido desde carrito', error);
-      const status = (error as any)?.status;
+      const status = (error as HttpErrorResponse)?.status;
+      const serverMessage = (error as HttpErrorResponse)?.error?.message;
       const message = status === 401
         ? 'Debes iniciar sesión para enviar tu pedido.'
-        : 'No pudimos enviar la solicitud. Inténtalo nuevamente.';
+        : serverMessage || 'No pudimos enviar la solicitud. Inténtalo nuevamente.';
       this.requestFeedback.set({
         type: 'error',
         message

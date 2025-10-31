@@ -41,12 +41,33 @@
       JWT_EXPIRES_IN: 1d
       PORT: 3000
       NODE_ENV: production
+      PEDIDOS_UPLOAD_DIR: /app/uploads/pedidos
     ports:
       - "3000:3000"
     depends_on:
       - db
+    volumes:
+      - uploads_data:/app/uploads/pedidos
+
+  worker:
+    build:
+      context: ./backend
+    container_name: kingstone_worker
+    environment:
+      DATABASE_URL: mysql://king:stone@db:3306/kingstone
+      SHADOW_DATABASE_URL: mysql://king:stone@db:3306/kingstone_shadow
+      NODE_ENV: production
+      PEDIDOS_UPLOAD_DIR: /app/uploads/pedidos
+      FILE_JOB_POLL_INTERVAL_MS: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+    command: /bin/sh -c "npx prisma migrate deploy && node dist/workers/pedidoFileWorker.js"
+    volumes:
+      - uploads_data:/app/uploads/pedidos
 
 volumes:
   db_data:
+  uploads_data:
 
 

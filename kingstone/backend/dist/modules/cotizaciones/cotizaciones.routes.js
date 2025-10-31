@@ -4,7 +4,7 @@ const express_1 = require("express");
 const client_1 = require("@prisma/client");
 const zod_1 = require("zod");
 const authGuard_1 = require("../common/middlewares/authGuard");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = require("../../lib/prisma");
 const router = (0, express_1.Router)();
 const allowedQuoteStates = ['NUEVA', 'EN_REVISION', 'ENVIADA', 'ACEPTADA', 'RECHAZADA'];
 const openAssignmentStates = ['PENDIENTE', 'EN_PROGRESO', 'RE_ASIGNADA'];
@@ -59,7 +59,7 @@ function toDecimal(value) {
 }
 async function pickOperator(preferredId) {
     if (preferredId) {
-        const preferred = await prisma.user.findFirst({
+        const preferred = await prisma_1.prisma.user.findFirst({
             where: {
                 id: preferredId,
                 role: { in: ['operator', 'admin'] },
@@ -69,13 +69,13 @@ async function pickOperator(preferredId) {
         if (preferred)
             return preferred;
     }
-    const operators = await prisma.user.findMany({
+    const operators = await prisma_1.prisma.user.findMany({
         where: { role: { in: ['operator', 'admin'] } },
         select: { id: true, email: true, fullName: true },
     });
     if (!operators.length)
         return null;
-    const workloads = await prisma.asignacion.groupBy({
+    const workloads = await prisma_1.prisma.asignacion.groupBy({
         by: ['operadorId'],
         where: {
             operadorId: { in: operators.map(o => o.id) },
@@ -409,7 +409,7 @@ router.post('/', async (req, res) => {
         const slaMinutos = dto.slaMinutos ?? 10;
         const vencimiento = new Date(Date.now() + slaMinutos * 60 * 1000);
         const metadata = buildMetadata(dto, payloadUser);
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await prisma_1.prisma.$transaction(async (tx) => {
             const cotizacion = await tx.cotizacion.create({
                 data: {
                     clienteId: clienteId ?? null,
@@ -462,7 +462,7 @@ router.post('/', async (req, res) => {
                 operadorEmail: operator.email ?? null,
                 operadorNombre: operator.fullName ?? null,
             });
-            await prisma.cotizacionNotificacion.update({
+            await prisma_1.prisma.cotizacionNotificacion.update({
                 where: { id: result.notificacion.id },
                 data: {
                     estado: 'ENVIADO',
@@ -472,7 +472,7 @@ router.post('/', async (req, res) => {
         }
         catch (webhookError) {
             console.error('Error enviando webhook n8n', webhookError);
-            await prisma.cotizacionNotificacion.update({
+            await prisma_1.prisma.cotizacionNotificacion.update({
                 where: { id: result.notificacion.id },
                 data: {
                     estado: 'ERROR',
@@ -524,7 +524,7 @@ router.get('/queue', authGuard_1.authGuard, async (req, res) => {
         else {
             where.operadorId = userId;
         }
-        const asignaciones = await prisma.asignacion.findMany({
+        const asignaciones = await prisma_1.prisma.asignacion.findMany({
             where,
             orderBy: [
                 { estado: 'asc' },
@@ -575,7 +575,7 @@ router.post('/:id/accept', authGuard_1.authGuard, async (req, res) => {
         if (!id) {
             return res.status(400).json({ message: 'ID invalido' });
         }
-        const asignacion = await prisma.asignacion.findFirst({
+        const asignacion = await prisma_1.prisma.asignacion.findFirst({
             where: {
                 cotizacionId: id,
                 estado: { in: ['PENDIENTE', 'RE_ASIGNADA'] },
@@ -589,8 +589,8 @@ router.post('/:id/accept', authGuard_1.authGuard, async (req, res) => {
         if (asignacion.operadorId && asignacion.operadorId !== userId) {
             return res.status(409).json({ message: 'Asignacion pertenece a otro operador' });
         }
-        const [updatedAsignacion] = await prisma.$transaction([
-            prisma.asignacion.update({
+        const [updatedAsignacion] = await prisma_1.prisma.$transaction([
+            prisma_1.prisma.asignacion.update({
                 where: { id: asignacion.id },
                 data: {
                     operadorId: userId,
@@ -598,7 +598,7 @@ router.post('/:id/accept', authGuard_1.authGuard, async (req, res) => {
                     aceptadoEn: new Date(),
                 },
             }),
-            prisma.cotizacion.update({
+            prisma_1.prisma.cotizacion.update({
                 where: { id: asignacion.cotizacionId },
                 data: { estado: 'EN_REVISION' },
             }),
@@ -633,7 +633,7 @@ router.post('/:id/resolve', authGuard_1.authGuard, async (req, res) => {
             });
         }
         const dto = validate.data;
-        const asignacion = await prisma.asignacion.findFirst({
+        const asignacion = await prisma_1.prisma.asignacion.findFirst({
             where: {
                 cotizacionId: id,
                 estado: { in: ['PENDIENTE', 'EN_PROGRESO'] },
@@ -696,7 +696,7 @@ router.post('/:id/resolve', authGuard_1.authGuard, async (req, res) => {
         }
         let inventoryRecords = [];
         if (inventoryConditions.length) {
-            inventoryRecords = await prisma.inventoryItem.findMany({
+            inventoryRecords = await prisma_1.prisma.inventoryItem.findMany({
                 where: { OR: inventoryConditions },
                 select: { id: true, code: true, name: true, quantity: true },
             });
@@ -821,7 +821,7 @@ router.post('/:id/resolve', authGuard_1.authGuard, async (req, res) => {
         if (dto.totalFinal !== undefined) {
             cotizacionUpdateData.totalEstimado = toDecimal(dto.totalFinal) ?? null;
         }
-        await prisma.$transaction(async (tx) => {
+        await prisma_1.prisma.$transaction(async (tx) => {
             for (const adjustment of adjustments.values()) {
                 const result = await tx.inventoryItem.updateMany({
                     where: {

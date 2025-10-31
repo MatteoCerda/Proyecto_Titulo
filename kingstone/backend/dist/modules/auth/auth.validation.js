@@ -11,8 +11,7 @@ const register = zod_1.z.object({
     telefono: zod_1.z.string().max(30).optional(),
     direccion: zod_1.z.string().max(200).optional(),
     comuna: zod_1.z.string().max(80).optional(),
-    ciudad: zod_1.z.string().max(80).optional(),
-    role: zod_1.z.enum(['user', 'admin', 'operator']).optional(),
+    ciudad: zod_1.z.string().max(80).optional()
 });
 const login = zod_1.z.object({ email: zod_1.z.string().email(), password: zod_1.z.string().min(1) });
 const forgot = zod_1.z.object({ email: zod_1.z.string().email() });

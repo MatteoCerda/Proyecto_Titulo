@@ -6,12 +6,11 @@ import { authGuard } from './modules/common/middlewares/authGuard';
 import adminRoutes from './modules/admin/admin.routes';
 import { adminGuard } from './modules/common/middlewares/adminGuard';
 import pedidosRoutes from './modules/pedidos/pedidos.routes';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './lib/prisma';
 import bcrypt from 'bcryptjs';
 import cotizacionesRoutes from './modules/cotizaciones/cotizaciones.routes';
 
 const app = express();
-const prisma = new PrismaClient();
 app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '8mb' }));
@@ -23,7 +22,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/auth', authRoutes);
 
 // Perfil del usuario autenticado
-app.get('/me', authGuard, async (req, res) => {
+app.get(['/me', '/api/me'], authGuard, async (req, res) => {
   try {
     const id = Number((req as any).user?.sub);
     if (!id) return res.status(401).json({ message: 'No autorizado' });
@@ -38,7 +37,7 @@ app.get('/me', authGuard, async (req, res) => {
   }
 });
 
-app.put('/me', authGuard, async (req, res) => {
+app.put(['/me', '/api/me'], authGuard, async (req, res) => {
   try {
     const id = Number((req as any).user?.sub);
     const { fullName } = req.body || {};
@@ -59,7 +58,7 @@ app.put('/me', authGuard, async (req, res) => {
 });
 
 // Actualizar contraseña del usuario autenticado
-app.put('/me/password', authGuard, async (req, res) => {
+app.put(['/me/password', '/api/me/password'], authGuard, async (req, res) => {
   try {
     const id = Number((req as any).user?.sub);
     const { currentPassword, newPassword } = req.body || {};
@@ -80,7 +79,7 @@ app.put('/me/password', authGuard, async (req, res) => {
 });
 
 // Perfil de cliente: obtener
-app.get('/me/profile', authGuard, async (req, res) => {
+app.get(['/me/profile', '/api/me/profile'], authGuard, async (req, res) => {
   try {
     const id = Number((req as any).user?.sub);
     if (!id) return res.status(401).json({ message: 'No autorizado' });
@@ -95,7 +94,7 @@ app.get('/me/profile', authGuard, async (req, res) => {
 });
 
 // Perfil de cliente: crear/actualizar
-app.put('/me/profile', authGuard, async (req, res) => {
+app.put(['/me/profile', '/api/me/profile'], authGuard, async (req, res) => {
   try {
     const id = Number((req as any).user?.sub);
     if (!id) return res.status(401).json({ message: 'No autorizado' });
@@ -115,7 +114,7 @@ app.put('/me/profile', authGuard, async (req, res) => {
 });
 
 // Catálogo público para clientes
-app.get('/catalogo', async (req, res) => {
+const catalogHandler = async (req: express.Request, res: express.Response) => {
   try {
     const search = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const tipo = typeof req.query.tipo === 'string' ? req.query.tipo.trim() : '';
@@ -172,9 +171,12 @@ app.get('/catalogo', async (req, res) => {
     console.error('Error obteniendo catálogo', error);
     res.status(500).json({ message: 'Error interno' });
   }
-});
+};
 
-app.get('/catalogo/:id', async (req, res) => {
+app.get(['/catalogo', '/api/catalogo'], catalogHandler);
+
+
+app.get(['/catalogo/:id', '/api/catalogo/:id'], async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id) {
@@ -219,7 +221,7 @@ app.get('/catalogo/:id', async (req, res) => {
   }
 });
 
-app.get('/offers', async (_req, res) => {
+const offersHandler = async (_req: express.Request, res: express.Response) => {
   try {
     const now = new Date();
     const offers = await prisma.oferta.findMany({
@@ -253,15 +255,18 @@ app.get('/offers', async (_req, res) => {
         endAt: true,
         inventario: {
           select: { code: true, name: true }
-        }
-      }
+        },
+      },
     });
     res.json(offers);
   } catch (error) {
     console.error('Error obteniendo ofertas', error);
     res.status(500).json({ message: 'Error interno' });
   }
-});
+};
+
+app.get(['/offers', '/api/offers'], offersHandler);
+
 
 // Pedidos (clientes y operadores)
 app.use('/api/pedidos', authGuard, pedidosRoutes);

@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { register as registerUser } from '../auth/auth.service';
 import { validate } from '../auth/auth.validation';
 import { ZodError, z } from 'zod';
+import { prisma } from '../../lib/prisma';
 
-const prisma = new PrismaClient();
 const router = Router();
 
 function handleZodError(err: ZodError, res: any) {

@@ -11,11 +11,10 @@ const authGuard_1 = require("./modules/common/middlewares/authGuard");
 const admin_routes_1 = __importDefault(require("./modules/admin/admin.routes"));
 const adminGuard_1 = require("./modules/common/middlewares/adminGuard");
 const pedidos_routes_1 = __importDefault(require("./modules/pedidos/pedidos.routes"));
-const client_1 = require("@prisma/client");
+const prisma_1 = require("./lib/prisma");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const cotizaciones_routes_1 = __importDefault(require("./modules/cotizaciones/cotizaciones.routes"));
 const app = (0, express_1.default)();
-const prisma = new client_1.PrismaClient();
 app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)({ origin: true, credentials: true }));
 app.use(express_1.default.json({ limit: '8mb' }));
@@ -29,7 +28,7 @@ app.get('/me', authGuard_1.authGuard, async (req, res) => {
         const id = Number(req.user?.sub);
         if (!id)
             return res.status(401).json({ message: 'No autorizado' });
-        const user = await prisma.user.findUnique({
+        const user = await prisma_1.prisma.user.findUnique({
             where: { id },
             select: { id: true, email: true, fullName: true, role: true }
         });
@@ -50,7 +49,7 @@ app.put('/me', authGuard_1.authGuard, async (req, res) => {
         if (!fullName || typeof fullName !== 'string' || !fullName.trim()) {
             return res.status(400).json({ message: 'Nombre inválido' });
         }
-        const user = await prisma.user.update({
+        const user = await prisma_1.prisma.user.update({
             where: { id },
             data: { fullName: fullName.trim() },
             select: { id: true, email: true, fullName: true, role: true }
@@ -73,14 +72,14 @@ app.put('/me/password', authGuard_1.authGuard, async (req, res) => {
         if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
             return res.status(400).json({ message: 'Contraseña inválida (mínimo 6 caracteres)' });
         }
-        const user = await prisma.user.findUnique({ where: { id } });
+        const user = await prisma_1.prisma.user.findUnique({ where: { id } });
         if (!user)
             return res.status(404).json({ message: 'Usuario no encontrado' });
         const ok = await bcryptjs_1.default.compare(currentPassword || '', user.passwordHash);
         if (!ok)
             return res.status(400).json({ message: 'Contraseña actual incorrecta' });
         const passwordHash = await bcryptjs_1.default.hash(newPassword, 10);
-        await prisma.user.update({ where: { id }, data: { passwordHash } });
+        await prisma_1.prisma.user.update({ where: { id }, data: { passwordHash } });
         res.json({ ok: true });
     }
     catch (e) {
@@ -93,7 +92,7 @@ app.get('/me/profile', authGuard_1.authGuard, async (req, res) => {
         const id = Number(req.user?.sub);
         if (!id)
             return res.status(401).json({ message: 'No autorizado' });
-        const profile = await prisma.cliente.findUnique({
+        const profile = await prisma_1.prisma.cliente.findUnique({
             where: { id_usuario: id },
             select: { id_cliente: true, rut: true, nombre_contacto: true, email: true, telefono: true, direccion: true, comuna: true, ciudad: true, id_usuario: true, creado_en: true }
         });
@@ -110,10 +109,10 @@ app.put('/me/profile', authGuard_1.authGuard, async (req, res) => {
         if (!id)
             return res.status(401).json({ message: 'No autorizado' });
         const { rut, nombre_contacto, telefono, direccion, comuna, ciudad } = req.body || {};
-        const user = await prisma.user.findUnique({ where: { id } });
+        const user = await prisma_1.prisma.user.findUnique({ where: { id } });
         if (!user)
             return res.status(404).json({ message: 'Usuario no encontrado' });
-        const profile = await prisma.cliente.upsert({
+        const profile = await prisma_1.prisma.cliente.upsert({
             where: { id_usuario: id },
             create: { id_usuario: id, email: user.email, rut: rut || null, nombre_contacto: nombre_contacto || user.fullName || null, telefono: telefono || null, direccion: direccion || null, comuna: comuna || null, ciudad: ciudad || null },
             update: { rut: rut || null, nombre_contacto: (nombre_contacto ?? undefined), telefono: telefono ?? null, direccion: direccion ?? null, comuna: comuna ?? null, ciudad: ciudad ?? null },
@@ -126,7 +125,7 @@ app.put('/me/profile', authGuard_1.authGuard, async (req, res) => {
     }
 });
 // Catálogo público para clientes
-app.get('/catalogo', async (req, res) => {
+const catalogHandler = async (req, res) => {
     try {
         const search = typeof req.query.q === 'string' ? req.query.q.trim() : '';
         const tipo = typeof req.query.tipo === 'string' ? req.query.tipo.trim() : '';
@@ -142,7 +141,7 @@ app.get('/catalogo', async (req, res) => {
         if (tipo) {
             where.itemType = { contains: tipo };
         }
-        const items = await prisma.inventoryItem.findMany({
+        const items = await prisma_1.prisma.inventoryItem.findMany({
             where,
             orderBy: [
                 { itemType: 'asc' },
@@ -180,14 +179,15 @@ app.get('/catalogo', async (req, res) => {
         console.error('Error obteniendo catálogo', error);
         res.status(500).json({ message: 'Error interno' });
     }
-});
-app.get('/catalogo/:id', async (req, res) => {
+};
+app.get(['/catalogo', '/api/catalogo'], catalogHandler);
+app.get(['/catalogo/:id', '/api/catalogo/:id'], async (req, res) => {
     try {
         const id = Number(req.params.id);
         if (!id) {
             return res.status(400).json({ message: 'ID invalido' });
         }
-        const item = await prisma.inventoryItem.findUnique({
+        const item = await prisma_1.prisma.inventoryItem.findUnique({
             where: { id },
             select: {
                 id: true,
@@ -226,10 +226,10 @@ app.get('/catalogo/:id', async (req, res) => {
         res.status(500).json({ message: 'Error interno' });
     }
 });
-app.get('/offers', async (_req, res) => {
+const offersHandler = async (_req, res) => {
     try {
         const now = new Date();
-        const offers = await prisma.oferta.findMany({
+        const offers = await prisma_1.prisma.oferta.findMany({
             where: {
                 activo: true,
                 OR: [
@@ -260,8 +260,8 @@ app.get('/offers', async (_req, res) => {
                 endAt: true,
                 inventario: {
                     select: { code: true, name: true }
-                }
-            }
+                },
+            },
         });
         res.json(offers);
     }
@@ -269,7 +269,8 @@ app.get('/offers', async (_req, res) => {
         console.error('Error obteniendo ofertas', error);
         res.status(500).json({ message: 'Error interno' });
     }
-});
+};
+app.get(['/offers', '/api/offers'], offersHandler);
 // Pedidos (clientes y operadores)
 app.use('/api/pedidos', authGuard_1.authGuard, pedidos_routes_1.default);
 app.use('/api/cotizaciones', cotizaciones_routes_1.default);

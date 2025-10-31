@@ -44,7 +44,7 @@ export class HomePage {
 
   cargarOfertas() {
     this.cargando.set(true);
-    this.http.get<OfertaCliente[]>(this.endpoint('/offers')).subscribe({
+    this.http.get<OfertaCliente[]>(this.endpoint('/api/offers')).subscribe({
       next: data => {
         this.ofertas.set(data);
         this.error.set(null);

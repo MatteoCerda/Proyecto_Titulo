@@ -3,11 +3,12 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { IonContent, IonItem, IonLabel, IonInput, IonButton, ToastController } from '@ionic/angular/standalone';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
-  imports: [IonContent, IonItem, IonLabel, IonInput, IonButton, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, IonContent, IonItem, IonLabel, IonInput, IonButton, ReactiveFormsModule, RouterLink],
   template: `
   <ion-content class="forgot">
     <div class="box">

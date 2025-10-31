@@ -1,17 +1,49 @@
 import { Router } from 'express';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import multer from 'multer';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { imageSize } from 'image-size';
 import type { Express } from 'express';
+import fs from 'fs';
+import { promises as fsPromises } from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { prisma } from '../../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 type DbClient = Prisma.TransactionClient | PrismaClient;
 
+const UPLOAD_BASE_DIR =
+  process.env.PEDIDOS_UPLOAD_DIR || path.join(process.cwd(), 'uploads', 'pedidos');
+const UPLOAD_TMP_DIR = path.join(UPLOAD_BASE_DIR, 'tmp');
+
+if (!fs.existsSync(UPLOAD_TMP_DIR)) {
+  fs.mkdirSync(UPLOAD_TMP_DIR, { recursive: true });
+}
+
+function buildUploadFilename(originalName?: string | null) {
+  const safeExt = originalName ? path.extname(originalName) : '';
+  const randomId =
+    typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : crypto.randomBytes(16).toString('hex');
+  const timestamp = Date.now();
+  return `${timestamp}-${randomId}${safeExt}`;
+}
+
+const uploadStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, UPLOAD_TMP_DIR);
+  },
+  filename: (_req, file, cb) => {
+    cb(null, buildUploadFilename(file.originalname));
+  }
+});
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: uploadStorage,
   limits: { fileSize: 25 * 1024 * 1024, files: 10 }
 });
 const DEFAULT_IMAGE_DPI = 300;
@@ -41,6 +73,14 @@ const MATERIAL_WIDTH_MAP: Record<string, number> = {
   comprinterpu47: 47
 };
 
+type MaterialPreset = {
+  label: string;
+  pricePerMeter: number;
+  widthCm: number;
+};
+
+const MATERIAL_PRESET_MAP: Record<string, MaterialPreset> = {};
+
 type JwtUser = { sub?: number; email?: string; role?: string };
 
 function createStockError(details: Record<string, unknown> = {}) {
@@ -52,24 +92,113 @@ function normalizeMaterialKey(value?: string | null): string | null {
   return value.toLowerCase().replace(/[\s_\-]/g, '');
 }
 
-async function findInventoryByMaterial(materialId?: string | null, client: DbClient = prisma) {
+function registerMaterialPreset(ids: string[], preset: MaterialPreset) {
+  for (const id of ids) {
+    const key = normalizeMaterialKey(id);
+    if (!key) continue;
+    MATERIAL_PRESET_MAP[key] = preset;
+  }
+}
+
+registerMaterialPreset(
+  ['dtf-57', 'dtf', 'dtf57', 'dtf-textil', 'dtftextil', 'dtftextiladhesivo', 'dtf-adhesivo', 'dtfadhesivo', 'dtfadhesivo57', 'dtftransfer'],
+  { label: 'DTF 57 cm', pricePerMeter: 13000, widthCm: 57 }
+);
+
+registerMaterialPreset(
+  ['vinilo-textil', 'vinilotextil', 'vinilotextil47', 'vinilotextiladhesivo'],
+  { label: 'Vinilo textil 47 cm', pricePerMeter: 10000, widthCm: 47 }
+);
+
+registerMaterialPreset(
+  ['vinilo-decorativo', 'vinilodecorativo', 'vinilodecorativo56', 'vinilodecorativo56cm'],
+  { label: 'Vinilo decorativo 56 cm', pricePerMeter: 10000, widthCm: 56 }
+);
+
+registerMaterialPreset(
+  ['sticker-70', 'sticker70', 'sticker70cm'],
+  { label: 'Sticker 70 cm', pricePerMeter: 7000, widthCm: 70 }
+);
+
+registerMaterialPreset(
+  ['comprinter-pvc', 'comprinter', 'comprinterpvc', 'comprinterpvc47'],
+  { label: 'Comprinter PVC 47 cm', pricePerMeter: 7500, widthCm: 47 }
+);
+
+registerMaterialPreset(
+  ['comprinter-pu', 'comprinterpu', 'comprinterpu47'],
+  { label: 'Comprinter PU 47 cm', pricePerMeter: 8500, widthCm: 47 }
+);
+
+function getMaterialPreset(materialId?: string | null): MaterialPreset | null {
   const key = normalizeMaterialKey(materialId);
   if (!key) return null;
-  const whereClauses: any[] = [];
+  return MATERIAL_PRESET_MAP[key] ?? null;
+}
+
+async function findInventoryByMaterial(materialId?: string | null, client: DbClient = prisma) {
+  const key = normalizeMaterialKey(materialId);
+  const candidates = new Set<string>();
   if (materialId && materialId.length) {
-    whereClauses.push({ code: { equals: materialId } });
-    whereClauses.push({ name: { equals: materialId, mode: 'insensitive' as const } });
+    candidates.add(materialId);
+    candidates.add(materialId.toLowerCase());
+    candidates.add(materialId.toUpperCase());
   }
   if (key && key.length) {
-    whereClauses.push({ code: { equals: key } });
+    candidates.add(key);
   }
-  if (!whereClauses.length) {
-    return null;
-  }
+  if (!candidates.size) return null;
+  const whereClauses = Array.from(candidates).flatMap(value => [
+    { code: { equals: value } },
+    { name: { equals: value } }
+  ]);
   const item = await client.inventoryItem.findFirst({
     where: { OR: whereClauses }
   });
   return item;
+}
+
+function getNumericValue(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return Number.isNaN(value) ? null : value;
+  if (typeof value === 'bigint') return Number(value);
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  if (typeof value === 'object' && typeof (value as any)?.toNumber === 'function') {
+    const parsed = (value as any).toNumber();
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
+function resolveInventoryUnitPrice(item: { priceWeb: any; priceStore: any; priceWsp: any }): number {
+  const candidates = [
+    getNumericValue(item.priceWeb),
+    getNumericValue(item.priceStore),
+    getNumericValue(item.priceWsp)
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'number' && candidate >= 0) {
+      return candidate;
+    }
+  }
+  return 0;
+}
+
+function calculateMaterialPrice(lengthCm: number, pricePerMeter: number): number {
+  if (!lengthCm || lengthCm <= 0) return 0;
+  if (!pricePerMeter || pricePerMeter <= 0) return 0;
+  return Math.round((lengthCm / 100) * pricePerMeter);
+}
+
+export function bufferToUint8Array(buffer: Buffer): Uint8Array<ArrayBuffer> {
+  const arrayBuffer = buffer.buffer.slice(
+    buffer.byteOffset,
+    buffer.byteOffset + buffer.byteLength
+  ) as ArrayBuffer;
+  return new Uint8Array(arrayBuffer);
 }
 
 function getMaterialWidth(materialId?: string | null, fallback?: number): number | null {
@@ -100,7 +229,7 @@ function parsePayload(payload: any): any {
   }
 }
 
-function extractMaterialIdFromPedido(pedido: any): string | null {
+export function extractMaterialIdFromPedido(pedido: any): string | null {
   if (typeof pedido?.materialId === 'string' && pedido.materialId.length) {
     return pedido.materialId;
   }
@@ -124,7 +253,7 @@ function extractMaterialIdFromPedido(pedido: any): string | null {
   return null;
 }
 
-function extractMaterialWidthFromPedido(pedido: any): number | null {
+export function extractMaterialWidthFromPedido(pedido: any): number | null {
   if (typeof pedido?.materialWidthCm === 'number') {
     return pedido.materialWidthCm;
   }
@@ -141,14 +270,14 @@ function extractMaterialWidthFromPedido(pedido: any): number | null {
   return null;
 }
 
-async function calculateAttachmentMetrics(
-  file: Express.Multer.File,
+export async function calculateAttachmentMetrics(
+  source: { buffer: Buffer; originalName?: string | null; mimeType?: string | null },
   materialId: string | null,
   fallbackWidth?: number | null
 ) {
-  const buffer = file.buffer;
-  const originalName = file.originalname || 'archivo';
-  const mime = file.mimetype?.toLowerCase() || '';
+  const buffer = source.buffer;
+  const originalName = source.originalName || 'archivo';
+  const mime = source.mimeType?.toLowerCase() || '';
   const materialWidth = getMaterialWidth(materialId, fallbackWidth ?? undefined);
 
   if (mime === 'application/pdf' || originalName.toLowerCase().endsWith('.pdf')) {
@@ -292,7 +421,7 @@ async function adjustQuoteStock(materialId: string | null, quote: any, client: D
   await adjustMaterialStock(materialId, usedHeight, client);
 }
 
-async function recomputePedidoAggregates(pedidoId: number, client: DbClient = prisma) {
+export async function recomputePedidoAggregates(pedidoId: number, client: DbClient = prisma) {
   const pedido = await client.pedido.findUnique({
     where: { id: pedidoId },
     include: { adjuntos: true }
@@ -582,17 +711,106 @@ router.post('/', async (req, res) => {
 
     const nowIso = new Date().toISOString();
 
-    const pedidoId = await prisma.$transaction(async tx => {
-      if (isCartSource) {
-        const cartDto = dto as z.infer<typeof cartCreateSchema>;
-        const productsCount = cartDto.products.reduce((acc, item) => acc + item.quantity, 0);
-        const quoteCount = cartDto.quote?.items?.reduce((acc, item) => acc + item.quantity, 0) ?? 0;
-        const itemsCount = productsCount + quoteCount;
-        const catalogTotal = cartDto.products.reduce((acc, item) => acc + item.price * item.quantity, 0);
-        const total = Math.round(catalogTotal + (cartDto.quote?.totalPrice ?? 0));
-        const materialId = cartDto.quote?.materialId ?? null;
-        const materialLabel = cartDto.quote?.materialLabel ?? null;
+    if (isCartSource) {
+      const cartDto = dto as z.infer<typeof cartCreateSchema>;
+      const productIds = cartDto.products.map(product => product.id);
+      const inventoryItems = productIds.length
+        ? await prisma.inventoryItem.findMany({
+            where: { id: { in: productIds } },
+            select: {
+              id: true,
+              name: true,
+              itemType: true,
+              color: true,
+              provider: true,
+              imageUrl: true,
+              priceWeb: true,
+              priceStore: true,
+              priceWsp: true
+            }
+          })
+        : [];
 
+      const inventoryById = new Map(inventoryItems.map(item => [item.id, item]));
+      for (const product of cartDto.products) {
+        if (!inventoryById.get(product.id)) {
+          return res.status(400).json({
+            message: 'Producto de catálogo inválido',
+            detalles: { productId: product.id }
+          });
+        }
+      }
+
+      const sanitizedProducts = cartDto.products.map(product => {
+        const record = inventoryById.get(product.id)!;
+        const unitPrice = resolveInventoryUnitPrice(record);
+        const lineTotal = unitPrice * product.quantity;
+        return {
+          id: record.id,
+          name: record.name,
+          quantity: product.quantity,
+          price: unitPrice,
+          lineTotal,
+          itemType: record.itemType ?? null,
+          color: record.color ?? null,
+          provider: record.provider ?? null,
+          imageUrl: record.imageUrl ?? null
+        };
+      });
+
+      const catalogTotal = sanitizedProducts.reduce((acc, item) => acc + item.lineTotal, 0);
+      const clientCatalogTotal = cartDto.products.reduce((acc, item) => acc + item.price * item.quantity, 0);
+
+      let sanitizedQuote: (z.infer<typeof cartQuoteSchema> & {
+        totalPrice: number;
+        pricePerMeter?: number | null;
+        inventoryId?: number | null;
+      }) | null = null;
+      let quotePreset: MaterialPreset | null = null;
+      let quoteTotal = 0;
+      let quoteMaterialId: string | null = null;
+      let quoteMaterialLabel: string | null = null;
+
+      if (cartDto.quote) {
+        const quoteInventory = await findInventoryByMaterial(cartDto.quote.materialId);
+        quotePreset = getMaterialPreset(cartDto.quote.materialId);
+        if (!quoteInventory && !quotePreset) {
+          return res.status(400).json({
+            message: 'Material de cotizacion invalido',
+            detalles: { materialId: cartDto.quote.materialId }
+          });
+        }
+        const pricePerMeter = quoteInventory
+          ? resolveInventoryUnitPrice(quoteInventory)
+          : quotePreset?.pricePerMeter ?? 0;
+        if (!pricePerMeter) {
+          return res.status(400).json({
+            message: 'No existe tarifa configurada para el material seleccionado',
+            detalles: { materialId: cartDto.quote.materialId }
+          });
+        }
+        quoteTotal = calculateMaterialPrice(cartDto.quote.usedHeight, pricePerMeter);
+        const effectiveLabel =
+          quoteInventory?.name ?? cartDto.quote.materialLabel ?? quotePreset?.label ?? null;
+        sanitizedQuote = {
+          ...cartDto.quote,
+          materialLabel: effectiveLabel ?? cartDto.quote.materialLabel ?? quotePreset?.label ?? null,
+          totalPrice: quoteTotal,
+          pricePerMeter,
+          inventoryId: quoteInventory?.id ?? null
+        };
+        quoteMaterialId = cartDto.quote.materialId ?? null;
+        quoteMaterialLabel =
+          sanitizedQuote.materialLabel ?? quotePreset?.label ?? quoteMaterialId;
+      }
+
+      const productsCount = sanitizedProducts.reduce((acc, item) => acc + item.quantity, 0);
+      const quoteCount = sanitizedQuote?.items?.reduce((acc, item) => acc + item.quantity, 0) ?? 0;
+      const itemsCount = productsCount + quoteCount;
+      const total = Math.round(catalogTotal + quoteTotal);
+      const clientQuoteTotal = cartDto.quote?.totalPrice ?? null;
+
+      const pedidoId = await prisma.$transaction(async tx => {
         const pedido = await tx.pedido.create({
           data: {
             userId,
@@ -602,13 +820,22 @@ router.post('/', async (req, res) => {
             notificado: true,
             total,
             itemsCount,
-            materialId,
-            materialLabel,
+            materialId: quoteMaterialId,
+            materialLabel: quoteMaterialLabel,
             payload: {
               source: 'cart',
-              products: cartDto.products,
-              quote: cartDto.quote ?? null,
+              products: sanitizedProducts,
+              quote: sanitizedQuote,
               note: cartDto.note ?? null,
+              pricing: {
+                catalogTotal,
+                quoteTotal,
+                computedTotal: total,
+                clientCatalogTotal,
+                clientQuoteTotal,
+                quotePricePerMeter: sanitizedQuote?.pricePerMeter ?? null,
+                quotePresetLabel: sanitizedQuote?.inventoryId ? null : (quotePreset?.label ?? null)
+              },
               createdAt: nowIso,
               cliente: { email, nombre }
             }
@@ -616,16 +843,46 @@ router.post('/', async (req, res) => {
           select: { id: true }
         });
 
-        await adjustCatalogStock(cartDto.products, tx);
-        await adjustQuoteStock(materialId, cartDto.quote, tx);
+        await adjustCatalogStock(sanitizedProducts, tx);
+        await adjustQuoteStock(quoteMaterialId, sanitizedQuote, tx);
 
         return pedido.id;
-      }
+      });
 
-      const designerDto = dto as z.infer<typeof createSchema>;
-      const itemsCount = designerDto.items.reduce((acc, item) => acc + item.quantity, 0);
-      const total = Math.round(designerDto.totalPrice || 0);
+      return res.status(201).json({ id: pedidoId });
+    }
 
+    const designerDto = dto as z.infer<typeof createSchema>;
+    const materialInventory = await findInventoryByMaterial(designerDto.materialId);
+    const materialPreset = getMaterialPreset(designerDto.materialId);
+    if (!materialInventory && !materialPreset) {
+      return res.status(400).json({
+        message: 'Material invalido',
+        detalles: { materialId: designerDto.materialId }
+      });
+    }
+    const pricePerMeter = materialInventory
+      ? resolveInventoryUnitPrice(materialInventory)
+      : materialPreset?.pricePerMeter ?? 0;
+    if (!pricePerMeter) {
+      return res.status(400).json({
+        message: 'No existe tarifa configurada para el material seleccionado',
+        detalles: { materialId: designerDto.materialId }
+      });
+    }
+    const computedTotal = calculateMaterialPrice(designerDto.usedHeight, pricePerMeter);
+    const itemsCount = designerDto.items.reduce((acc, item) => acc + item.quantity, 0);
+    const materialLabel =
+      materialInventory?.name ?? designerDto.materialLabel ?? materialPreset?.label ?? designerDto.materialId;
+    const sanitizedDesignerPayload = {
+      ...designerDto,
+      materialLabel,
+      totalPrice: computedTotal,
+      pricePerMeter,
+      inventoryId: materialInventory?.id ?? null
+    };
+
+    const pedidoId = await prisma.$transaction(async tx => {
       const pedido = await tx.pedido.create({
         data: {
           userId,
@@ -633,13 +890,19 @@ router.post('/', async (req, res) => {
           clienteNombre: nombre,
           estado: 'PENDIENTE',
           notificado: true,
-          total,
+          total: computedTotal,
           itemsCount,
           materialId: designerDto.materialId,
-          materialLabel: designerDto.materialLabel,
+          materialLabel,
           payload: {
             source: 'designer',
-            ...designerDto,
+            ...sanitizedDesignerPayload,
+            pricing: {
+              pricePerMeter,
+              computedTotal,
+              clientTotal: designerDto.totalPrice ?? null,
+              presetLabel: materialPreset?.label ?? null
+            },
             createdAt: nowIso,
             cliente: {
               email,
@@ -1128,61 +1391,79 @@ router.post('/:id/files', upload.array('files', 10), async (req, res) => {
     const materialId = extractMaterialIdFromPedido(pedido);
     const fallbackWidth = extractMaterialWidthFromPedido(pedido);
 
-    const errors: Array<{ filename: string; message: string }> = [];
-    const pending: Array<{
-      filename: string;
+    const storedFiles: Array<{
+      path: string;
+      originalName: string;
       mimeType: string;
       sizeBytes: number;
-      metrics: { widthCm: number; heightCm: number; areaCm2: number; lengthCm: number };
-      buffer: Buffer;
     }> = [];
+    const errors: Array<{ filename: string; message: string }> = [];
 
     for (const file of files) {
-      try {
-        const metrics = await calculateAttachmentMetrics(file, materialId, fallbackWidth);
-        pending.push({
-          filename: file.originalname || file.filename || 'archivo',
-          mimeType: file.mimetype,
-          sizeBytes: file.size,
-          metrics,
-          buffer: Buffer.from(file.buffer)
-        });
-      } catch (inner) {
-        console.error('Error procesando archivo adjunto', inner);
+      if (!file.path) {
         errors.push({
           filename: file.originalname || file.filename || 'archivo',
-          message: inner instanceof Error ? inner.message : 'Error desconocido'
+          message: 'No se pudo almacenar el archivo temporalmente'
         });
+        continue;
       }
-    }
-
-    let created: Array<{ id: number; filename: string }> = [];
-
-    if (pending.length) {
-      created = await prisma.$transaction(async tx => {
-        const results: Array<{ id: number; filename: string }> = [];
-        for (const entry of pending) {
-          const createdFile = await tx.pedidoAdjunto.create({
-            data: {
-              pedidoId: id,
-              filename: entry.filename,
-              mimeType: entry.mimeType,
-              sizeBytes: entry.sizeBytes,
-              widthCm: entry.metrics.widthCm,
-              heightCm: entry.metrics.heightCm,
-              areaCm2: entry.metrics.areaCm2,
-              lengthCm: entry.metrics.lengthCm,
-              data: entry.buffer
-            }
-          });
-          results.push({ id: createdFile.id, filename: createdFile.filename });
-        }
-        await recomputePedidoAggregates(id, tx);
-        return results;
+      storedFiles.push({
+        path: file.path,
+        originalName: file.originalname || file.filename || path.basename(file.path),
+        mimeType: file.mimetype,
+        sizeBytes: file.size
       });
     }
 
-    res.status(201).json({ ok: true, created, errors });
+    if (!storedFiles.length) {
+      for (const file of files) {
+        if (file.path) {
+          await fsPromises.unlink(file.path).catch(() => undefined);
+        }
+      }
+      const firstError = errors[0]?.message || 'No se pudieron almacenar los archivos';
+      return res.status(400).json({ message: firstError, errors });
+    }
+
+    try {
+      const job = await prisma.fileProcessingJob.create({
+        data: {
+          pedidoId: id,
+          status: 'PENDING',
+          payload: {
+            files: storedFiles,
+            materialId,
+            fallbackWidth,
+            clienteEmail: pedido.clienteEmail ?? null
+          }
+        },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true
+        }
+      });
+
+      res.status(202).json({
+        ok: true,
+        job: {
+          id: job.id,
+          status: job.status,
+          createdAt: job.createdAt,
+          files: storedFiles.map(file => ({
+            originalName: file.originalName,
+            mimeType: file.mimeType,
+            sizeBytes: file.sizeBytes
+          }))
+        },
+        errors
+      });
+    } catch (error) {
+      for (const file of storedFiles) {
+        await fsPromises.unlink(file.path).catch(() => undefined);
+      }
+      throw error;
+    }
   } catch (error: any) {
     if (error?.code === 'INSUFFICIENT_STOCK') {
       return res.status(409).json({

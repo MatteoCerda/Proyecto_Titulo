@@ -5,6 +5,8 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc -p .",
     "start": "node dist/server.js",
+    "worker:pedido-files": "node dist/workers/pedidoFileWorker.js",
+    "worker:pedido-files:dev": "ts-node-dev --respawn --transpile-only src/workers/pedidoFileWorker.ts",
     "prisma:gen": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init"
   },

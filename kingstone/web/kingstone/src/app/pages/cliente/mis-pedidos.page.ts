@@ -50,12 +50,13 @@ export class MisPedidosPage implements OnInit {
     } catch (err: any) {
       console.error('Error obteniendo pedidos del cliente', err);
       const status = err?.status;
+      const serverMessage = err?.error?.message;
       if (status === 401) {
-        this.error.set('Debes iniciar sesion para ver tus pedidos.');
+        this.error.set('Debes iniciar sesión para ver tus pedidos.');
       } else if (status === 403) {
-        this.error.set('Tu cuenta no tiene permisos para ver esta informacion.');
+        this.error.set('Tu cuenta no tiene permisos para ver esta información.');
       } else {
-        this.error.set('No pudimos cargar tus pedidos. Intenta mas tarde.');
+        this.error.set(serverMessage || 'No pudimos cargar tus pedidos. Intenta más tarde.');
       }
     } finally {
       this.loading.set(false);

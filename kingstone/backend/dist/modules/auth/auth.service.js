@@ -7,26 +7,31 @@ exports.register = register;
 exports.login = login;
 exports.forgotPassword = forgotPassword;
 exports.resetPassword = resetPassword;
-const client_1 = require("@prisma/client");
+const prisma_1 = require("../../lib/prisma");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const crypto_1 = __importDefault(require("crypto"));
-const prisma = new client_1.PrismaClient();
-async function register(dto) {
-    const exists = await prisma.user.findUnique({ where: { email: dto.email } });
+const allowedRoles = ['user', 'admin', 'operator'];
+function normalizeRole(role) {
+    if (!role)
+        return null;
+    const normalized = role.toLowerCase();
+    return allowedRoles.find(r => r === normalized) ?? null;
+}
+async function register(dto, options) {
+    const exists = await prisma_1.prisma.user.findUnique({ where: { email: dto.email } });
     if (exists)
         throw new Error('EMAIL_IN_USE');
     const passwordHash = await bcryptjs_1.default.hash(dto.password, 10);
-    const allowedRoles = ['user', 'admin', 'operator'];
-    const role = dto.role && allowedRoles.includes(dto.role) ? dto.role : 'user';
-    const user = await prisma.user.create({
+    const role = options?.defaultRole ?? 'user';
+    const user = await prisma_1.prisma.user.create({
         data: { email: dto.email, passwordHash, fullName: dto.fullName, role }
     });
     // Si vienen datos de perfil, creamos registro en tabla cliente
     const hasProfile = dto.rut || dto.nombre_contacto || dto.telefono || dto.direccion || dto.comuna || dto.ciudad;
     if (hasProfile) {
         try {
-            await prisma.cliente.create({
+            await prisma_1.prisma.cliente.create({
                 data: {
                     id_usuario: user.id,
                     rut: dto.rut || null,
@@ -46,13 +51,23 @@ async function register(dto) {
     }
     return { id: user.id, email: user.email, fullName: user.fullName, role: user.role };
 }
-async function login(dto) {
-    const user = await prisma.user.findUnique({ where: { email: dto.email } });
+async function login(dto, options) {
+    const user = await prisma_1.prisma.user.findUnique({ where: { email: dto.email } });
     if (!user)
         throw new Error('INVALID_CREDENTIALS');
     const ok = await bcryptjs_1.default.compare(dto.password, user.passwordHash);
     if (!ok)
         throw new Error('INVALID_CREDENTIALS');
+    if (options?.allowedRoles && options.allowedRoles.length) {
+        const currentRole = normalizeRole(user.role) ?? 'user';
+        const allowed = options.allowedRoles.map(r => normalizeRole(r)).filter(Boolean);
+        if (!allowed.includes(currentRole)) {
+            throw Object.assign(new Error('ROLE_NOT_ALLOWED'), {
+                code: 'ROLE_NOT_ALLOWED',
+                role: user.role
+            });
+        }
+    }
     const payload = { sub: user.id, email: user.email, role: user.role };
     const opts = { expiresIn: process.env.JWT_EXPIRES_IN || '1d' };
     const secret = process.env.JWT_SECRET;
@@ -60,14 +75,14 @@ async function login(dto) {
     return { token, user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role } };
 }
 async function forgotPassword(email) {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma_1.prisma.user.findUnique({ where: { email } });
     // Siempre respondemos ok para no filtrar emails
     if (!user)
         return { ok: true };
     const token = crypto_1.default.randomBytes(32).toString('hex');
     const tokenHash = crypto_1.default.createHash('sha256').update(token).digest('hex');
     const expiresAt = new Date(Date.now() + 1000 * 60 * 30); // 30 min
-    await prisma.passwordReset.create({ data: { userId: user.id, tokenHash, expiresAt } });
+    await prisma_1.prisma.passwordReset.create({ data: { userId: user.id, tokenHash, expiresAt } });
     // Enviar email: aquí integrar proveedor. Por ahora devolvemos ok.
     // Para facilitar pruebas, devolvemos el token en dev solamente
     const isDev = process.env.NODE_ENV !== 'production';
@@ -75,15 +90,15 @@ async function forgotPassword(email) {
 }
 async function resetPassword(token, newPassword) {
     const tokenHash = crypto_1.default.createHash('sha256').update(token).digest('hex');
-    const rec = await prisma.passwordReset.findFirst({ where: { tokenHash, usedAt: null }, include: { user: true } });
+    const rec = await prisma_1.prisma.passwordReset.findFirst({ where: { tokenHash, usedAt: null }, include: { user: true } });
     if (!rec)
         throw new Error('TOKEN_INVALID');
     if (rec.expiresAt.getTime() < Date.now())
         throw new Error('TOKEN_EXPIRED');
     const passwordHash = await bcryptjs_1.default.hash(newPassword, 10);
-    await prisma.$transaction([
-        prisma.user.update({ where: { id: rec.userId }, data: { passwordHash } }),
-        prisma.passwordReset.update({ where: { id: rec.id }, data: { usedAt: new Date() } })
+    await prisma_1.prisma.$transaction([
+        prisma_1.prisma.user.update({ where: { id: rec.userId }, data: { passwordHash } }),
+        prisma_1.prisma.passwordReset.update({ where: { id: rec.id }, data: { usedAt: new Date() } })
     ]);
     return { ok: true };
 }

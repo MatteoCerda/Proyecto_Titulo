@@ -1,11 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const client_1 = require("@prisma/client");
 const auth_service_1 = require("../auth/auth.service");
 const auth_validation_1 = require("../auth/auth.validation");
 const zod_1 = require("zod");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = require("../../lib/prisma");
 const router = (0, express_1.Router)();
 function handleZodError(err, res) {
     const first = err.issues?.[0];
@@ -92,7 +91,7 @@ function parseQrPayload(qrRaw) {
 router.post('/users', async (req, res) => {
     try {
         const dto = (0, auth_validation_1.validate)('register', req.body);
-        const user = await (0, auth_service_1.register)(dto);
+        const user = await (0, auth_service_1.register)(dto, { allowRoleOverride: true, defaultRole: 'user' });
         res.status(201).json(user);
     }
     catch (err) {
@@ -118,7 +117,7 @@ router.get('/users', async (req, res) => {
     }
     if (role)
         where.role = role;
-    const users = await prisma.user.findMany({
+    const users = await prisma_1.prisma.user.findMany({
         where,
         orderBy: { id: 'asc' },
         select: {
@@ -146,7 +145,7 @@ router.get('/users/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (!id)
         return res.status(400).json({ message: 'ID invalido' });
-    const user = await prisma.user.findUnique({
+    const user = await prisma_1.prisma.user.findUnique({
         where: { id },
         select: {
             id: true,
@@ -176,7 +175,7 @@ router.patch('/users/:id', async (req, res) => {
         return res.status(400).json({ message: 'ID invalido' });
     const { role, fullName, perfil } = req.body || {};
     try {
-        const user = await prisma.user.update({
+        const user = await prisma_1.prisma.user.update({
             where: { id },
             data: {
                 ...(fullName ? { fullName } : {}),
@@ -185,7 +184,7 @@ router.patch('/users/:id', async (req, res) => {
             select: { id: true, email: true, fullName: true, role: true }
         });
         if (perfil) {
-            await prisma.cliente.upsert({
+            await prisma_1.prisma.cliente.upsert({
                 where: { id_usuario: id },
                 create: {
                     id_usuario: id,
@@ -207,15 +206,15 @@ router.delete('/users', async (req, res) => {
     if (!Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ message: 'ids requerido' });
     }
-    await prisma.$transaction([
-        prisma.cliente.deleteMany({ where: { id_usuario: { in: ids } } }),
-        prisma.user.deleteMany({ where: { id: { in: ids } } })
+    await prisma_1.prisma.$transaction([
+        prisma_1.prisma.cliente.deleteMany({ where: { id_usuario: { in: ids } } }),
+        prisma_1.prisma.user.deleteMany({ where: { id: { in: ids } } })
     ]);
     res.json({ ok: true });
 });
 // Inventario: listar
 router.get('/inventory', async (_req, res) => {
-    const items = await prisma.inventoryItem.findMany({
+    const items = await prisma_1.prisma.inventoryItem.findMany({
         orderBy: { name: 'asc' }
     });
     res.json(items);
@@ -225,7 +224,7 @@ router.get('/inventory/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (!id)
         return res.status(400).json({ message: 'ID invalido' });
-    const item = await prisma.inventoryItem.findUnique({ where: { id } });
+    const item = await prisma_1.prisma.inventoryItem.findUnique({ where: { id } });
     if (!item)
         return res.status(404).json({ message: 'Item no encontrado' });
     res.json(item);
@@ -240,9 +239,9 @@ router.post('/inventory', async (req, res) => {
             Object.assign(payload, parseQrPayload(payload.qrRaw));
         }
         const dto = inventoryCreateSchema.parse(payload);
-        const existing = await prisma.inventoryItem.findUnique({ where: { code: dto.code } });
+        const existing = await prisma_1.prisma.inventoryItem.findUnique({ where: { code: dto.code } });
         if (existing) {
-            const updated = await prisma.inventoryItem.update({
+            const updated = await prisma_1.prisma.inventoryItem.update({
                 where: { id: existing.id },
                 data: {
                     name: dto.name,
@@ -261,7 +260,7 @@ router.post('/inventory', async (req, res) => {
             });
             return res.status(200).json(updated);
         }
-        const item = await prisma.inventoryItem.create({
+        const item = await prisma_1.prisma.inventoryItem.create({
             data: {
                 code: dto.code,
                 name: dto.name,
@@ -305,7 +304,7 @@ router.patch('/inventory/:id', async (req, res) => {
         if (!Object.keys(dto).length) {
             return res.status(400).json({ message: 'Datos vacios' });
         }
-        const item = await prisma.inventoryItem.update({
+        const item = await prisma_1.prisma.inventoryItem.update({
             where: { id },
             data: {
                 ...(dto.code !== undefined ? { code: dto.code } : {}),
@@ -340,7 +339,7 @@ router.delete('/inventory/:id', async (req, res) => {
     if (!id)
         return res.status(400).json({ message: 'ID invalido' });
     try {
-        await prisma.inventoryItem.delete({ where: { id } });
+        await prisma_1.prisma.inventoryItem.delete({ where: { id } });
         res.json({ ok: true });
     }
     catch (err) {
@@ -353,7 +352,7 @@ router.delete('/inventory/:id', async (req, res) => {
 // Ofertas: listar (admin)
 router.get('/offers', async (req, res) => {
     const includeInactive = req.query.all === '1';
-    const offers = await prisma.oferta.findMany({
+    const offers = await prisma_1.prisma.oferta.findMany({
         where: includeInactive ? {} : { activo: true },
         include: { inventario: { select: { id: true, code: true, name: true } } },
         orderBy: [
@@ -370,7 +369,7 @@ router.post('/offers', async (req, res) => {
         if (dto.startAt && dto.endAt && dto.startAt > dto.endAt) {
             return res.status(400).json({ message: 'La fecha de inicio debe ser anterior a la fecha de término' });
         }
-        const offer = await prisma.oferta.create({
+        const offer = await prisma_1.prisma.oferta.create({
             data: {
                 titulo: dto.titulo,
                 descripcion: dto.descripcion ?? null,
@@ -406,7 +405,7 @@ router.patch('/offers/:id', async (req, res) => {
         if (dto.startAt && dto.endAt && dto.startAt > dto.endAt) {
             return res.status(400).json({ message: 'La fecha de inicio debe ser anterior a la fecha de término' });
         }
-        const offer = await prisma.oferta.update({
+        const offer = await prisma_1.prisma.oferta.update({
             where: { id },
             data: {
                 ...(dto.titulo !== undefined ? { titulo: dto.titulo } : {}),
@@ -439,7 +438,7 @@ router.delete('/offers/:id', async (req, res) => {
     if (!id)
         return res.status(400).json({ message: 'ID invalido' });
     try {
-        await prisma.oferta.delete({ where: { id } });
+        await prisma_1.prisma.oferta.delete({ where: { id } });
         res.json({ ok: true });
     }
     catch (err) {

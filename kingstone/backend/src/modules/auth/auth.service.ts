@@ -1,10 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import type { RegisterDTO, LoginDTO, JwtPayload } from './auth.types';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 const allowedRoles = ['user', 'admin', 'operator'] as const;
 type Role = (typeof allowedRoles)[number];

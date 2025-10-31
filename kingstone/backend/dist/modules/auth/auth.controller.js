@@ -34,7 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.postRegister = postRegister;
-exports.postLogin = postLogin;
+exports.postClientLogin = postClientLogin;
+exports.postAdminLogin = postAdminLogin;
+exports.postOperatorLogin = postOperatorLogin;
 exports.postForgotPassword = postForgotPassword;
 exports.postResetPassword = postResetPassword;
 const zod_1 = require("zod");
@@ -61,7 +63,7 @@ function tryHandleValidationError(err, res) {
 async function postRegister(req, res) {
     try {
         const dto = (0, auth_validation_1.validate)('register', req.body);
-        const user = await svc.register(dto);
+        const user = await svc.register(dto, { allowRoleOverride: false, defaultRole: 'user' });
         res.status(201).json(user);
     }
     catch (err) {
@@ -73,18 +75,52 @@ async function postRegister(req, res) {
         res.status(500).json({ message: 'Error interno' });
     }
 }
-async function postLogin(req, res) {
+function handleLoginErrors(err, res) {
+    if (tryHandleValidationError(err, res))
+        return true;
+    if (err?.message === 'INVALID_CREDENTIALS') {
+        res.status(401).json({ message: 'Credenciales invalidas' });
+        return true;
+    }
+    if (err?.message === 'ROLE_NOT_ALLOWED') {
+        res.status(403).json({ message: 'Rol no autorizado para este acceso' });
+        return true;
+    }
+    return false;
+}
+async function postClientLogin(req, res) {
     try {
         const dto = (0, auth_validation_1.validate)('login', req.body);
-        const result = await svc.login(dto);
+        const result = await svc.login(dto, { allowedRoles: ['user'] });
         res.json(result);
     }
     catch (err) {
-        if (tryHandleValidationError(err, res))
+        if (handleLoginErrors(err, res))
             return;
-        if (err?.message === 'INVALID_CREDENTIALS') {
-            return res.status(401).json({ message: 'Credenciales invalidas' });
-        }
+        res.status(500).json({ message: 'Error interno' });
+    }
+}
+async function postAdminLogin(req, res) {
+    try {
+        const dto = (0, auth_validation_1.validate)('login', req.body);
+        const result = await svc.login(dto, { allowedRoles: ['admin'] });
+        res.json(result);
+    }
+    catch (err) {
+        if (handleLoginErrors(err, res))
+            return;
+        res.status(500).json({ message: 'Error interno' });
+    }
+}
+async function postOperatorLogin(req, res) {
+    try {
+        const dto = (0, auth_validation_1.validate)('login', req.body);
+        const result = await svc.login(dto, { allowedRoles: ['operator', 'admin'] });
+        res.json(result);
+    }
+    catch (err) {
+        if (handleLoginErrors(err, res))
+            return;
         res.status(500).json({ message: 'Error interno' });
     }
 }
