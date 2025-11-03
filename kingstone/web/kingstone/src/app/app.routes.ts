@@ -61,8 +61,9 @@ export const routes: Routes = [
     canMatch: [roleGuard('OPERATOR')],
     loadComponent: () => import('./layouts/operator-shell.component').then(m => m.OperatorShellComponent),
     children: [
-      { path: '', redirectTo: 'solicitudes', pathMatch: 'full' },
-      { path: 'solicitudes', loadComponent: () => import('./pages/operador/dashboard.page').then(m => m.OperatorDashboardPage) },
+      { path: '', redirectTo: 'inicio', pathMatch: 'full' },
+      { path: 'inicio', loadComponent: () => import('./pages/operador/dashboard.page').then(m => m.OperatorDashboardPage) },
+      { path: 'solicitudes', redirectTo: 'inicio', pathMatch: 'full' },
       { path: 'clientes', loadComponent: () => import('./pages/operador/clientes.page').then(m => m.OperatorClientesPage) },
       { path: 'cotizaciones', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorOrdersPage), data: { view: 'cotizaciones' } },
       { path: 'pagos', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorOrdersPage), data: { view: 'pagos' } },

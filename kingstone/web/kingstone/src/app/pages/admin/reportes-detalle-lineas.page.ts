@@ -103,11 +103,11 @@ import {
         align-items: stretch;
       }
       .chart-panel {
-        background: #0f172a;
+        background: #ffffff;
         border-radius: 18px;
         padding: 28px;
         min-height: 420px;
-        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35);
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
       }
       canvas {
         width: 100% !important;
@@ -373,23 +373,23 @@ export class AdminReporteLineasPage implements AfterViewInit, OnDestroy {
           y: {
             ticks: {
               callback: (value: number | string) => this.formatCurrency(Number(value)),
-              color: '#fff'
+              color: '#0f172a'
             },
-            grid: { color: 'rgba(255,255,255,0.08)' }
+            grid: { color: 'rgba(15, 23, 42, 0.08)' }
           },
           orders: {
             position: 'right',
-            ticks: { color: '#fff' },
+            ticks: { color: '#0f172a' },
             grid: { drawOnChartArea: false }
           },
           x: {
-            ticks: { color: '#fff' }
+            ticks: { color: '#0f172a' }
           }
         },
         plugins: {
           legend: {
             position: 'bottom',
-            labels: { color: '#fff', usePointStyle: true }
+            labels: { color: '#0f172a', usePointStyle: true }
           },
           tooltip: {
             callbacks: {

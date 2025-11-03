@@ -412,7 +412,8 @@ export class DashboardPage implements AfterViewInit, OnDestroy {
             position: 'bottom',
             labels: {
               usePointStyle: true,
-              boxWidth: 10
+              boxWidth: 10,
+              color: '#0f172a'
             }
           },
           tooltip: {
@@ -459,13 +460,15 @@ export class DashboardPage implements AfterViewInit, OnDestroy {
         scales: {
           x: {
             ticks: {
-              callback: (value: number | string) => this.formatCurrency(Number(value))
+              callback: (value: number | string) => this.formatCurrency(Number(value)),
+              color: '#0f172a'
             },
             grid: { display: false }
           },
           y: {
             ticks: {
-              font: { size: 12 }
+              font: { size: 12 },
+              color: '#0f172a'
             },
             grid: { display: false }
           }
@@ -530,22 +533,28 @@ export class DashboardPage implements AfterViewInit, OnDestroy {
             beginAtZero: true,
             ticks: {
               callback: (value: number | string) => this.formatCurrency(Number(value)),
-              font: { size: 12 }
-            }
+              font: { size: 12 },
+              color: '#0f172a'
+            },
+            grid: { color: 'rgba(15, 23, 42, 0.08)' }
           },
           orders: {
             position: 'right',
             beginAtZero: true,
             grid: { drawOnChartArea: false },
             ticks: {
-              font: { size: 12 }
+              font: { size: 12 },
+              color: '#0f172a'
             }
+          },
+          x: {
+            ticks: { color: '#0f172a' }
           }
         },
         plugins: {
           legend: {
             position: 'bottom',
-            labels: { usePointStyle: true }
+            labels: { usePointStyle: true, color: '#0f172a' }
           },
           tooltip: {
             callbacks: {

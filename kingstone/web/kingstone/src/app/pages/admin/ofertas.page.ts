@@ -1,9 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonContent, IonSpinner } from '@ionic/angular/standalone';
+import { IonContent, IonIcon, IonSpinner } from '@ionic/angular/standalone';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
+import { environment } from '../../../environments/environment';
 
 interface Oferta {
   id: number;
@@ -36,13 +37,25 @@ interface InventoryOption { id: number; code: string; name: string; }
 @Component({
   standalone: true,
   selector: 'app-admin-ofertas',
-  imports: [CommonModule, FormsModule, IonContent, IonSpinner],
+  imports: [CommonModule, FormsModule, IonContent, IonSpinner, IonIcon],
   templateUrl: './ofertas.page.html',
   styleUrls: ['./ofertas.page.scss']
 })
 export class AdminOfertasPage {
   private readonly http = inject(HttpClient);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly apiBase = (environment.apiUrl || '').replace(/\/$/, '');
+
+  private endpoint(path: string): string {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    if (this.apiBase) {
+      return `${this.apiBase}${normalized}`;
+    }
+    if (normalized.startsWith('/api/')) {
+      return normalized;
+    }
+    return `/api${normalized}`;
+  }
 
   offers = signal<Oferta[]>([]);
   inventory = signal<InventoryOption[]>([]);
@@ -75,7 +88,7 @@ export class AdminOfertasPage {
 
   load() {
     this.loading = true;
-    this.http.get<Oferta[]>(`http://localhost:3000/admin/offers`, { params: { all: '1' } }).subscribe({
+    this.http.get<Oferta[]>(this.endpoint('/admin/offers'), { params: { all: '1' } }).subscribe({
       next: offers => {
         this.loading = false;
         this.offers.set(offers);
@@ -90,7 +103,7 @@ export class AdminOfertasPage {
   }
 
   loadInventory() {
-    this.http.get<any[]>(`http://localhost:3000/admin/inventory`).subscribe({
+    this.http.get<any[]>(this.endpoint('/admin/inventory')).subscribe({
       next: items => {
         const options = (items || []).map((item: any) => ({ id: item.id, code: item.code, name: item.name }));
         this.inventory.set(options);
@@ -151,7 +164,7 @@ export class AdminOfertasPage {
     const startAt = this.form.startAt ? new Date(this.form.startAt) : null;
     const endAt = this.form.endAt ? new Date(this.form.endAt) : null;
     if (startAt && endAt && startAt > endAt) {
-      this.formError = 'La fecha de inicio debe ser anterior a la fecha de término.';
+      this.formError = 'La fecha de inicio debe ser anterior a la fecha de termino.';
       return;
     }
 
@@ -171,8 +184,8 @@ export class AdminOfertasPage {
     this.formError = '';
 
     const request = this.editingId
-      ? this.http.patch<Oferta>(`http://localhost:3000/admin/offers/${this.editingId}`, payload)
-      : this.http.post<Oferta>(`http://localhost:3000/admin/offers`, payload);
+      ? this.http.patch<Oferta>(this.endpoint(`/admin/offers/${this.editingId}`), payload)
+      : this.http.post<Oferta>(this.endpoint('/admin/offers'), payload);
 
     request.subscribe({
       next: () => {
@@ -193,7 +206,7 @@ export class AdminOfertasPage {
   }
 
   toggle(oferta: Oferta) {
-    this.http.patch<Oferta>(`http://localhost:3000/admin/offers/${oferta.id}`, { activo: !oferta.activo }).subscribe({
+    this.http.patch<Oferta>(this.endpoint(`/admin/offers/${oferta.id}`), { activo: !oferta.activo }).subscribe({
       next: updated => {
         this.offers.set(this.offers().map(o => (o.id === updated.id ? updated : o)));
       },
@@ -203,7 +216,7 @@ export class AdminOfertasPage {
 
   remove(oferta: Oferta) {
     if (!confirm(`Eliminar la oferta "${oferta.titulo}"?`)) return;
-    this.http.delete(`http://localhost:3000/admin/offers/${oferta.id}`).subscribe({
+    this.http.delete(this.endpoint(`/admin/offers/${oferta.id}`)).subscribe({
       next: () => {
         this.offers.set(this.offers().filter(o => o.id !== oferta.id));
         if (this.editingId === oferta.id) {
@@ -229,3 +242,4 @@ export class AdminOfertasPage {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 }
+

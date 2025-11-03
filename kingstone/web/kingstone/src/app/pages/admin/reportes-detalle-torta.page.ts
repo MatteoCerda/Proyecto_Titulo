@@ -102,11 +102,11 @@ import {
         align-items: stretch;
       }
       .chart-panel {
-        background: #0f172a;
+        background: #ffffff;
         border-radius: 18px;
         padding: 24px;
         min-height: 340px;
-        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35);
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
       }
       canvas {
         width: 100% !important;
@@ -338,7 +338,7 @@ export class AdminReporteTortaPage implements AfterViewInit, OnDestroy {
           legend: {
             position: 'bottom',
             labels: {
-              color: '#fff',
+              color: '#0f172a',
               usePointStyle: true
             }
           },

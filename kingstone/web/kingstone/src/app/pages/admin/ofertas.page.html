@@ -22,20 +22,26 @@
         <label>
           Producto del inventario (opcional)
           <select [(ngModel)]="form.itemId" name="itemId">
-            <option value="">-- Sin vínculo --</option>
+            <option value="">-- Sin vinculo --</option>
             <option *ngFor="let item of inventory()" [value]="item.id">
               {{ item.code }} - {{ item.name }}
             </option>
           </select>
         </label>
-        <div class="grid">
-          <label>
+        <div class="date-grid">
+          <label class="date-field">
             Fecha inicio
-            <input type="datetime-local" [(ngModel)]="form.startAt" name="startAt">
+            <span class="date-trigger">
+              <ion-icon name="calendar-outline"></ion-icon>
+              <input type="datetime-local" [(ngModel)]="form.startAt" name="startAt">
+            </span>
           </label>
-          <label>
+          <label class="date-field">
             Fecha termino
-            <input type="datetime-local" [(ngModel)]="form.endAt" name="endAt">
+            <span class="date-trigger">
+              <ion-icon name="calendar-outline"></ion-icon>
+              <input type="datetime-local" [(ngModel)]="form.endAt" name="endAt">
+            </span>
           </label>
         </div>
         <div class="grid">
@@ -135,3 +141,4 @@
     </section>
   </div>
 </ion-content>
+

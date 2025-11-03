@@ -119,7 +119,7 @@ import {
         box-shadow: 0 24px 50px rgba(15, 23, 42, 0.16);
       }
       .img-wrap {
-        background: #0f172a;
+        background: #ffffff;
         border-radius: 14px;
         padding: 18px;
         height: 220px;
@@ -127,6 +127,7 @@ import {
         align-items: center;
         justify-content: center;
         margin-bottom: 20px;
+        box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
       }
       canvas {
         width: 100% !important;

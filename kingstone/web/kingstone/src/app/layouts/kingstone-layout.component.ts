@@ -240,7 +240,7 @@ export class KingstoneLayoutComponent {
     if (role === 'ADMIN') {
       (window as any).location.href = '/admin/inicio';
     } else {
-            const target = role === 'OPERATOR' ? '/operador/solicitudes' : '/cliente/mis-pedidos';
+            const target = role === 'OPERATOR' ? '/operador/inicio' : '/cliente/mis-pedidos';
       (window as any).location.href = target;
     }
   }

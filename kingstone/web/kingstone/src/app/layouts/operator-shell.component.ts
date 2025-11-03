@@ -13,13 +13,13 @@ import { OperatorInboxStore } from '../services/operator-inbox.store';
     <ion-header class="op-header">
       <ion-toolbar class="op-toolbar">
         <div class="op-bar">
-          <a class="op-brand" routerLink="/operador/solicitudes">
+          <a class="op-brand" routerLink="/operador/inicio">
             <img src="assets/kingston-estampados.png" alt="Kingstone logo" />
             <span>Centro de Operaciones</span>
           </a>
           <nav class="op-nav">
-            <a routerLink="/operador/solicitudes" routerLinkActive="active">
-              Solicitudes
+            <a routerLink="/operador/inicio" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+              Inicio
               <span *ngIf="pendingCount() > 0" class="bubble">{{ pendingCount() }}</span>
             </a>
             <a routerLink="/operador/cotizaciones" routerLinkActive="active">Cotizaciones</a>

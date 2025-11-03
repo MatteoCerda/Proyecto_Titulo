@@ -110,11 +110,11 @@ import {
         align-items: stretch;
       }
       .chart-panel {
-        background: #0f172a;
+        background: #ffffff;
         border-radius: 18px;
         padding: 28px;
         min-height: 420px;
-        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35);
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
       }
       canvas {
         width: 100% !important;
@@ -355,13 +355,13 @@ export class AdminReporteBarrasPage implements AfterViewInit, OnDestroy {
           x: {
             ticks: {
               callback: (value: number | string) => this.formatCurrency(Number(value)),
-              color: '#fff'
+              color: '#0f172a'
             },
             grid: { display: false }
           },
           y: {
             ticks: {
-              color: '#fff',
+              color: '#0f172a',
               font: { size: 12 }
             },
             grid: { display: false }

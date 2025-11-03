@@ -297,7 +297,7 @@ interface InventoryItem {
 })
 export class AdminStockPage implements OnDestroy {
   private http = inject(HttpClient);
-  private apiBase = (environment.apiUrl || '').replace(/\/\/$/, '');
+  private apiBase = (environment.apiUrl || '').replace(/\/$/, '');
 
   private endpoint(path: string): string {
     const normalized = path.startsWith('/') ? path : `/${path}`;

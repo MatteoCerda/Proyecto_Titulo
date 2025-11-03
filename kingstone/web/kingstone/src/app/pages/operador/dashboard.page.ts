@@ -18,7 +18,7 @@ import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../serv
           <p>{{ account()?.fullName || account()?.email }}</p>
         </header>
         <nav>
-          <a routerLink="/operador/solicitudes" routerLinkActive="active">Solicitudes</a>
+          <a routerLink="/operador/inicio" routerLinkActive="active">Inicio</a>
           <a routerLink="/operador/cotizaciones" routerLinkActive="active">
             Cotizaciones recientes
             <span *ngIf="pendingCount() > 0" class="warn">{{ pendingCount() }}</span>
@@ -529,3 +529,4 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
     return items.reduce((acc, item) => acc + (item.quantity ?? 0), 0);
   }
 }
+
