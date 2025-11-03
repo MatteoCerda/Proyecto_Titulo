@@ -209,7 +209,7 @@ export class AdminReportesPage implements AfterViewInit, OnDestroy {
     this.error.set(null);
     try {
       this.overview = await this.analytics.loadOverview(force);
-      queueMicrotask(() => this.renderPreviews());
+      setTimeout(() => this.renderPreviews(), 0);
     } catch (error) {
       console.error('No se pudo cargar el tablero de reportes', error);
       this.error.set('No pudimos obtener los datos. Intenta nuevamente.');
@@ -253,6 +253,7 @@ export class AdminReportesPage implements AfterViewInit, OnDestroy {
         plugins: { legend: { display: false }, tooltip: { enabled: false } }
       }
     });
+    this.distributionChart.resize();
   }
 
   private renderClientsPreview(): void {
@@ -285,6 +286,7 @@ export class AdminReportesPage implements AfterViewInit, OnDestroy {
         }
       }
     });
+    this.clientsChart.resize();
   }
 
   private renderTrendPreview(): void {
@@ -319,6 +321,7 @@ export class AdminReportesPage implements AfterViewInit, OnDestroy {
         }
       }
     });
+    this.trendChart.resize();
   }
 }
 

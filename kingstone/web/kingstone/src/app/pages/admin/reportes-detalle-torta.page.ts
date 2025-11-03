@@ -302,7 +302,7 @@ export class AdminReporteTortaPage implements AfterViewInit, OnDestroy {
     try {
       const overview = await this.analytics.loadOverview();
       this.items.set(overview.materialDistribution);
-      queueMicrotask(() => this.renderChart());
+      setTimeout(() => this.renderChart(), 0);
     } catch (error) {
       console.error('No se pudo cargar el reporte de distribucion', error);
       this.error.set('No logramos cargar los datos. Vuelve a intentarlo.');
@@ -354,6 +354,7 @@ export class AdminReporteTortaPage implements AfterViewInit, OnDestroy {
         }
       }
     });
+    this.chart.resize();
   }
 
   private palette(length: number): string[] {

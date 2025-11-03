@@ -320,7 +320,7 @@ export class AdminReporteLineasPage implements AfterViewInit, OnDestroy {
     try {
       const overview = await this.analytics.loadOverview();
       this.points.set(overview.monthlyTrend);
-      queueMicrotask(() => this.renderChart());
+      setTimeout(() => this.renderChart(), 0);
     } catch (error) {
       console.error('No se pudo cargar el reporte de ventas mensuales', error);
       this.error.set('No logramos cargar los datos. Vuelve a intentarlo.');
@@ -404,6 +404,7 @@ export class AdminReporteLineasPage implements AfterViewInit, OnDestroy {
         }
       }
     });
+    this.chart.resize();
   }
 
   private loadImage(dataUrl: string): Promise<HTMLImageElement> {

@@ -52,8 +52,8 @@ addIcons({ refreshOutline });
             Variacion vs. mes anterior:
             <span
               [ngClass]="{
-                up: (data.totals.monthlyGrowth ?? 0) > 0,
-                down: (data.totals.monthlyGrowth ?? 0) < 0
+                up: data.totals.monthlyGrowth > 0,
+                down: data.totals.monthlyGrowth < 0
               }"
             >
               {{ formatPercentage(data.totals.monthlyGrowth) }}
@@ -361,7 +361,7 @@ export class DashboardPage implements AfterViewInit, OnDestroy {
     try {
       const data = await this.analytics.loadOverview(force);
       this.overview.set(data);
-      queueMicrotask(() => this.renderCharts());
+      setTimeout(() => this.renderCharts(), 0);
     } catch (err) {
       console.error('No se pudo cargar el resumen del panel admin', err);
       this.error.set('No pudimos obtener las metricas. Intenta nuevamente.');
@@ -427,6 +427,7 @@ export class DashboardPage implements AfterViewInit, OnDestroy {
         }
       }
     });
+    this.distributionChart.resize();
   }
 
   private renderTopClientsChart(data: AdminDashboardOverview): void {
@@ -479,6 +480,7 @@ export class DashboardPage implements AfterViewInit, OnDestroy {
         }
       }
     });
+    this.topClientsChart.resize();
   }
 
   private renderMonthlyTrendChart(data: AdminDashboardOverview): void {
@@ -558,6 +560,7 @@ export class DashboardPage implements AfterViewInit, OnDestroy {
         }
       }
     });
+    this.monthlyTrendChart.resize();
   }
 
   private buildPalette(length: number): string[] {

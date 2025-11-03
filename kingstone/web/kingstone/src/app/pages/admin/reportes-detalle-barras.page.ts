@@ -318,7 +318,7 @@ export class AdminReporteBarrasPage implements AfterViewInit, OnDestroy {
     try {
       const overview = await this.analytics.loadOverview();
       this.clients.set(overview.topClients);
-      queueMicrotask(() => this.renderChart());
+      setTimeout(() => this.renderChart(), 0);
     } catch (error) {
       console.error('No se pudo cargar el reporte de top clientes', error);
       this.error.set('No logramos cargar los datos. Vuelve a intentarlo.');
@@ -377,6 +377,7 @@ export class AdminReporteBarrasPage implements AfterViewInit, OnDestroy {
         }
       }
     });
+    this.chart.resize();
   }
 
   private loadImage(dataUrl: string): Promise<HTMLImageElement> {
