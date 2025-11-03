@@ -168,6 +168,15 @@ function getMaterialWidth(materialId, fallback) {
     }
     return typeof fallback === 'number' && fallback > 0 ? fallback : null;
 }
+function formatCurrencyCLP(value) {
+    if (typeof value !== 'number' || Number.isNaN(value))
+        return '-';
+    return new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        maximumFractionDigits: 0
+    }).format(value);
+}
 function canAccessPedido(user, pedido) {
     if (!user)
         return false;
@@ -1124,6 +1133,142 @@ router.get('/admin/clientes/legacy', async (req, res) => {
     }
     catch (error) {
         console.error('Error listando clientes con pedidos', error);
+        res.status(500).json({ message: 'Error interno' });
+    }
+});
+router.get('/:id/quote.pdf', async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        if (!id)
+            return res.status(400).json({ message: 'ID invalido' });
+        const user = req.user;
+        if (!user)
+            return res.status(401).json({ message: 'No autorizado' });
+        const pedido = await prisma_1.prisma.pedido.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                userId: true,
+                clienteNombre: true,
+                clienteEmail: true,
+                estado: true,
+                total: true,
+                itemsCount: true,
+                materialLabel: true,
+                materialId: true,
+                createdAt: true,
+                payload: true
+            }
+        });
+        if (!pedido)
+            return res.status(404).json({ message: 'Pedido no encontrado' });
+        const canAdmin = (user.role ?? '').toUpperCase() === 'ADMIN';
+        const canOp = isOperator(user.role);
+        const canClient = canAccessPedido(user, { userId: pedido.userId ?? null, clienteEmail: pedido.clienteEmail ?? null });
+        if (!(canAdmin || canOp || canClient)) {
+            return res.status(403).json({ message: 'No autorizado' });
+        }
+        const payload = parsePayload(pedido.payload);
+        const products = Array.isArray(payload?.products) ? payload.products : [];
+        const quote = payload?.quote && typeof payload.quote === 'object' ? payload.quote : null;
+        const attachments = Array.isArray(payload?.attachments) ? payload.attachments : [];
+        const totals = {
+            area: typeof payload?.filesTotalAreaCm2 === 'number' ? payload.filesTotalAreaCm2 : null,
+            length: typeof payload?.filesTotalLengthCm === 'number' ? payload.filesTotalLengthCm : null,
+            price: typeof payload?.filesTotalPrice === 'number' ? payload.filesTotalPrice : null
+        };
+        const pdfDoc = await pdf_lib_1.PDFDocument.create();
+        let page = pdfDoc.addPage([595.28, 841.89]);
+        const font = await pdfDoc.embedFont(pdf_lib_1.StandardFonts.Helvetica);
+        const fontBold = await pdfDoc.embedFont(pdf_lib_1.StandardFonts.HelveticaBold);
+        const fontSize = 11;
+        const margin = 40;
+        let y = page.getHeight() - margin;
+        const addLine = (text, options) => {
+            if (y <= margin + 20) {
+                page = pdfDoc.addPage([595.28, 841.89]);
+                y = page.getHeight() - margin;
+            }
+            const size = options?.size ?? fontSize;
+            const usedFont = options?.bold ? fontBold : font;
+            page.drawText(text, { x: margin, y, size, font: usedFont });
+            y -= size + 6;
+        };
+        addLine('Cotizacion de Pedido', { bold: true, size: 18 });
+        addLine(`Numero de pedido: #${pedido.id}`, { bold: true });
+        addLine(`Fecha: ${new Date(pedido.createdAt).toLocaleString('es-CL')}`);
+        addLine(`Cliente: ${pedido.clienteNombre || 'No indicado'}`);
+        addLine(`Correo: ${pedido.clienteEmail || 'No indicado'}`);
+        addLine(`Estado actual: ${pedido.estado}`);
+        addLine('');
+        addLine('Resumen', { bold: true, size: 14 });
+        addLine(`Material: ${pedido.materialLabel || quote?.materialLabel || 'No definido'}`);
+        addLine(`Codigo material: ${pedido.materialId || quote?.materialId || '-'}`);
+        addLine(`Total items: ${pedido.itemsCount ?? products.reduce((acc, item) => acc + (Number(item?.quantity) || 0), 0)}`);
+        addLine(`Total estimado: ${formatCurrencyCLP(quote?.totalPrice ?? totals.price ?? pedido.total ?? null)}`);
+        if (quote?.usedHeight) {
+            addLine(`Uso de material: ${Number(quote.usedHeight).toFixed(1)} cm (${(Number(quote.usedHeight) / 100).toFixed(2)} m aprox.)`);
+        }
+        else if (totals.length) {
+            addLine(`Uso de material: ${Number(totals.length).toFixed(1)} cm (${(Number(totals.length) / 100).toFixed(2)} m aprox.)`);
+        }
+        addLine('');
+        if (products.length) {
+            addLine('Productos del catalogo', { bold: true, size: 14 });
+            products.forEach((item, index) => {
+                const qty = Number(item?.quantity) || 0;
+                const price = Number(item?.price) || 0;
+                const line = `${index + 1}. ${item?.name || 'Producto'} - Cantidad: ${qty} - Precio unitario: ${formatCurrencyCLP(price)} - Subtotal: ${formatCurrencyCLP(price * qty)}`;
+                addLine(line);
+            });
+            addLine('');
+        }
+        if (quote?.items?.length) {
+            addLine('Elementos de la cotizacion', { bold: true, size: 14 });
+            quote.items.forEach((item, index) => {
+                const qty = Number(item?.quantity) || 0;
+                const width = Number(item?.widthCm) || 0;
+                const height = Number(item?.heightCm) || 0;
+                const line = `${index + 1}. ${item?.name || 'Item'} - Cantidad: ${qty} - ${width.toFixed(1)} cm x ${height.toFixed(1)} cm`;
+                addLine(line);
+            });
+            addLine('');
+        }
+        if (attachments.length) {
+            addLine('Archivos adjuntos', { bold: true, size: 14 });
+            attachments.forEach((file, index) => {
+                const sizeKb = file?.sizeBytes ? `${Math.round(file.sizeBytes / 1024)} KB` : 'Tamaño desconocido';
+                const lengthCm = file?.lengthCm ? `${Number(file.lengthCm).toFixed(1)} cm` : '-';
+                addLine(`${index + 1}. ${file?.filename || 'archivo'} (${sizeKb}) - Largo estimado: ${lengthCm}`);
+            });
+            addLine('');
+        }
+        if (payload?.note) {
+            addLine('Notas del cliente', { bold: true, size: 14 });
+            String(payload.note)
+                .split(/\r?\n/)
+                .forEach(line => addLine(line || ''));
+            addLine('');
+        }
+        if (totals.area || totals.length || totals.price) {
+            addLine('Metricas', { bold: true, size: 14 });
+            if (totals.area)
+                addLine(`Area total: ${Number(totals.area).toFixed(1)} cm²`);
+            if (totals.length)
+                addLine(`Largo total estimado: ${Number(totals.length).toFixed(1)} cm (${(Number(totals.length) / 100).toFixed(2)} m)`);
+            if (totals.price)
+                addLine(`Costo total estimado: ${formatCurrencyCLP(totals.price)}`);
+            addLine('');
+        }
+        addLine('---', { bold: true });
+        addLine('Documento generado automaticamente desde el panel de operadores de Kingstone.', { size: 10 });
+        const pdfBytes = await pdfDoc.save();
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="cotizacion-${pedido.id}.pdf"`);
+        res.send(Buffer.from(pdfBytes));
+    }
+    catch (error) {
+        console.error('Error generando PDF de cotizacion', error);
         res.status(500).json({ message: 'Error interno' });
     }
 });

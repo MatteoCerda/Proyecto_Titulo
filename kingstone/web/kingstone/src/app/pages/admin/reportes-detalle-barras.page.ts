@@ -1,72 +1,389 @@
-import { Component } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  OnDestroy,
+  ViewChild,
+  inject,
+  signal
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonContent, IonButton } from '@ionic/angular/standalone';
+import { IonButton, IonContent, IonSpinner } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
+import Chart from 'chart.js/auto';
+import {
+  AdminAnalyticsService,
+  TopClientItem
+} from '../../services/admin-analytics.service';
 
 @Component({
   standalone: true,
   selector: 'app-admin-reporte-barras',
-  imports: [CommonModule, IonContent, IonButton],
+  imports: [CommonModule, IonContent, IonButton, IonSpinner],
   template: `
-  <ion-content class="ion-padding">
-    <button class="back" (click)="back()">←</button>
-    <div class="detail-grid">
-      <div class="img-wrap"><img src="assets/grafico-barras.png" alt="Top 10 clientes del mes"></div>
-      <div class="info">
-        <h1>Top 10 clientes del mes de mayor a menor</h1>
-        <p>Ranking de los 10 clientes con mayor volumen de compras en el mes, destacando sus montos totales y permitiendo identificar a los principales generadores de ingresos.</p>
-        <div class="actions">
-          <ion-button (click)="exportPDF('assets/grafico-barras.png','top-clientes')">Exportar como PDF</ion-button>
-          <ion-button fill="outline" (click)="exportPNG('assets/grafico-barras.png','top-clientes')">Exportar como PNG</ion-button>
+    <ion-content class="ion-padding">
+      <button class="back" (click)="goBack()">&#8592;</button>
+      <section class="detail-grid" *ngIf="!loading(); else loadingTpl">
+        <div class="chart-panel">
+          <canvas #chartCanvas></canvas>
         </div>
+        <div class="info">
+          <h1>Top 10 clientes del mes</h1>
+          <p>
+            Ranking de clientes con mayor monto de compra en el mes en curso. Se incluye la cantidad de pedidos asociados
+            y la participacion porcentual sobre las ventas totales del periodo.
+          </p>
+          <div class="key-stats" *ngIf="clients().length">
+            <div class="stat">
+              <span>Cliente lider</span>
+              <strong>{{ clients()[0]?.label || '-' }}</strong>
+            </div>
+            <div class="stat">
+              <span>Ventas del lider</span>
+              <strong>{{ formatCurrency(clients()[0]?.total || 0) }}</strong>
+            </div>
+            <div class="stat">
+              <span>Participacion lider</span>
+              <strong>{{ formatPercentageValue(clients()[0]?.percentage) }}%</strong>
+            </div>
+          </div>
+          <div class="actions">
+            <ion-button (click)="exportPdf()">Exportar como PDF</ion-button>
+            <ion-button fill="outline" (click)="exportPng()">Exportar como PNG</ion-button>
+          </div>
+        </div>
+      </section>
+
+      <section *ngIf="clients().length" class="table-section">
+        <h2>Detalle de clientes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Cliente</th>
+              <th class="text-right">Pedidos</th>
+              <th class="text-right">Ventas</th>
+              <th class="text-right">% del mes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let client of clients()">
+              <td>{{ client.rank }}</td>
+              <td>
+                <div class="client-cell">
+                  <span class="name">{{ client.label }}</span>
+                  <span class="email" *ngIf="client.email">{{ client.email }}</span>
+                </div>
+              </td>
+              <td class="text-right">{{ client.orders }}</td>
+              <td class="text-right">{{ formatCurrency(client.total) }}</td>
+              <td class="text-right">{{ client.percentage.toFixed(1) }}%</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="error" *ngIf="error()">{{ error() }}</p>
+    </ion-content>
+
+    <ng-template #loadingTpl>
+      <div class="loading-state">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Cargando informacion del reporte...</p>
       </div>
-    </div>
-  </ion-content>
+    </ng-template>
   `,
   styles: [
     `
-    .back { background:none; border:0; font-size:24px; cursor:pointer; }
-    .detail-grid{ display:grid; grid-template-columns: 1.1fr 1fr; gap:24px; align-items:center; }
-    .img-wrap{ background:#062a3d; padding:18px; border-radius:6px; box-shadow:0 2px 10px rgba(0,0,0,.08); }
-    .img-wrap img{ width:100%; height:auto; display:block; object-fit:contain; }
-    .info h1{ font-size:28px; font-weight:800; margin:0 0 10px; }
-    .info p{ color:#334155; line-height:1.5; }
-    .actions{ display:flex; gap:12px; margin-top:16px; }
-    @media(max-width:900px){ .detail-grid{ grid-template-columns:1fr; } }
+      .back {
+        background: none;
+        border: 0;
+        font-size: 28px;
+        cursor: pointer;
+        color: #0f172a;
+        margin-bottom: 16px;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: minmax(320px, 1.3fr) 1fr;
+        gap: 28px;
+        align-items: stretch;
+      }
+      .chart-panel {
+        background: #0f172a;
+        border-radius: 18px;
+        padding: 28px;
+        min-height: 420px;
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35);
+      }
+      canvas {
+        width: 100% !important;
+        height: 100% !important;
+      }
+      .info h1 {
+        font-size: 32px;
+        margin: 0 0 12px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      .info p {
+        margin: 0 0 18px;
+        color: #475569;
+        line-height: 1.6;
+      }
+      .key-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+      .stat {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .stat span {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #94a3b8;
+      }
+      .stat strong {
+        font-size: 18px;
+        color: #0f172a;
+      }
+      .actions {
+        display: flex;
+        gap: 12px;
+      }
+      .table-section {
+        margin-top: 36px;
+      }
+      .table-section h2 {
+        font-size: 20px;
+        margin-bottom: 12px;
+        color: #0f172a;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+      }
+      th,
+      td {
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        font-size: 14px;
+      }
+      th {
+        background: #f1f5f9;
+        text-align: left;
+        color: #475569;
+        font-weight: 600;
+      }
+      .text-right {
+        text-align: right;
+      }
+      .client-cell {
+        display: flex;
+        flex-direction: column;
+      }
+      .client-cell .name {
+        font-weight: 600;
+        color: #0f172a;
+      }
+      .client-cell .email {
+        font-size: 12px;
+        color: #64748b;
+      }
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .loading-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 40px 0;
+        color: #475569;
+      }
+      .error {
+        margin-top: 20px;
+        color: #dc2626;
+        font-weight: 600;
+      }
+      @media (max-width: 960px) {
+        .detail-grid {
+          grid-template-columns: 1fr;
+        }
+        .chart-panel {
+          min-height: 360px;
+        }
+      }
     `
   ]
 })
-export class AdminReporteBarrasPage {
-  constructor(private router: Router) {}
-  back(){ this.router.navigateByUrl('/admin/reportes'); }
-  exportPNG(src: string, name: string){ const a = document.createElement('a'); a.href = src; a.download = `${name}.png`; a.click(); }
-  async exportPDF(src: string, name: string){
+export class AdminReporteBarrasPage implements AfterViewInit, OnDestroy {
+  private readonly analytics = inject(AdminAnalyticsService);
+  private readonly router = inject(Router);
+  private readonly currencyFormatter = new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  });
+
+  readonly loading = signal(true);
+  readonly error = signal<string | null>(null);
+  readonly clients = signal<TopClientItem[]>([]);
+
+  @ViewChild('chartCanvas') private chartCanvas?: ElementRef<HTMLCanvasElement>;
+  private chart?: Chart;
+
+  async ngAfterViewInit(): Promise<void> {
+    await this.load();
+  }
+
+  ngOnDestroy(): void {
+    this.chart?.destroy();
+  }
+
+  goBack(): void {
+    this.router.navigateByUrl('/admin/reportes');
+  }
+
+  formatCurrency(value: number): string {
+    return this.currencyFormatter.format(value || 0);
+  }
+
+  formatPercentageValue(value: number | null | undefined): string {
+    const numeric = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+    return numeric.toFixed(1);
+  }
+
+  async exportPng(): Promise<void> {
+    const canvas = this.chartCanvas?.nativeElement;
+    if (!canvas) {
+      return;
+    }
+    const dataUrl = canvas.toDataURL('image/png', 1);
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = 'top-clientes.png';
+    link.click();
+  }
+
+  async exportPdf(): Promise<void> {
+    const canvas = this.chartCanvas?.nativeElement;
+    if (!canvas) {
+      return;
+    }
+    const dataUrl = canvas.toDataURL('image/png', 1);
     try {
-      const dataUrl = await this.imageToDataUrl(src);
       const mod: any = await import('jspdf').catch(() => null);
-      if (mod && mod.jsPDF) {
-        const pdf = new mod.jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-        const img = await this.loadImage(dataUrl);
-        const pageW = pdf.internal.pageSize.getWidth();
-        const pageH = pdf.internal.pageSize.getHeight();
-        const margin = 36;
-        const maxW = pageW - margin * 2;
-        const maxH = pageH - margin * 2;
-        const ratio = Math.min(maxW / img.width, maxH / img.height);
-        const w = img.width * ratio;
-        const h = img.height * ratio;
-        const x = (pageW - w) / 2;
-        const y = (pageH - h) / 2;
-        pdf.addImage(dataUrl, 'PNG', x, y, w, h);
-        pdf.save(`${name}.pdf`);
-        return;
+      if (!mod?.jsPDF) {
+        throw new Error('jsPDF no disponible');
       }
-      const a = document.createElement('a'); a.href = dataUrl; a.download = `${name}.png`; a.click();
-    } catch(e){ console.error('Export PDF failed', e); }
+      const pdf = new mod.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+      const image = await this.loadImage(dataUrl);
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 40;
+      const maxW = pageW - margin * 2;
+      const maxH = pageH - margin * 2;
+      const ratio = Math.min(maxW / image.width, maxH / image.height);
+      const w = image.width * ratio;
+      const h = image.height * ratio;
+      const x = (pageW - w) / 2;
+      const y = (pageH - h) / 2;
+      pdf.addImage(dataUrl, 'PNG', x, y, w, h);
+      pdf.setFontSize(12);
+      pdf.text('Top 10 clientes - Ventas del mes', margin, margin - 14);
+      pdf.save('reporte-top-clientes.pdf');
+    } catch (error) {
+      console.error('No se pudo exportar el PDF', error);
+      this.error.set('No pudimos generar el PDF. Intenta nuevamente.');
+    }
   }
-  private async imageToDataUrl(src: string): Promise<string> {
-    const resp = await fetch(src); const blob = await resp.blob();
-    return await new Promise<string>(resolve => { const fr = new FileReader(); fr.onload = () => resolve(fr.result as string); fr.readAsDataURL(blob); });
+
+  private async load(): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+    try {
+      const overview = await this.analytics.loadOverview();
+      this.clients.set(overview.topClients);
+      queueMicrotask(() => this.renderChart());
+    } catch (error) {
+      console.error('No se pudo cargar el reporte de top clientes', error);
+      this.error.set('No logramos cargar los datos. Vuelve a intentarlo.');
+    } finally {
+      this.loading.set(false);
+    }
   }
-  private loadImage(dataUrl: string): Promise<HTMLImageElement> { return new Promise(res => { const img = new Image(); img.onload = () => res(img); img.src = dataUrl; }); }
+
+  private renderChart(): void {
+    const canvas = this.chartCanvas?.nativeElement;
+    const clients = this.clients();
+    if (!canvas || !clients.length) {
+      return;
+    }
+    this.chart?.destroy();
+    this.chart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: clients.map(client => client.label),
+        datasets: [
+          {
+            label: 'Ventas (CLP)',
+            data: clients.map(client => client.total),
+            backgroundColor: '#38bdf8',
+            borderRadius: 14,
+            maxBarThickness: 36
+          }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        scales: {
+          x: {
+            ticks: {
+              callback: (value: number | string) => this.formatCurrency(Number(value)),
+              color: '#fff'
+            },
+            grid: { display: false }
+          },
+          y: {
+            ticks: {
+              color: '#fff',
+              font: { size: 12 }
+            },
+            grid: { display: false }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: context => this.formatCurrency(context.parsed.x as number)
+            }
+          }
+        }
+      }
+    });
+  }
+
+  private loadImage(dataUrl: string): Promise<HTMLImageElement> {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.src = dataUrl;
+    });
+  }
 }

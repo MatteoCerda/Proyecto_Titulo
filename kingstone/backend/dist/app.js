@@ -23,7 +23,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 // Auth (register/login)
 app.use('/auth', auth_routes_1.default);
 // Perfil del usuario autenticado
-app.get('/me', authGuard_1.authGuard, async (req, res) => {
+app.get(['/me', '/api/me'], authGuard_1.authGuard, async (req, res) => {
     try {
         const id = Number(req.user?.sub);
         if (!id)
@@ -40,7 +40,7 @@ app.get('/me', authGuard_1.authGuard, async (req, res) => {
         res.status(500).json({ message: 'Error interno' });
     }
 });
-app.put('/me', authGuard_1.authGuard, async (req, res) => {
+app.put(['/me', '/api/me'], authGuard_1.authGuard, async (req, res) => {
     try {
         const id = Number(req.user?.sub);
         const { fullName } = req.body || {};
@@ -63,7 +63,7 @@ app.put('/me', authGuard_1.authGuard, async (req, res) => {
     }
 });
 // Actualizar contraseña del usuario autenticado
-app.put('/me/password', authGuard_1.authGuard, async (req, res) => {
+app.put(['/me/password', '/api/me/password'], authGuard_1.authGuard, async (req, res) => {
     try {
         const id = Number(req.user?.sub);
         const { currentPassword, newPassword } = req.body || {};
@@ -87,7 +87,7 @@ app.put('/me/password', authGuard_1.authGuard, async (req, res) => {
     }
 });
 // Perfil de cliente: obtener
-app.get('/me/profile', authGuard_1.authGuard, async (req, res) => {
+app.get(['/me/profile', '/api/me/profile'], authGuard_1.authGuard, async (req, res) => {
     try {
         const id = Number(req.user?.sub);
         if (!id)
@@ -103,7 +103,7 @@ app.get('/me/profile', authGuard_1.authGuard, async (req, res) => {
     }
 });
 // Perfil de cliente: crear/actualizar
-app.put('/me/profile', authGuard_1.authGuard, async (req, res) => {
+app.put(['/me/profile', '/api/me/profile'], authGuard_1.authGuard, async (req, res) => {
     try {
         const id = Number(req.user?.sub);
         if (!id)

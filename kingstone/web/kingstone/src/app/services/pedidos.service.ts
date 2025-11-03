@@ -186,6 +186,10 @@ export class PedidosService {
     return this.http.post<{ ok: boolean; created: any[]; errors: any[] }>(`/api/pedidos/${pedidoId}/files`, formData);
   }
 
+  downloadCotizacionPdf(pedidoId: number) {
+    return this.http.get(`/api/pedidos/${pedidoId}/quote.pdf`, { responseType: 'blob' });
+  }
+
   downloadAttachment(pedidoId: number, fileId: number) {
     return this.http.get(`/api/pedidos/${pedidoId}/files/${fileId}`, { responseType: 'blob' });
   }

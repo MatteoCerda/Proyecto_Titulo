@@ -4,7 +4,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom, Subscription } from 'rxjs';
-import { PedidosService, PedidoResumen } from '../../services/pedidos.service';
+import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/pedidos.service';
 
 @Component({
   standalone: true,
@@ -133,6 +133,26 @@ import { PedidosService, PedidoResumen } from '../../services/pedidos.service';
         </ng-container>
       </ng-container>
 
+      <section class="attachments-block">
+        <h3>Archivos adjuntos</h3>
+        <p class="muted" *ngIf="loadingAttachments()">Cargando archivos...</p>
+        <div class="alert error" *ngIf="attachmentsError()">{{ attachmentsError() }}</div>
+        <ul *ngIf="attachments().length">
+          <li *ngFor="let file of attachments(); trackBy: trackByAttachment">
+            <span class="file-name">{{ file.filename }}</span>
+            <button
+              type="button"
+              class="ghost"
+              [disabled]="downloadingAttachmentId() === file.id"
+              (click)="downloadAttachment(file, $event)"
+            >
+              {{ downloadingAttachmentId() === file.id ? 'Descargando...' : 'Descargar' }}
+            </button>
+          </li>
+        </ul>
+        <p class="muted" *ngIf="!loadingAttachments() && !attachments().length && !attachmentsError()">No encontramos archivos adjuntos. Si el cliente los subio hace poco, actualiza en unos segundos.</p>
+      </section>
+
       <section class="work-order-section" *ngIf="view === 'pagos'">
         <ng-container *ngIf="selection.workOrder as workOrder; else createWorkOrderTpl">
           <header class="work-order-header">
@@ -232,6 +252,10 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
   readonly error = signal<string | null>(null);
   readonly selectedOrder = signal<PedidoResumen | null>(null);
   readonly actionFeedback = signal<{ type: 'success' | 'error'; message: string } | null>(null);
+  readonly attachments = signal<PedidoAttachment[]>([]);
+  readonly loadingAttachments = signal(false);
+  readonly attachmentsError = signal<string | null>(null);
+  readonly downloadingAttachmentId = signal<number | null>(null);
 
   readonly createWorkOrderForm = this.fb.group({
     tecnica: ['', Validators.required],
@@ -252,6 +276,7 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
   readonly workOrderError = signal<string | null>(null);
 
   private paramsSub?: Subscription;
+  private attachmentsRequestToken = 0;
 
   readonly view: 'cotizaciones' | 'pagos' =
     (this.route.snapshot.data['view'] as string) === 'pagos' ? 'pagos' : 'cotizaciones';
@@ -318,6 +343,7 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
     event?.stopPropagation();
     this.selectedOrder.set(order);
     this.prepareWorkOrderForms(order);
+    void this.loadAttachments(order.id);
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { selected: order.id },
@@ -329,6 +355,7 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
   closeDetail(): void {
     this.selectedOrder.set(null);
     this.prepareWorkOrderForms(null);
+    this.resetAttachmentsState();
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { selected: null },
@@ -431,6 +458,69 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
 
   trackByItem(_: number, item: { name: string; quantity: number; size?: string }): string {
     return `${item.name}-${item.quantity}-${item.size ?? 'no-size'}`;
+  }
+
+  trackByAttachment(_: number, item: PedidoAttachment): number {
+    return item.id;
+  }
+
+  async downloadAttachment(file: PedidoAttachment, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const order = this.selectedOrder();
+    if (!order) {
+      return;
+    }
+    this.downloadingAttachmentId.set(file.id);
+    try {
+      const blob = await firstValueFrom(this.pedidos.downloadAttachment(order.id, file.id));
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.filename || `pedido-${order.id}-archivo-${file.id}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('No se pudo descargar el archivo adjunto', err);
+      this.actionFeedback.set({ type: 'error', message: 'No pudimos descargar el archivo adjunto.' });
+    } finally {
+      this.downloadingAttachmentId.set(null);
+    }
+  }
+
+  private async loadAttachments(pedidoId: number): Promise<void> {
+    if (!pedidoId) {
+      this.resetAttachmentsState();
+      return;
+    }
+    const requestId = ++this.attachmentsRequestToken;
+    this.loadingAttachments.set(true);
+    this.attachmentsError.set(null);
+    this.attachments.set([]);
+    try {
+      const files = await firstValueFrom(this.pedidos.listAttachments(pedidoId));
+      if (requestId === this.attachmentsRequestToken) {
+        this.attachments.set(Array.isArray(files) ? files : []);
+      }
+    } catch (err) {
+      console.error('No se pudieron cargar los archivos adjuntos', err);
+      if (requestId === this.attachmentsRequestToken) {
+        this.attachmentsError.set('No pudimos cargar los archivos adjuntos.');
+      }
+    } finally {
+      if (requestId === this.attachmentsRequestToken) {
+        this.loadingAttachments.set(false);
+      }
+    }
+  }
+
+  private resetAttachmentsState(): void {
+    this.attachmentsRequestToken++;
+    this.attachments.set([]);
+    this.attachmentsError.set(null);
+    this.loadingAttachments.set(false);
+    this.downloadingAttachmentId.set(null);
   }
 
   orderPayload(order: PedidoResumen | null): any {
@@ -656,11 +746,13 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
       if (match) {
         this.selectedOrder.set(match);
         this.prepareWorkOrderForms(match);
+        void this.loadAttachments(match.id);
         return;
       }
       if (!forceFirst) {
         this.selectedOrder.set(null);
         this.prepareWorkOrderForms(null);
+        this.resetAttachmentsState();
         return;
       }
     }
@@ -668,9 +760,11 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
       const first = this.orders()[0];
       this.selectedOrder.set(first);
       this.prepareWorkOrderForms(first);
+      void this.loadAttachments(first.id);
     } else if (!this.orders().length) {
       this.selectedOrder.set(null);
       this.prepareWorkOrderForms(null);
+      this.resetAttachmentsState();
     }
   }
 }

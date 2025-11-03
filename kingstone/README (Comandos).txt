@@ -23,6 +23,7 @@ Reconstruir o reiniciar servicios
 * Reiniciar API tras limpiar contenedor: `docker compose rm -sf api` y luego `docker compose up -d api`.
 * Reiniciar worker tras limpiar contenedor: `docker compose rm -sf worker` y luego `docker compose up -d worker`.
 * Reiniciar servicios sin destruirlos: `docker compose restart api`.
+*docker compose build api worker && docker compose up -d
 
 Detener servicios
 * Parar solo la API: `docker compose stop api`.

@@ -380,6 +380,39 @@ export class NuevoPedidoPage implements OnDestroy {
     this.items.update(curr => [...curr, ...adjusted]);
   }
 
+  private async uploadPedidoAttachments(
+    pedidoId: number,
+    files: File[]
+  ): Promise<Array<{ filename: string; message: string }>> {
+    const errors: Array<{ filename: string; message: string }> = [];
+    const chunkSize = 10;
+    for (let idx = 0; idx < files.length; idx += chunkSize) {
+      const chunk = files.slice(idx, idx + chunkSize);
+      if (!chunk.length) {
+        continue;
+      }
+      try {
+        const response: any = await firstValueFrom(this.pedidos.uploadAttachments(pedidoId, chunk));
+        const chunkErrors = Array.isArray(response?.errors) ? response.errors : [];
+        errors.push(
+          ...chunkErrors.map((item: any) => ({
+            filename: String(item?.filename ?? 'archivo'),
+            message: String(item?.message ?? 'No se pudo subir el archivo')
+          }))
+        );
+      } catch (error) {
+        console.error('Error subiendo archivos adjuntos', error);
+        chunk.forEach(file => {
+          errors.push({
+            filename: file.name,
+            message: 'Error al subir el archivo'
+          });
+        });
+      }
+    }
+    return errors;
+  }
+
   private async prepareItem(file: File): Promise<DesignItem | null> {
     if (file.type.startsWith('image/')) {
       const processed = await this.makeTransparentPreview(file);
@@ -768,6 +801,7 @@ export class NuevoPedidoPage implements OnDestroy {
 
     try {
       const pack = this.packResult();
+      const designItems = this.items();
       const payload: CreatePedidoRequest = {
         materialId: material.id,
         materialLabel: material.label,
@@ -775,7 +809,7 @@ export class NuevoPedidoPage implements OnDestroy {
         usedHeight: pack.usedHeight,
         totalPrice: this.totalPrice(),
         note: this.orderNote.trim() ? this.orderNote.trim() : undefined,
-        items: this.items().map(item => {
+        items: designItems.map(item => {
           const dims = this.getEffectiveDimensions(item);
           return {
             displayName: item.displayName,
@@ -783,7 +817,7 @@ export class NuevoPedidoPage implements OnDestroy {
             widthCm: Number(dims.width.toFixed(2)),
             heightCm: Number(dims.height.toFixed(2)),
             sizeMode: item.sizeMode,
-            previewUrl: undefined, // omit base64 previews to keep payload liviano
+            previewUrl: undefined, // omit base64 previews para mantener payload liviano
             coverageRatio: typeof item.coverageRatio === 'number' ? Number(item.coverageRatio.toFixed(4)) : undefined,
             outlinePath: item.outlinePath ?? undefined,
             pixelArea: typeof item.pixelArea === 'number' ? Math.round(item.pixelArea) : undefined,
@@ -806,8 +840,39 @@ export class NuevoPedidoPage implements OnDestroy {
         }))
       };
 
-      await firstValueFrom(this.pedidos.createPedido(payload));
-      this.submitFeedback = { type: 'success', message: 'Tu solicitud fue enviada al equipo operador.' };
+      const created = await firstValueFrom(this.pedidos.createPedido(payload));
+      const pedidoId = created?.id;
+      if (!pedidoId) {
+        throw new Error('No pudimos obtener el identificador del pedido creado.');
+      }
+
+      const filesToUpload = designItems
+        .map(item => item.file)
+        .filter((file): file is File => !!file);
+
+      const uploadErrors = filesToUpload.length
+        ? await this.uploadPedidoAttachments(pedidoId, filesToUpload)
+        : [];
+
+      if (uploadErrors.length) {
+        const failedNames = uploadErrors.map(error => error.filename).join(', ');
+        this.submitFeedback = {
+          type: 'error',
+          message:
+            `El pedido #${pedidoId} se registro, pero algunos archivos no se pudieron subir (${failedNames}). ` +
+            'Puedes adjuntarlos nuevamente desde "Mis pedidos".'
+        };
+      } else if (filesToUpload.length) {
+        this.submitFeedback = {
+          type: 'success',
+          message: 'Tu solicitud y los archivos fueron enviados. Estamos procesando tu pedido.'
+        };
+      } else {
+        this.submitFeedback = {
+          type: 'success',
+          message: 'Tu solicitud fue enviada al equipo operador.'
+        };
+      }
       this.clearOrder();
     } catch (error) {
       console.error('Error al enviar el pedido', error);
@@ -815,7 +880,7 @@ export class NuevoPedidoPage implements OnDestroy {
       const serverMessage = (error as HttpErrorResponse)?.error?.message;
       this.submitFeedback = {
         type: 'error',
-        message: serverMessage || 'No pudimos enviar tu pedido. Inténtalo nuevamente.'
+        message: serverMessage || 'No pudimos enviar tu pedido. Intentalo nuevamente.'
       };
     } finally {
       this.submitting = false;
