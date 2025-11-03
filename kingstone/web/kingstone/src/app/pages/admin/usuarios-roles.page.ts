@@ -263,7 +263,13 @@ export class AdminUsuariosRolesPage {
 
   private endpoint(path: string): string {
     const normalized = path.startsWith('/') ? path : `/${path}`;
-    return this.apiBase ? `${this.apiBase}${normalized}` : normalized;
+    if (this.apiBase) {
+      return `${this.apiBase}${normalized}`;
+    }
+    if (normalized.startsWith('/api/')) {
+      return normalized;
+    }
+    return `/api${normalized}`;
   }
 
   // Lista completa (todas las categorías)

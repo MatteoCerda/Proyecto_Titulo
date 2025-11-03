@@ -1157,7 +1157,15 @@ router.get('/:id/quote.pdf', async (req, res) => {
                 materialLabel: true,
                 materialId: true,
                 createdAt: true,
-                payload: true
+                payload: true,
+                adjuntos: {
+                    select: {
+                        id: true,
+                        filename: true,
+                        mimeType: true,
+                        data: true
+                    }
+                }
             }
         });
         if (!pedido)
@@ -1242,6 +1250,54 @@ router.get('/:id/quote.pdf', async (req, res) => {
                 addLine(`${index + 1}. ${file?.filename || 'archivo'} (${sizeKb}) - Largo estimado: ${lengthCm}`);
             });
             addLine('');
+        }
+        if (pedido.adjuntos?.length) {
+            addLine('Previsualizaciones', { bold: true, size: 14 });
+            for (const adj of pedido.adjuntos) {
+                const mime = (adj.mimeType || '').toLowerCase();
+                if (!mime.startsWith('image/') || !adj.data)
+                    continue;
+                let embeddedImage;
+                const buffer = Buffer.isBuffer(adj.data) ? adj.data : Buffer.from(adj.data);
+                if (mime.includes('png')) {
+                    embeddedImage = await pdfDoc.embedPng(buffer);
+                }
+                else if (mime.includes('jpg') || mime.includes('jpeg')) {
+                    embeddedImage = await pdfDoc.embedJpg(buffer);
+                }
+                else {
+                    continue;
+                }
+                const maxWidth = page.getWidth() - margin * 2;
+                const maxHeight = page.getHeight() - margin * 2;
+                const { width, height } = embeddedImage.scale(1);
+                const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+                const imgWidth = width * scale;
+                const imgHeight = height * scale;
+                if (y - imgHeight < margin) {
+                    page = pdfDoc.addPage([595.28, 841.89]);
+                    y = page.getHeight() - margin;
+                }
+                const label = adj.filename || 'Imagen adjunta';
+                const labelHeight = fontSize + 6;
+                const spaceNeeded = labelHeight + imgHeight + 12;
+                if (y - spaceNeeded < margin) {
+                    page = pdfDoc.addPage([595.28, 841.89]);
+                    y = page.getHeight() - margin;
+                }
+                addLine(label);
+                if (y - imgHeight < margin) {
+                    page = pdfDoc.addPage([595.28, 841.89]);
+                    y = page.getHeight() - margin;
+                }
+                page.drawImage(embeddedImage, {
+                    x: margin + (maxWidth - imgWidth) / 2,
+                    y: y - imgHeight,
+                    width: imgWidth,
+                    height: imgHeight
+                });
+                y -= imgHeight + 12;
+            }
         }
         if (payload?.note) {
             addLine('Notas del cliente', { bold: true, size: 14 });

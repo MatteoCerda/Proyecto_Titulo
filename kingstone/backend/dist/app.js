@@ -275,5 +275,6 @@ app.get(['/offers', '/api/offers'], offersHandler);
 app.use('/api/pedidos', authGuard_1.authGuard, pedidos_routes_1.default);
 app.use('/api/cotizaciones', cotizaciones_routes_1.default);
 // Admin endpoints
+app.use('/api/admin', authGuard_1.authGuard, adminGuard_1.adminGuard, admin_routes_1.default);
 app.use('/admin', authGuard_1.authGuard, adminGuard_1.adminGuard, admin_routes_1.default);
 exports.default = app;

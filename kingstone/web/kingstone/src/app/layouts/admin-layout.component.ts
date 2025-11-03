@@ -17,8 +17,9 @@ import { AuthService } from '../core/auth.service';
           <img src="assets/kingston-estampados.png" alt="Kingstone logo" class="ks-logo" />
         </a>
         <nav class="ks-nav">
+          <a routerLink="/admin/inicio" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
           <a routerLink="/admin/usuarios" routerLinkActive="active">Gestionar usuario/rol</a>
-          <a routerLink="/admin/catalogo" routerLinkActive="active">Administrar cat√°logo/precio</a>
+          <a routerLink="/admin/catalogo" routerLinkActive="active">Administrar cat·logo/precio</a>
           <a routerLink="/admin/reportes" routerLinkActive="active">Reportes y dashboards</a>
           <a routerLink="/admin/ofertas" routerLinkActive="active">Administrar ofertas</a>
           <a routerLink="/admin/stock" routerLinkActive="active">Administrar stock</a>
@@ -61,4 +62,5 @@ export class AdminLayoutComponent implements OnInit {
     this.router.navigateByUrl('/login');
   }
 }
+
 

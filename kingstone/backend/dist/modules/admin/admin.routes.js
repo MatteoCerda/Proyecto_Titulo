@@ -6,6 +6,132 @@ const auth_validation_1 = require("../auth/auth.validation");
 const zod_1 = require("zod");
 const prisma_1 = require("../../lib/prisma");
 const router = (0, express_1.Router)();
+const DASHBOARD_ALLOWED_STATES = [
+    'PENDIENTE',
+    'EN_REVISION',
+    'POR_PAGAR',
+    'EN_IMPRESION',
+    'EN_PRODUCCION',
+    'COMPLETADO'
+];
+const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+router.get('/dashboard/overview', async (_req, res) => {
+    try {
+        const now = new Date();
+        const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const yearWindowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+        const pedidos = await prisma_1.prisma.pedido.findMany({
+            where: {
+                estado: { in: DASHBOARD_ALLOWED_STATES },
+                createdAt: { gte: yearWindowStart }
+            },
+            select: {
+                total: true,
+                materialLabel: true,
+                materialId: true,
+                clienteNombre: true,
+                clienteEmail: true,
+                createdAt: true
+            }
+        });
+        const monthlyPedidos = pedidos.filter(p => p.createdAt >= currentMonthStart && p.createdAt < currentMonthEnd);
+        const previousMonthPedidos = pedidos.filter(p => p.createdAt >= previousMonthStart && p.createdAt < currentMonthStart);
+        const monthlyTotal = monthlyPedidos.reduce((acc, item) => acc + (typeof item.total === 'number' ? item.total : 0), 0);
+        const previousMonthTotal = previousMonthPedidos.reduce((acc, item) => acc + (typeof item.total === 'number' ? item.total : 0), 0);
+        const monthlyOrderCount = monthlyPedidos.length;
+        const avgTicket = monthlyOrderCount ? Math.round(monthlyTotal / monthlyOrderCount) : 0;
+        const growthVsPrev = previousMonthTotal > 0 ? Number(((monthlyTotal - previousMonthTotal) / previousMonthTotal * 100).toFixed(1)) : null;
+        const distributionMap = new Map();
+        for (const pedido of monthlyPedidos) {
+            const safeTotal = typeof pedido.total === 'number' ? pedido.total : 0;
+            const label = (pedido.materialLabel && pedido.materialLabel.trim()) ||
+                (pedido.materialId && pedido.materialId.trim()) ||
+                'Sin material';
+            const key = label.toLowerCase();
+            const entry = distributionMap.get(key) ?? { label, total: 0, orders: 0 };
+            entry.total += safeTotal;
+            entry.orders += 1;
+            entry.label = label;
+            distributionMap.set(key, entry);
+        }
+        const distributionTotal = Array.from(distributionMap.values()).reduce((acc, item) => acc + item.total, 0) || 0;
+        const materialDistribution = Array.from(distributionMap.values())
+            .map(item => ({
+            label: item.label,
+            total: item.total,
+            orders: item.orders,
+            percentage: distributionTotal ? Number(((item.total / distributionTotal) * 100).toFixed(1)) : 0
+        }))
+            .sort((a, b) => b.total - a.total);
+        const clientMap = new Map();
+        for (const pedido of monthlyPedidos) {
+            const safeTotal = typeof pedido.total === 'number' ? pedido.total : 0;
+            const email = (pedido.clienteEmail || '').toLowerCase() || null;
+            const label = pedido.clienteNombre?.trim() || pedido.clienteEmail?.trim() || 'Cliente sin nombre';
+            const key = email || label.toLowerCase();
+            const entry = clientMap.get(key) ?? { label, email, total: 0, orders: 0 };
+            entry.total += safeTotal;
+            entry.orders += 1;
+            entry.label = label;
+            entry.email = email;
+            clientMap.set(key, entry);
+        }
+        const topClients = Array.from(clientMap.values())
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 10)
+            .map((item, index) => ({
+            rank: index + 1,
+            label: item.label,
+            email: item.email,
+            total: item.total,
+            orders: item.orders,
+            percentage: monthlyTotal ? Number(((item.total / monthlyTotal) * 100).toFixed(1)) : 0
+        }));
+        const monthlyTrend = [];
+        for (let i = 11; i >= 0; i--) {
+            const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthKey = `${monthDate.getFullYear()}-${monthDate.getMonth()}`;
+            const nextMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1);
+            const periodPedidos = pedidos.filter(p => p.createdAt >= monthDate && p.createdAt < nextMonth);
+            const total = periodPedidos.reduce((acc, item) => acc + (typeof item.total === 'number' ? item.total : 0), 0);
+            monthlyTrend.push({
+                key: monthKey,
+                label: `${MONTH_LABELS[monthDate.getMonth()]} ${monthDate.getFullYear()}`,
+                shortLabel: MONTH_LABELS[monthDate.getMonth()],
+                month: monthDate.getMonth(),
+                year: monthDate.getFullYear(),
+                total,
+                orders: periodPedidos.length
+            });
+        }
+        const rollingYearTotal = monthlyTrend.reduce((acc, item) => acc + item.total, 0);
+        res.json({
+            generatedAt: now.toISOString(),
+            range: {
+                monthlyStart: currentMonthStart.toISOString(),
+                monthlyEnd: currentMonthEnd.toISOString(),
+                yearlyStart: yearWindowStart.toISOString(),
+                yearlyEnd: currentMonthEnd.toISOString()
+            },
+            totals: {
+                monthlySales: monthlyTotal,
+                monthlyOrders: monthlyOrderCount,
+                averageTicket: avgTicket,
+                monthlyGrowth: growthVsPrev,
+                rollingYearSales: rollingYearTotal
+            },
+            materialDistribution,
+            topClients,
+            monthlyTrend
+        });
+    }
+    catch (error) {
+        console.error('Error generando resumen de dashboard admin', error);
+        res.status(500).json({ message: 'Error interno' });
+    }
+});
 function handleZodError(err, res) {
     const first = err.issues?.[0];
     res.status(400).json({
