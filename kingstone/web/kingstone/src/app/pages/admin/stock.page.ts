@@ -1,4 +1,4 @@
-﻿import { environment } from '../../../environments/environment';
+import { environment } from '../../../environments/environment';
 import { Component, signal, inject, ViewChild, ElementRef, OnDestroy } from '@angular/core';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
@@ -132,7 +132,7 @@ interface InventoryItem {
             <thead>
               <tr>
                 <th class="col-img">Imagen</th>
-                <th class="col-code">CÃ³digo</th>
+                <th class="col-code">Código</th>
                 <th class="col-name">Nombre</th>
                 <th class="col-meta">Tipo</th>
                 <th class="col-meta">Color</th>
@@ -301,7 +301,13 @@ export class AdminStockPage implements OnDestroy {
 
   private endpoint(path: string): string {
     const normalized = path.startsWith('/') ? path : `/${path}`;
-    return this.apiBase ? `${this.apiBase}${normalized}` : normalized;
+    if (this.apiBase) {
+      return `${this.apiBase}${normalized}`;
+    }
+    if (normalized.startsWith('/api/')) {
+      return normalized;
+    }
+    return `/api${normalized}`;
   }
   private sanitizer = inject(DomSanitizer);
   @ViewChild('qrVideo') qrVideo?: ElementRef<HTMLVideoElement>;
@@ -376,7 +382,7 @@ export class AdminStockPage implements OnDestroy {
       return;
     }
     if (Number.isNaN(quantity) || quantity < 0) {
-      this.formError = 'La cantidad debe ser un nÃºmero positivo.';
+      this.formError = 'La cantidad debe ser un número positivo.';
       return;
     }
 
@@ -664,6 +670,7 @@ export class AdminStockPage implements OnDestroy {
       .toLowerCase();
   }
 }
+
 
 
 

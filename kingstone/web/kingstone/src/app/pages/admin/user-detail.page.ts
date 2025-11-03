@@ -45,7 +45,13 @@ export class AdminUserDetailPage {
 
   private endpoint(path: string): string {
     const normalized = path.startsWith('/') ? path : `/${path}`;
-    return this.apiBase ? `${this.apiBase}${normalized}` : normalized;
+    if (this.apiBase) {
+      return `${this.apiBase}${normalized}`;
+    }
+    if (normalized.startsWith('/api/')) {
+      return normalized;
+    }
+    return `/api${normalized}`;
   }
 
   id = Number(this.route.snapshot.paramMap.get('id'));
