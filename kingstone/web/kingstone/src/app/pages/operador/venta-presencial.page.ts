@@ -1,16 +1,17 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { PedidosService, OperatorClienteSearchResult, OperatorSalePayload, OperatorSaleResponse } from '../../services/pedidos.service';
 import { firstValueFrom } from 'rxjs';
+import { CatalogService, CatalogItem } from '../../services/catalog.service';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 type CanalVenta = 'presencial' | 'wsp';
 
 @Component({
   standalone: true,
   selector: 'app-operator-venta-presencial',
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './venta-presencial.page.html',
   styleUrls: ['./venta-presencial.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -18,6 +19,8 @@ type CanalVenta = 'presencial' | 'wsp';
 export class OperatorVentaPresencialPage {
   private readonly fb = inject(FormBuilder);
   private readonly pedidos = inject(PedidosService);
+  private readonly catalog = inject(CatalogService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly lookupRut = this.fb.control<string>('');
   readonly form = this.fb.group({
@@ -56,9 +59,27 @@ export class OperatorVentaPresencialPage {
   readonly clienteEncontrado = signal<OperatorClienteSearchResult | null>(null);
   readonly ventaRegistrada = signal<OperatorSaleResponse | null>(null);
   readonly attachments = signal<File[]>([]);
+  readonly selectedItem = signal<CatalogItem | null>(null);
+  readonly inventorySearch = signal<string>('');
 
   readonly claimCode = computed(() => this.ventaRegistrada()?.claimCode || null);
   readonly requiereCodigo = computed(() => this.clienteEncontrado()?.cliente?.estado === 'pending_claim');
+  readonly catalogItems = this.catalog.items;
+  readonly catalogLoading = this.catalog.loading;
+  readonly catalogError = this.catalog.error;
+
+  constructor() {
+    this.form.controls.canal.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(canal => {
+        const item = this.selectedItem();
+        if (item) {
+          this.applyPriceFromItem(item, canal as CanalVenta);
+        }
+      });
+
+    void this.catalog.loadCatalog();
+  }
 
   async buscarRut(): Promise<void> {
     const rut = (this.lookupRut.value || '').trim();
@@ -145,6 +166,7 @@ export class OperatorVentaPresencialPage {
     this.ventaRegistrada.set(null);
     this.error.set(null);
     this.searchError.set(null);
+    this.selectedItem.set(null);
   }
 
   async registrar(): Promise<void> {
@@ -242,5 +264,48 @@ export class OperatorVentaPresencialPage {
     }
     const formattedBody = groups.reverse().join('.');
     return `${formattedBody}-${dv}`;
+  }
+
+  async buscarInventario(term: string): Promise<void> {
+    const query = (term || '').trim();
+    this.inventorySearch.set(query);
+    await this.catalog.loadCatalog(query ? { search: query } : {});
+  }
+
+  async limpiarInventario(input?: HTMLInputElement): Promise<void> {
+    this.inventorySearch.set('');
+    if (input) {
+      input.value = '';
+    }
+    await this.catalog.loadCatalog({}, true);
+  }
+
+  seleccionarItem(item: CatalogItem): void {
+    this.selectedItem.set(item);
+    this.form.patchValue({
+      resumen: {
+        materialId: String(item.id),
+        materialLabel: item.name
+      }
+    });
+    this.applyPriceFromItem(item);
+  }
+
+  private applyPriceFromItem(item: CatalogItem, canal?: CanalVenta | null): void {
+    const targetCanal = canal ?? ((this.form.get('canal')?.value as CanalVenta) || 'presencial');
+    const basePrice =
+      targetCanal === 'presencial'
+        ? item.priceStore ?? item.price ?? item.priceWeb ?? item.priceWsp ?? null
+        : item.priceWsp ?? item.price ?? item.priceWeb ?? item.priceStore ?? null;
+    const rounded = basePrice !== null && basePrice !== undefined ? Math.round(basePrice) : null;
+
+    const resumenGroup = this.form.get('resumen');
+    if (!resumenGroup) return;
+    const current = (resumenGroup as any).value?.total ?? null;
+    const total = rounded ?? current ?? null;
+
+    (resumenGroup as any).patchValue({
+      total
+    });
   }
 }

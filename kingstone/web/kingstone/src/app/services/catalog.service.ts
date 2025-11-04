@@ -10,9 +10,9 @@ export interface CatalogItem {
   provider: string;
   quantity: number;
   price: number;
-  priceWeb: number;
-  priceStore: number;
-  priceWsp: number;
+  priceWeb: number | null;
+  priceStore: number | null;
+  priceWsp: number | null;
   imageUrl: string | null;
 }
 

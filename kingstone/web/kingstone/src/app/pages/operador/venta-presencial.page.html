@@ -38,15 +38,62 @@
         <p class="muted">No existe un cliente con ese RUT. Se crear\xe1 un perfil presencial al registrar la venta.</p>
       </ng-template>
     </div>
-  </section>
+</section>
 
-  <section class="panel">
-    <h2>2. Datos de la venta</h2>
-    <div class="grid">
-      <div class="field">
-        <label>Canal de venta</label>
-        <select formControlName="canal">
-          <option value="presencial">Presencial</option>
+<section class="panel">
+  <h2>2. Selecciona un producto del inventario</h2>
+  <div class="inventory-search">
+    <input
+      #inventoryFilter
+      type="text"
+      [value]="inventorySearch()"
+      (keyup.enter)="buscarInventario(inventoryFilter.value)"
+      placeholder="Buscar por nombre, tipo o proveedor"
+    />
+    <button type="button" (click)="buscarInventario(inventoryFilter.value)" [disabled]="catalogLoading()">Buscar</button>
+    <button type="button" class="ghost" (click)="limpiarInventario(inventoryFilter)">Limpiar</button>
+  </div>
+  <p class="hint">
+    El precio se completar&aacute; autom&aacute;ticamente seg&uacute;n el canal de venta seleccionado.
+  </p>
+  <p class="error" *ngIf="catalogError()">{{ catalogError() }}</p>
+  <p class="muted" *ngIf="catalogLoading()">Cargando inventario...</p>
+  <div class="inventory-grid" *ngIf="!catalogLoading() && catalogItems().length">
+    <div
+      class="inventory-card"
+      *ngFor="let item of catalogItems()"
+      [class.selected]="selectedItem()?.id === item.id"
+    >
+      <div class="inventory-header">
+        <h3>{{ item.name }}</h3>
+        <span class="stock">Stock: {{ item.quantity }}</span>
+      </div>
+      <p class="muted">{{ item.itemType }} &bull; {{ item.color }} &bull; {{ item.provider }}</p>
+      <div class="inventory-prices">
+        <div>
+          <span class="label">Precio presencial</span>
+          <strong>{{ item.priceStore ?? item.price ?? item.priceWeb | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+        </div>
+        <div>
+          <span class="label">Precio WhatsApp</span>
+          <strong>{{ item.priceWsp ?? item.price ?? item.priceWeb | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+        </div>
+      </div>
+      <button type="button" class="use-item" (click)="seleccionarItem(item)">
+        {{ selectedItem()?.id === item.id ? 'Seleccionado' : 'Usar este producto' }}
+      </button>
+    </div>
+  </div>
+  <p class="muted" *ngIf="!catalogLoading() && !catalogItems().length">No encontramos productos con ese filtro.</p>
+</section>
+
+<section class="panel">
+  <h2>3. Datos de la venta</h2>
+  <div class="grid">
+    <div class="field">
+      <label>Canal de venta</label>
+      <select formControlName="canal">
+        <option value="presencial">Presencial</option>
           <option value="wsp">WhatsApp</option>
         </select>
       </div>
@@ -117,10 +164,10 @@
         <label for="adjunto">Requiere adjuntar archivo DTF</label>
       </div>
     </div>
-  </section>
+</section>
 
-  <section class="panel" formGroupName="agenda">
-    <h2>3. Agenda en calendario</h2>
+<section class="panel" formGroupName="agenda">
+    <h2>4. Agenda en calendario</h2>
     <p class="muted">Opcional: programa una fecha estimada para que aparezca en el calendario del operador.</p>
     <div class="grid">
       <div class="field">
@@ -144,10 +191,10 @@
         <textarea formControlName="notas" rows="2" placeholder="Indicaciones para el equipo de producci\xf3n"></textarea>
       </div>
     </div>
-  </section>
+</section>
 
-  <section class="panel">
-    <h2>4. Adjuntos</h2>
+<section class="panel">
+    <h2>5. Adjuntos</h2>
     <p class="muted">Puedes agregar archivos (m\xe1ximo 10) con dise\xf1os o referencias para el pedido.</p>
     <input type="file" (change)="onAttachmentsSelected($event)" multiple />
     <ul class="files" *ngIf="attachments().length">
