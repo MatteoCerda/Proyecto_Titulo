@@ -23,9 +23,10 @@ export class RegisterPage {
   direccion = '';
   comuna = '';
   ciudad = '';
+  claimCode = '';
   loading = false;
   showPassword = false;
-  fieldErrors: Partial<Record<'fullName' | 'email' | 'password' | 'rut', string>> = {};
+  fieldErrors: Partial<Record<'fullName' | 'email' | 'password' | 'rut' | 'claimCode', string>> = {};
   generalError = '';
 
   private toast = inject(ToastController);
@@ -45,6 +46,7 @@ export class RegisterPage {
       direccion: this.direccion?.trim() || undefined,
       comuna: this.comuna?.trim() || undefined,
       ciudad: this.ciudad?.trim() || undefined,
+      claimCode: this.claimCode?.trim() || undefined
     };
     const fullName = this.fullName.trim();
     const email = this.email.trim();
@@ -81,7 +83,7 @@ export class RegisterPage {
         const errors: typeof this.fieldErrors = {};
         for (const issue of issues) {
           const path = Array.isArray(issue?.path) ? issue.path[0] : undefined;
-          if (path && ['fullName', 'email', 'password', 'rut'].includes(path)) {
+          if (path && ['fullName', 'email', 'password', 'rut', 'claimCode'].includes(path)) {
             errors[path as keyof typeof this.fieldErrors] = issue.message;
           }
         }
@@ -140,6 +142,11 @@ export class RegisterPage {
       } else {
         this.rut = this.formatRut(normalized.body, normalized.dv);
       }
+    }
+
+    const claim = this.claimCode?.trim() || '';
+    if (claim && !/^[0-9]{4,12}$/.test(claim)) {
+      errors.claimCode = 'El codigo debe tener entre 4 y 12 numeros.';
     }
 
     this.fieldErrors = errors;

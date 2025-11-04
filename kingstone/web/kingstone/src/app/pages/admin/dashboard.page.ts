@@ -23,8 +23,11 @@ import { refreshOutline } from 'ionicons/icons';
 import Chart from 'chart.js/auto';
 import {
   AdminAnalyticsService,
-  AdminDashboardOverview
+  AdminDashboardOverview,
+  PaymentFunnelStats
 } from '../../services/admin-analytics.service';
+
+type FunnelStageKey = 'pendientes' | 'enRevision' | 'porPagar' | 'enProduccion' | 'completados';
 
 addIcons({ refreshOutline });
 
@@ -153,6 +156,100 @@ addIcons({ refreshOutline });
               </tbody>
             </table>
           </article>
+
+          <article class="chart-card">
+            <header>
+              <h2>Top 10 productos del mes</h2>
+              <p>Articulos con mayor demanda por unidades solicitadas.</p>
+            </header>
+            <table class="chart-table" *ngIf="data.topProducts.length; else topProductsEmpty">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th class="text-right">Unidades</th>
+                  <th class="text-right">Ventas</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of data.topProducts; index as idx">
+                  <td>
+                    <span class="rank-badge">{{ idx + 1 }}</span>
+                    {{ item.label }}
+                  </td>
+                  <td class="text-right">{{ item.quantity }}</td>
+                  <td class="text-right">{{ formatCurrency(item.total) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <ng-template #topProductsEmpty>
+              <p class="empty-state">No hay productos vendidos registrados en este periodo.</p>
+            </ng-template>
+          </article>
+
+          <article class="chart-card">
+            <header>
+              <h2>Productos con menor rotacion</h2>
+              <p>Articulos solicitados con menor frecuencia durante el mes.</p>
+            </header>
+            <table class="chart-table" *ngIf="data.leastProducts.length; else leastProductsEmpty">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th class="text-right">Unidades</th>
+                  <th class="text-right">Ventas</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of data.leastProducts; index as idx">
+                  <td>
+                    <span class="rank-badge muted">{{ idx + 1 }}</span>
+                    {{ item.label }}
+                  </td>
+                  <td class="text-right">{{ item.quantity }}</td>
+                  <td class="text-right">{{ formatCurrency(item.total) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <ng-template #leastProductsEmpty>
+              <p class="empty-state">No tenemos datos de baja rotacion para este mes.</p>
+            </ng-template>
+          </article>
+
+          <article class="chart-card">
+            <header>
+              <h2>Embudo hacia pago</h2>
+              <p>Seguimiento de pedidos del mes segun su estado operativo.</p>
+            </header>
+            <div *ngIf="data.paymentFunnel.total > 0; else paymentFunnelEmpty">
+              <div class="funnel-summary">
+                <div>
+                  <strong>{{ data.paymentFunnel.total }}</strong>
+                  <span>Pedidos del mes</span>
+                </div>
+                <div>
+                  <strong>{{ data.paymentFunnel.porPagarRate | number: '1.0-1' }}%</strong>
+                  <span>Tasa que llega a "Por pagar"</span>
+                </div>
+              </div>
+              <ul class="funnel-list">
+                <li *ngFor="let stage of funnelStages">
+                  <div class="stage-header">
+                    <span>{{ stage.label }}</span>
+                    <span>{{ funnelStagePercent(data.paymentFunnel, stage.key) | number: '1.0-1' }}%</span>
+                  </div>
+                  <div class="stage-bar">
+                    <span class="fill" [style.width.%]="funnelStagePercent(data.paymentFunnel, stage.key)"></span>
+                  </div>
+                  <div class="stage-count">
+                    {{ data.paymentFunnel[stage.key] }} pedidos
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <ng-template #paymentFunnelEmpty>
+              <p class="empty-state">Todavia no se han registrado pedidos este mes.</p>
+            </ng-template>
+          </article>
         </section>
       </ng-container>
 
@@ -267,6 +364,99 @@ addIcons({ refreshOutline });
       .chart-table .text-right {
         text-align: right;
       }
+      .rank-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        font-size: 12px;
+        margin-right: 8px;
+      }
+      .rank-badge.muted {
+        background: #94a3b8;
+      }
+      .empty-state {
+        margin: 0;
+        padding: 16px 0;
+        color: #94a3b8;
+        font-size: 14px;
+        text-align: center;
+      }
+      .funnel-summary {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+        margin-bottom: 16px;
+      }
+      .funnel-summary strong {
+        display: block;
+        font-size: 28px;
+        color: #0f172a;
+      }
+      .funnel-summary span {
+        display: block;
+        font-size: 13px;
+        color: #475569;
+      }
+      .funnel-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .funnel-list li {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .stage-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: #0f172a;
+        font-weight: 600;
+      }
+      .stage-bar {
+        position: relative;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.25);
+        overflow: hidden;
+      }
+      .stage-bar .fill {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #2563eb 0%, #14b8a6 100%);
+      }
+      .funnel-list li:nth-child(2) .stage-bar .fill {
+        background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%);
+      }
+      .funnel-list li:nth-child(3) .stage-bar .fill {
+        background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+      }
+      .funnel-list li:nth-child(4) .stage-bar .fill {
+        background: linear-gradient(90deg, #6366f1 0%, #3730a3 100%);
+      }
+      .funnel-list li:nth-child(5) .stage-bar .fill {
+        background: linear-gradient(90deg, #a855f7 0%, #7e22ce 100%);
+      }
+      .stage-count {
+        font-size: 12px;
+        color: #475569;
+      }
       .trend-table tbody tr:nth-child(even) {
         background: rgba(148, 163, 184, 0.08);
       }
@@ -290,6 +480,11 @@ addIcons({ refreshOutline });
         .chart-wrapper {
           min-height: 240px;
         }
+        .funnel-summary {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+        }
       }
     `
   ]
@@ -306,6 +501,13 @@ export class DashboardPage implements AfterViewInit, OnDestroy {
   readonly overview = signal<AdminDashboardOverview | null>(null);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly funnelStages: ReadonlyArray<{ key: FunnelStageKey; label: string }> = [
+    { key: 'pendientes', label: 'Pendientes' },
+    { key: 'enRevision', label: 'En revision' },
+    { key: 'porPagar', label: 'Por pagar' },
+    { key: 'enProduccion', label: 'En produccion' },
+    { key: 'completados', label: 'Completados' }
+  ];
 
   @ViewChild('distributionChart') private distributionChartCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('topClientsChart') private topClientsChartCanvas?: ElementRef<HTMLCanvasElement>;
@@ -353,6 +555,17 @@ export class DashboardPage implements AfterViewInit, OnDestroy {
     }
     const sign = value > 0 ? '+' : '';
     return `${sign}${value.toFixed(1)}%`;
+  }
+
+  funnelStagePercent(funnel: PaymentFunnelStats | null | undefined, key: FunnelStageKey): number {
+    if (!funnel || !funnel.total) {
+      return 0;
+    }
+    const value = funnel[key] ?? 0;
+    if (!value) {
+      return 0;
+    }
+    return Math.round((value / funnel.total) * 1000) / 10;
   }
 
   private async loadData(force = false): Promise<void> {

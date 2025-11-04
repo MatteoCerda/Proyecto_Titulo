@@ -25,6 +25,7 @@ import { OperatorInboxStore } from '../services/operator-inbox.store';
             <a routerLink="/operador/cotizaciones" routerLinkActive="active">Cotizaciones</a>
             <a routerLink="/operador/clientes" routerLinkActive="active">Clientes</a>
             <a routerLink="/operador/pagos" routerLinkActive="active">Pagos</a>
+            <a routerLink="/operador/ventas/presencial" routerLinkActive="active">Venta presencial</a>
             <a routerLink="/operador/calendario" routerLinkActive="active">Calendario</a>
           </nav>
           <div class="op-actions">

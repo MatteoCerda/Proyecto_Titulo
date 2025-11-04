@@ -6,12 +6,14 @@ const register = zod_1.z.object({
     email: zod_1.z.string().email(),
     password: zod_1.z.string().min(6),
     fullName: zod_1.z.string().min(2),
-    rut: zod_1.z.string().max(15).optional(),
+    rut: zod_1.z.string().max(20).optional(),
+    claimCode: zod_1.z.string().trim().min(4).max(12).optional(),
     nombre_contacto: zod_1.z.string().max(150).optional(),
     telefono: zod_1.z.string().max(30).optional(),
     direccion: zod_1.z.string().max(200).optional(),
     comuna: zod_1.z.string().max(80).optional(),
-    ciudad: zod_1.z.string().max(80).optional()
+    ciudad: zod_1.z.string().max(80).optional(),
+    canalRegistro: zod_1.z.enum(['web', 'presencial', 'wsp']).optional()
 });
 const login = zod_1.z.object({ email: zod_1.z.string().email(), password: zod_1.z.string().min(1) });
 const forgot = zod_1.z.object({ email: zod_1.z.string().email() });

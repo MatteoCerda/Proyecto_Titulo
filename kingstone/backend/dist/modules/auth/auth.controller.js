@@ -72,6 +72,15 @@ async function postRegister(req, res) {
         if (err?.message === 'EMAIL_IN_USE') {
             return res.status(409).json({ message: 'Email ya registrado' });
         }
+        if (err?.code === 'CLAIM_CODE_REQUIRED') {
+            return res.status(400).json({ message: 'Se requiere codigo de reclamacion para vincular este RUT.' });
+        }
+        if (err?.code === 'CLAIM_CODE_INVALID') {
+            return res.status(400).json({ message: 'El codigo de reclamacion es invalido o expiro.' });
+        }
+        if (err?.code === 'CLIENT_ALREADY_LINKED') {
+            return res.status(409).json({ message: 'El cliente ya se encuentra vinculado a otra cuenta.' });
+        }
         res.status(500).json({ message: 'Error interno' });
     }
 }

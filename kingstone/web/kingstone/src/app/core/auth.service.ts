@@ -79,6 +79,7 @@ export class AuthService {
       fullName,
       email,
       password,
+      canalRegistro: 'web',
       ...(extra || {})
     };
     await firstValueFrom(this.http.post(this.endpoint('/auth/register'), payload));

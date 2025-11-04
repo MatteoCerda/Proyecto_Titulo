@@ -126,6 +126,63 @@ export interface CartPedidoRequest {
   note?: string | null;
 }
 
+export interface OperatorClienteSearchResult {
+  found: boolean;
+  cliente?: {
+    id: number;
+    rut: string | null;
+    estado: string;
+    nombre: string | null;
+    email: string | null;
+    telefono: string | null;
+    claimExpiresAt?: string | null;
+    claimIssuedAt?: string | null;
+    hasAccount: boolean;
+    tipoRegistro?: string | null;
+  };
+}
+
+export interface OperatorSalePayload {
+  canal: 'presencial' | 'wsp';
+  cliente: {
+    rut?: string | null;
+    nombre?: string | null;
+    email?: string | null;
+    telefono?: string | null;
+  };
+  resumen: {
+    materialId?: string | null;
+    materialLabel?: string | null;
+    total: number;
+    itemsCount?: number | null;
+    note?: string | null;
+    dtfMetros?: number | null;
+    dtfCentimetros?: number | null;
+    dtfCategoria?: 'dtf' | 'textil' | 'uv' | 'tela' | 'pvc' | 'sticker' | 'comprinter';
+    comprinterMaterial?: 'pvc' | 'pu';
+    adjuntoRequerido?: boolean;
+  };
+  agenda?: {
+    fecha: string;
+    hora?: string | null;
+    tecnica?: string | null;
+    maquina?: string | null;
+    notas?: string | null;
+  };
+}
+
+export interface OperatorSaleResponse {
+  id: number;
+  cliente: {
+    id: number;
+    estado: string;
+    hasAccount: boolean;
+  };
+  claimCode?: string | null;
+  claimExpiresAt?: string | null;
+  workOrder?: WorkOrderSummary | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PedidosService {
   private http = inject(HttpClient);
@@ -241,6 +298,14 @@ export class PedidosService {
       };
     }
   >>(`/api/pedidos/work-orders/calendar`, { params: httpParams });
+  }
+
+  searchClienteByRut(rut: string): Observable<OperatorClienteSearchResult> {
+    return this.http.get<OperatorClienteSearchResult>(`/api/operator/clientes/search`, { params: { rut } });
+  }
+
+  createOperatorSale(payload: OperatorSalePayload): Observable<OperatorSaleResponse> {
+    return this.http.post<OperatorSaleResponse>(`/api/operator/ventas`, payload);
   }
 }
 

@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import type { RegisterDTO, LoginDTO, JwtPayload } from './auth.types';
 import crypto from 'crypto';
+import { normalizeRut } from '../common/rut';
+import { verifyClaimCode } from '../common/claim';
 
 const allowedRoles = ['user', 'admin', 'operator'] as const;
 type Role = (typeof allowedRoles)[number];
@@ -27,28 +29,95 @@ export async function register(dto: RegisterDTO, options?: RegisterOptions) {
   if (exists) throw new Error('EMAIL_IN_USE');
   const passwordHash = await bcrypt.hash(dto.password, 10);
   const role = options?.defaultRole ?? 'user';
+  const rutInfo = normalizeRut(dto.rut);
+  const normalizedRutDisplay = rutInfo?.normalized ?? dto.rut ?? null;
+  const rutCompact = rutInfo?.compact ?? null;
   const user = await prisma.user.create({
     data: { email: dto.email, passwordHash, fullName: dto.fullName, role }
   });
-  // Si vienen datos de perfil, creamos registro en tabla cliente
-  const hasProfile = dto.rut || dto.nombre_contacto || dto.telefono || dto.direccion || dto.comuna || dto.ciudad;
+  // Si vienen datos de perfil o RUT, sincronizamos con tabla cliente
+  const hasProfile =
+    normalizedRutDisplay ||
+    dto.nombre_contacto ||
+    dto.telefono ||
+    dto.direccion ||
+    dto.comuna ||
+    dto.ciudad;
   if (hasProfile) {
     try {
-      await (prisma as any).cliente.create({
-        data: {
-          id_usuario: user.id,
-          rut: dto.rut || null,
-          nombre_contacto: dto.nombre_contacto || dto.fullName || null,
-          email: dto.email,
-          telefono: dto.telefono || null,
-          direccion: dto.direccion || null,
-          comuna: dto.comuna || null,
-          ciudad: dto.ciudad || null,
+      const existingCliente = rutCompact
+        ? await (prisma as any).cliente.findFirst({
+            where: { rutNormalizado: rutCompact }
+          })
+        : null;
+      if (existingCliente) {
+        if (existingCliente.id_usuario && existingCliente.id_usuario !== user.id) {
+          throw Object.assign(new Error('CLIENT_ALREADY_LINKED'), { code: 'CLIENT_ALREADY_LINKED' });
         }
-      });
+        if (existingCliente.estado === 'pending_claim') {
+          if (!dto.claimCode) {
+            throw Object.assign(new Error('CLAIM_CODE_REQUIRED'), { code: 'CLAIM_CODE_REQUIRED' });
+          }
+          const notExpired =
+            !existingCliente.claimExpiresAt ||
+            new Date(existingCliente.claimExpiresAt).getTime() >= Date.now();
+          const validCode =
+            notExpired && verifyClaimCode(dto.claimCode, existingCliente.claimCodeHash);
+          if (!validCode) {
+            throw Object.assign(new Error('CLAIM_CODE_INVALID'), { code: 'CLAIM_CODE_INVALID' });
+          }
+        }
+        await (prisma as any).cliente.update({
+          where: { id_cliente: existingCliente.id_cliente },
+          data: {
+            id_usuario: user.id,
+            estado: 'active',
+            claimCodeHash: null,
+            claimExpiresAt: null,
+            claimIssuedAt: null,
+            rut: normalizedRutDisplay,
+            rutNormalizado: rutCompact,
+            nombre_contacto: dto.nombre_contacto || dto.fullName || existingCliente.nombre_contacto,
+            email: dto.email,
+            telefono: dto.telefono || existingCliente.telefono,
+            direccion: dto.direccion || existingCliente.direccion,
+            comuna: dto.comuna || existingCliente.comuna,
+            ciudad: dto.ciudad || existingCliente.ciudad
+          }
+        });
+        await prisma.pedido.updateMany({
+          where: { clienteId: existingCliente.id_cliente },
+          data: { userId: user.id, clienteEmail: dto.email, clienteNombre: dto.fullName }
+        });
+      } else {
+        await (prisma as any).cliente.create({
+          data: {
+            id_usuario: user.id,
+            rut: normalizedRutDisplay,
+            rutNormalizado: rutCompact,
+            nombre_contacto: dto.nombre_contacto || dto.fullName || null,
+            email: dto.email,
+            telefono: dto.telefono || null,
+            direccion: dto.direccion || null,
+            comuna: dto.comuna || null,
+            ciudad: dto.ciudad || null,
+            estado: 'active',
+            tipoRegistro: dto.canalRegistro || 'web'
+          }
+        });
+      }
     } catch (e) {
+      if (e && typeof e === 'object' && (e as any).code === 'CLAIM_CODE_REQUIRED') {
+        throw e;
+      }
+      if (e && typeof e === 'object' && (e as any).code === 'CLAIM_CODE_INVALID') {
+        throw e;
+      }
+      if (e && typeof e === 'object' && (e as any).code === 'CLIENT_ALREADY_LINKED') {
+        throw e;
+      }
       // No interrumpimos el registro si falla el perfil
-      console.warn('No se pudo crear perfil cliente:', e);
+      console.warn('No se pudo crear/actualizar perfil cliente:', e);
     }
   }
   return { id: user.id, email: user.email, fullName: user.fullName, role: user.role };

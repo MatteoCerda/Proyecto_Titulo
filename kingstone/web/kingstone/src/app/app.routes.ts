@@ -45,6 +45,9 @@ export const routes: Routes = [
       { path: 'reportes/distribucion', loadComponent: () => import('./pages/admin/reportes-detalle-torta.page').then(m => m.AdminReporteTortaPage) },
       { path: 'reportes/top-clientes', loadComponent: () => import('./pages/admin/reportes-detalle-barras.page').then(m => m.AdminReporteBarrasPage) },
       { path: 'reportes/ventas-mensuales', loadComponent: () => import('./pages/admin/reportes-detalle-lineas.page').then(m => m.AdminReporteLineasPage) },
+      { path: 'reportes/top-productos', loadComponent: () => import('./pages/admin/reportes-detalle-productos-top.page').then(m => m.AdminReporteProductosTopPage) },
+      { path: 'reportes/productos-lentos', loadComponent: () => import('./pages/admin/reportes-detalle-productos-low.page').then(m => m.AdminReporteProductosLowPage) },
+      { path: 'reportes/embudo-pagos', loadComponent: () => import('./pages/admin/reportes-detalle-funnel.page').then(m => m.AdminReporteFunnelPage) },
       { path: 'ofertas', loadComponent: () => import('./pages/admin/ofertas.page').then(m => m.AdminOfertasPage) },
       { path: 'stock', loadComponent: () => import('./pages/admin/stock.page').then(m => m.AdminStockPage) },
       { path: 'perfil', loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage) }
@@ -67,6 +70,8 @@ export const routes: Routes = [
       { path: 'clientes', loadComponent: () => import('./pages/operador/clientes.page').then(m => m.OperatorClientesPage) },
       { path: 'cotizaciones', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorOrdersPage), data: { view: 'cotizaciones' } },
       { path: 'pagos', loadComponent: () => import('./pages/operador/pedidos.page').then(m => m.OperatorOrdersPage), data: { view: 'pagos' } },
+      { path: 'ventas', redirectTo: 'ventas/presencial', pathMatch: 'full' },
+      { path: 'ventas/presencial', loadComponent: () => import('./pages/operador/venta-presencial.page').then(m => m.OperatorVentaPresencialPage) },
       { path: 'calendario', loadComponent: () => import('./pages/operador/calendario.page').then(m => m.OperatorCalendarPage) },
       { path: 'perfil', canMatch: [authGuard], loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage) }
     ]

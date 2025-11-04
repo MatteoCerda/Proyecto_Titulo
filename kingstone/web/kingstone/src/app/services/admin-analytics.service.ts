@@ -28,6 +28,22 @@ export interface MonthlyTrendPoint {
   orders: number;
 }
 
+export interface ProductRankingItem {
+  label: string;
+  quantity: number;
+  total: number;
+}
+
+export interface PaymentFunnelStats {
+  total: number;
+  pendientes: number;
+  enRevision: number;
+  porPagar: number;
+  enProduccion: number;
+  completados: number;
+  porPagarRate: number;
+}
+
 export interface AdminDashboardOverview {
   generatedAt: string;
   range: {
@@ -46,6 +62,9 @@ export interface AdminDashboardOverview {
   materialDistribution: MaterialDistributionItem[];
   topClients: TopClientItem[];
   monthlyTrend: MonthlyTrendPoint[];
+  topProducts: ProductRankingItem[];
+  leastProducts: ProductRankingItem[];
+  paymentFunnel: PaymentFunnelStats;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -67,8 +86,30 @@ export class AdminAnalyticsService {
     this.inFlight = request;
     try {
       const result = await request;
-      this.cache = result;
-      return result;
+      const normalized: AdminDashboardOverview = {
+        ...result,
+        topProducts: (result.topProducts ?? []).map(item => ({
+          label: item.label,
+          quantity: item.quantity ?? 0,
+          total: item.total ?? 0
+        })),
+        leastProducts: (result.leastProducts ?? []).map(item => ({
+          label: item.label,
+          quantity: item.quantity ?? 0,
+          total: item.total ?? 0
+        })),
+        paymentFunnel: {
+          total: result.paymentFunnel?.total ?? 0,
+          pendientes: result.paymentFunnel?.pendientes ?? 0,
+          enRevision: result.paymentFunnel?.enRevision ?? 0,
+          porPagar: result.paymentFunnel?.porPagar ?? 0,
+          enProduccion: result.paymentFunnel?.enProduccion ?? 0,
+          completados: result.paymentFunnel?.completados ?? 0,
+          porPagarRate: result.paymentFunnel?.porPagarRate ?? 0
+        }
+      };
+      this.cache = normalized;
+      return normalized;
     } finally {
       this.inFlight = undefined;
     }

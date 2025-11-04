@@ -5,12 +5,14 @@ const register = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   fullName: z.string().min(2),
-  rut: z.string().max(15).optional(),
+  rut: z.string().max(20).optional(),
+  claimCode: z.string().trim().min(4).max(12).optional(),
   nombre_contacto: z.string().max(150).optional(),
   telefono: z.string().max(30).optional(),
   direccion: z.string().max(200).optional(),
   comuna: z.string().max(80).optional(),
-  ciudad: z.string().max(80).optional()
+  ciudad: z.string().max(80).optional(),
+  canalRegistro: z.enum(['web', 'presencial', 'wsp']).optional()
 });
 
 const login = z.object({ email: z.string().email(), password: z.string().min(1) });

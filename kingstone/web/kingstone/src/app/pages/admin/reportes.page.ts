@@ -13,7 +13,9 @@ import { Router } from '@angular/router';
 import Chart from 'chart.js/auto';
 import {
   AdminAnalyticsService,
-  AdminDashboardOverview
+  AdminDashboardOverview,
+  ProductRankingItem,
+  PaymentFunnelStats
 } from '../../services/admin-analytics.service';
 
 @Component({
@@ -53,6 +55,51 @@ import {
           </div>
           <h3>Evolucion de ventas mensuales</h3>
           <p>Tendencia de ventas y pedidos de los ultimos doce meses.</p>
+        </article>
+
+        <article class="report-card" (click)="open('top-productos')">
+          <div class="img-wrap">
+            <canvas #topProductsCanvas></canvas>
+            <div class="no-data" *ngIf="!topProductsPreview().length">Sin datos para mostrar</div>
+          </div>
+          <h3>Top 10 productos del mes</h3>
+          <p>Articulos con mayor cantidad solicitada durante el mes vigente.</p>
+          <ul class="preview-list" *ngIf="topProductsPreview().length">
+            <li *ngFor="let item of topProductsPreview()">
+              <span class="label">{{ item.label }}</span>
+              <span class="value">{{ item.quantity }} uds</span>
+            </li>
+          </ul>
+        </article>
+
+        <article class="report-card" (click)="open('productos-lentos')">
+          <div class="img-wrap">
+            <canvas #lowProductsCanvas></canvas>
+            <div class="no-data" *ngIf="!lowProductsPreview().length">Sin datos para mostrar</div>
+          </div>
+          <h3>Productos con menor rotacion</h3>
+          <p>Elementos con menor salida dentro del periodo actual.</p>
+          <ul class="preview-list" *ngIf="lowProductsPreview().length">
+            <li *ngFor="let item of lowProductsPreview()">
+              <span class="label">{{ item.label }}</span>
+              <span class="value">{{ item.quantity }} uds</span>
+            </li>
+          </ul>
+        </article>
+
+        <article class="report-card" (click)="open('embudo-pagos')">
+          <div class="img-wrap">
+            <canvas #funnelCanvas></canvas>
+            <div class="no-data" *ngIf="!funnelPreview().length">Sin datos para mostrar</div>
+          </div>
+          <h3>Embudo hacia pago</h3>
+          <p>Distribucion de pedidos del mes segun estado operativo.</p>
+          <ul class="preview-list" *ngIf="funnelPreview().length">
+            <li *ngFor="let item of funnelPreview()">
+              <span class="label">{{ item.label }}</span>
+              <span class="value">{{ item.count }} ({{ item.percent | number: '1.0-1' }}%)</span>
+            </li>
+          </ul>
         </article>
       </section>
 
@@ -128,11 +175,24 @@ import {
         justify-content: center;
         margin-bottom: 20px;
         box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+        position: relative;
       }
       canvas {
         width: 100% !important;
         height: 100% !important;
         pointer-events: none;
+      }
+      .no-data {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: #94a3b8;
+        letter-spacing: 0.02em;
+        background: rgba(255, 255, 255, 0.82);
+        border-radius: 14px;
       }
       h3 {
         margin: 0 0 8px;
@@ -144,6 +204,31 @@ import {
         margin: 0;
         color: #475569;
         line-height: 1.45;
+      }
+      .preview-list {
+        list-style: none;
+        margin: 16px 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .preview-list li {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: #0f172a;
+      }
+      .preview-list .label {
+        font-weight: 600;
+        max-width: 70%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .preview-list .value {
+        color: #475569;
+        font-variant-numeric: tabular-nums;
       }
       .loading-state {
         display: flex;
@@ -176,16 +261,32 @@ export class AdminReportesPage implements AfterViewInit, OnDestroy {
 
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly topProductsPreview = signal<ProductRankingItem[]>([]);
+  readonly lowProductsPreview = signal<ProductRankingItem[]>([]);
+  readonly funnelPreview = signal<Array<{ label: string; count: number; percent: number }>>([]);
+  readonly funnelStages: ReadonlyArray<{ key: 'pendientes' | 'enRevision' | 'porPagar' | 'enProduccion' | 'completados'; label: string }> = [
+    { key: 'pendientes', label: 'Pendientes' },
+    { key: 'enRevision', label: 'En revision' },
+    { key: 'porPagar', label: 'Por pagar' },
+    { key: 'enProduccion', label: 'En produccion' },
+    { key: 'completados', label: 'Completados' }
+  ];
 
   private overview: AdminDashboardOverview | null = null;
 
   @ViewChild('distributionCanvas') private distributionCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('clientsCanvas') private clientsCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('trendCanvas') private trendCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('topProductsCanvas') private topProductsCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('lowProductsCanvas') private lowProductsCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('funnelCanvas') private funnelCanvas?: ElementRef<HTMLCanvasElement>;
 
   private distributionChart?: Chart;
   private clientsChart?: Chart;
   private trendChart?: Chart;
+  private topProductsChart?: Chart;
+  private lowProductsChart?: Chart;
+  private funnelChart?: Chart;
 
   async ngAfterViewInit(): Promise<void> {
     await this.load();
@@ -195,13 +296,16 @@ export class AdminReportesPage implements AfterViewInit, OnDestroy {
     this.distributionChart?.destroy();
     this.clientsChart?.destroy();
     this.trendChart?.destroy();
+    this.topProductsChart?.destroy();
+    this.lowProductsChart?.destroy();
+    this.funnelChart?.destroy();
   }
 
   async refresh(): Promise<void> {
     await this.load(true);
   }
 
-  open(kind: 'distribucion' | 'top-clientes' | 'ventas-mensuales'): void {
+  open(kind: 'distribucion' | 'top-clientes' | 'ventas-mensuales' | 'top-productos' | 'productos-lentos' | 'embudo-pagos'): void {
     this.router.navigateByUrl(`/admin/reportes/${kind}`);
   }
 
@@ -226,6 +330,9 @@ export class AdminReportesPage implements AfterViewInit, OnDestroy {
     this.renderDistributionPreview();
     this.renderClientsPreview();
     this.renderTrendPreview();
+    this.renderTopProductsPreview();
+    this.renderLowProductsPreview();
+    this.renderFunnelPreview();
   }
 
   private renderDistributionPreview(): void {
@@ -323,6 +430,142 @@ export class AdminReportesPage implements AfterViewInit, OnDestroy {
       }
     });
     this.trendChart.resize();
+  }
+
+  private renderTopProductsPreview(): void {
+    const all = this.overview?.topProducts ?? [];
+    let dataset: ProductRankingItem[] = all.filter(item => (item.quantity ?? 0) > 0).slice(0, 5);
+    if (!dataset.length && all.length) {
+      dataset = all.filter(item => (item.total ?? 0) > 0).slice(0, 5);
+    }
+    if (!dataset.length && all.length) {
+      dataset = all.slice(0, 5);
+    }
+    this.topProductsPreview.set(dataset);
+    if (!this.topProductsCanvas?.nativeElement || !dataset.length) {
+      this.topProductsChart?.destroy();
+      return;
+    }
+    this.topProductsChart?.destroy();
+    const ctx = this.topProductsCanvas.nativeElement;
+    this.topProductsChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: dataset.map(item => item.label),
+        datasets: [
+          {
+            data: dataset.map(item => item.quantity),
+            backgroundColor: '#22c55e',
+            borderRadius: 12,
+            maxBarThickness: 24
+          }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: {
+          x: { display: false, grid: { display: false } },
+          y: { display: false, grid: { display: false } }
+        }
+      }
+    });
+    this.topProductsChart.resize();
+  }
+
+  private renderLowProductsPreview(): void {
+    const all = this.overview?.leastProducts ?? [];
+    let dataset: ProductRankingItem[] = all.filter(item => (item.quantity ?? 0) > 0).slice(0, 5);
+    if (!dataset.length && all.length) {
+      dataset = all.filter(item => (item.total ?? 0) > 0).slice(0, 5);
+    }
+    if (!dataset.length && all.length) {
+      dataset = all.slice(0, 5);
+    }
+    this.lowProductsPreview.set(dataset);
+    if (!this.lowProductsCanvas?.nativeElement || !dataset.length) {
+      this.lowProductsChart?.destroy();
+      return;
+    }
+    this.lowProductsChart?.destroy();
+    const ctx = this.lowProductsCanvas.nativeElement;
+    this.lowProductsChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: dataset.map(item => item.label),
+        datasets: [
+          {
+            data: dataset.map(item => item.quantity),
+            backgroundColor: '#f97316',
+            borderRadius: 12,
+            maxBarThickness: 24
+          }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: {
+          x: { display: false, grid: { display: false } },
+          y: { display: false, grid: { display: false } }
+        }
+      }
+    });
+    this.lowProductsChart.resize();
+  }
+
+  private renderFunnelPreview(): void {
+    const funnel: PaymentFunnelStats | null = this.overview?.paymentFunnel ?? null;
+    if (!funnel || !funnel.total) {
+      this.funnelPreview.set([]);
+      this.funnelChart?.destroy();
+      return;
+    }
+    const preview = this.funnelStages.map(stage => {
+      const count = funnel[stage.key] ?? 0;
+      return {
+        label: stage.label,
+        count,
+        percent: this.computePercent(funnel.total, count)
+      };
+    });
+    this.funnelPreview.set(preview);
+    const values = preview.map(item => item.count);
+    if (!this.funnelCanvas?.nativeElement || !values.some(value => value > 0)) {
+      this.funnelChart?.destroy();
+      return;
+    }
+    this.funnelChart?.destroy();
+    const ctx = this.funnelCanvas.nativeElement;
+    this.funnelChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Pendientes', 'En revision', 'Por pagar', 'En produccion', 'Completados'],
+        datasets: [
+          {
+            data: values,
+            backgroundColor: ['#94a3b8', '#f59e0b', '#22c55e', '#6366f1', '#0f172a'],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        cutout: '55%',
+        plugins: { legend: { display: false }, tooltip: { enabled: false } }
+      }
+    });
+    this.funnelChart.resize();
+  }
+
+  private computePercent(total: number, value: number): number {
+    if (!total) {
+      return 0;
+    }
+    return Math.round((value / total) * 1000) / 10;
   }
 }
 

@@ -33,7 +33,9 @@ router.get('/dashboard/overview', async (_req, res) => {
                 materialId: true,
                 clienteNombre: true,
                 clienteEmail: true,
-                createdAt: true
+                createdAt: true,
+                estado: true,
+                payload: true
             }
         });
         const monthlyPedidos = pedidos.filter(p => p.createdAt >= currentMonthStart && p.createdAt < currentMonthEnd);
@@ -89,6 +91,106 @@ router.get('/dashboard/overview', async (_req, res) => {
             orders: item.orders,
             percentage: monthlyTotal ? Number(((item.total / monthlyTotal) * 100).toFixed(1)) : 0
         }));
+        const productMap = new Map();
+        const parsePayload = (raw) => {
+            if (!raw) {
+                return null;
+            }
+            if (typeof raw === 'string') {
+                try {
+                    return JSON.parse(raw);
+                }
+                catch {
+                    return null;
+                }
+            }
+            return raw;
+        };
+        const pushProduct = (name, quantity, total) => {
+            if (!name) {
+                return;
+            }
+            const normalized = name.trim();
+            if (!normalized.length) {
+                return;
+            }
+            const qtyValue = quantity !== null && quantity !== undefined ? Number(quantity) : NaN;
+            const totalValue = total !== null && total !== undefined ? Number(total) : 0;
+            const key = normalized.toLowerCase();
+            const entry = productMap.get(key) ?? { label: normalized, quantity: 0, total: 0 };
+            if (!Number.isNaN(qtyValue)) {
+                entry.quantity += qtyValue;
+            }
+            if (!Number.isNaN(totalValue)) {
+                entry.total += totalValue;
+            }
+            entry.label = normalized;
+            productMap.set(key, entry);
+        };
+        for (const pedido of monthlyPedidos) {
+            const payload = parsePayload(pedido.payload);
+            if (!payload) {
+                continue;
+            }
+            if (Array.isArray(payload.products)) {
+                payload.products.forEach((item) => {
+                    pushProduct(item?.name, item?.quantity, typeof item?.price === 'number' ? item.price * (item.quantity ?? 1) : item?.price);
+                });
+            }
+            if (Array.isArray(payload.items)) {
+                payload.items.forEach((item) => {
+                    pushProduct(item?.displayName || item?.name, item?.quantity);
+                });
+            }
+            if (Array.isArray(payload.quote?.items)) {
+                payload.quote.items.forEach((item) => {
+                    pushProduct(item?.name, item?.quantity);
+                });
+            }
+        }
+        const productRanking = Array.from(productMap.values())
+            .filter(item => item.quantity > 0)
+            .map(item => ({
+            label: item.label,
+            quantity: item.quantity,
+            total: Math.round(item.total)
+        }));
+        const topProducts = [...productRanking].sort((a, b) => b.quantity - a.quantity || b.total - a.total).slice(0, 10);
+        const leastProducts = [...productRanking].sort((a, b) => a.quantity - b.quantity || a.total - b.total).slice(0, 10);
+        const paymentFunnel = (() => {
+            const funnel = {
+                total: monthlyPedidos.length,
+                pendientes: 0,
+                enRevision: 0,
+                porPagar: 0,
+                enProduccion: 0,
+                completados: 0
+            };
+            for (const pedido of monthlyPedidos) {
+                switch (pedido.estado) {
+                    case 'PENDIENTE':
+                        funnel.pendientes += 1;
+                        break;
+                    case 'EN_REVISION':
+                        funnel.enRevision += 1;
+                        break;
+                    case 'POR_PAGAR':
+                        funnel.porPagar += 1;
+                        break;
+                    case 'EN_PRODUCCION':
+                    case 'EN_IMPRESION':
+                        funnel.enProduccion += 1;
+                        break;
+                    case 'COMPLETADO':
+                        funnel.completados += 1;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            const rate = funnel.total > 0 ? Number(((funnel.porPagar / funnel.total) * 100).toFixed(1)) : 0;
+            return { ...funnel, porPagarRate: rate };
+        })();
         const monthlyTrend = [];
         for (let i = 11; i >= 0; i--) {
             const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -124,7 +226,10 @@ router.get('/dashboard/overview', async (_req, res) => {
             },
             materialDistribution,
             topClients,
-            monthlyTrend
+            monthlyTrend,
+            topProducts,
+            leastProducts,
+            paymentFunnel
         });
     }
     catch (error) {

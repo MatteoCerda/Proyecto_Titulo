@@ -9,6 +9,9 @@ import pedidosRoutes from './modules/pedidos/pedidos.routes';
 import { prisma } from './lib/prisma';
 import bcrypt from 'bcryptjs';
 import cotizacionesRoutes from './modules/cotizaciones/cotizaciones.routes';
+import operatorRoutes from './modules/operator/operator.routes';
+import { operatorGuard } from './modules/common/middlewares/operatorGuard';
+import { normalizeRut } from './modules/common/rut';
 
 const app = express();
 app.use(helmet());
@@ -101,10 +104,33 @@ app.put(['/me/profile', '/api/me/profile'], authGuard, async (req, res) => {
     const { rut, nombre_contacto, telefono, direccion, comuna, ciudad } = req.body || {};
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+    const rutInfo = rut ? normalizeRut(rut) : null;
+    const formattedRut = rutInfo?.normalized ?? (rut ? rut.trim() : null);
+    const rutCompact = rutInfo?.compact ?? null;
     const profile = await (prisma as any).cliente.upsert({
       where: { id_usuario: id },
-      create: { id_usuario: id, email: user.email, rut: rut || null, nombre_contacto: nombre_contacto || user.fullName || null, telefono: telefono || null, direccion: direccion || null, comuna: comuna || null, ciudad: ciudad || null },
-      update: { rut: rut || null, nombre_contacto: (nombre_contacto ?? undefined), telefono: telefono ?? null, direccion: direccion ?? null, comuna: comuna ?? null, ciudad: ciudad ?? null },
+      create: {
+        id_usuario: id,
+        email: user.email,
+        rut: formattedRut,
+        rutNormalizado: rutCompact,
+        nombre_contacto: nombre_contacto || user.fullName || null,
+        telefono: telefono || null,
+        direccion: direccion || null,
+        comuna: comuna || null,
+        ciudad: ciudad || null,
+        estado: 'active'
+      },
+      update: {
+        rut: formattedRut,
+        rutNormalizado: rutCompact,
+        nombre_contacto: nombre_contacto ?? undefined,
+        telefono: telefono ?? null,
+        direccion: direccion ?? null,
+        comuna: comuna ?? null,
+        ciudad: ciudad ?? null,
+        estado: 'active'
+      },
       select: { id_cliente: true, rut: true, nombre_contacto: true, email: true, telefono: true, direccion: true, comuna: true, ciudad: true, id_usuario: true, creado_en: true }
     });
     res.json({ profile });
@@ -271,6 +297,7 @@ app.get(['/offers', '/api/offers'], offersHandler);
 // Pedidos (clientes y operadores)
 app.use('/api/pedidos', authGuard, pedidosRoutes);
 app.use('/api/cotizaciones', cotizacionesRoutes);
+app.use('/api/operator', authGuard, operatorGuard, operatorRoutes);
 // Admin endpoints
 app.use('/api/admin', authGuard, adminGuard, adminRoutes);
 app.use('/admin', authGuard, adminGuard, adminRoutes);

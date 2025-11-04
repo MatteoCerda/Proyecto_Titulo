@@ -622,6 +622,7 @@ router.post('/', async (req, res) => {
         const userId = payloadUser?.sub ? Number(payloadUser.sub) : null;
         let email = payloadUser?.email ?? null;
         let nombre = null;
+        let clienteId = null;
         if (userId) {
             const user = await prisma_1.prisma.user.findUnique({
                 where: { id: userId },
@@ -630,6 +631,13 @@ router.post('/', async (req, res) => {
             if (user) {
                 email = user.email;
                 nombre = user.fullName;
+                const cliente = await prisma_1.prisma.cliente.findUnique({
+                    where: { id_usuario: userId },
+                    select: { id_cliente: true }
+                });
+                if (cliente?.id_cliente) {
+                    clienteId = Number(cliente.id_cliente);
+                }
             }
         }
         const nowIso = new Date().toISOString();
@@ -724,6 +732,7 @@ router.post('/', async (req, res) => {
                 const pedido = await tx.pedido.create({
                     data: {
                         userId,
+                        clienteId,
                         clienteEmail: email,
                         clienteNombre: nombre,
                         estado: 'PENDIENTE',
@@ -790,6 +799,7 @@ router.post('/', async (req, res) => {
             const pedido = await tx.pedido.create({
                 data: {
                     userId,
+                    clienteId,
                     clienteEmail: email,
                     clienteNombre: nombre,
                     estado: 'PENDIENTE',
