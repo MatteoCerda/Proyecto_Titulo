@@ -400,11 +400,11 @@ export class AdminUsuariosRolesPage {
       return;
     }
     if (!this.isValidEmail(email)) {
-      this.newUserError = 'El correo no es vÃ¡lido.';
+      this.newUserError = 'El correo no es válido.';
       return;
     }
     if (!password || password.length < 6) {
-      this.newUserError = 'La contraseÃ±a debe tener al menos 6 caracteres.';
+      this.newUserError = 'La contraseña debe tener al menos 6 caracteres.';
       return;
     }
 
@@ -425,7 +425,7 @@ export class AdminUsuariosRolesPage {
         this.saving = false;
         const issues = err?.error?.issues;
         if (Array.isArray(issues) && issues.length) {
-          this.newUserError = issues[0]?.message || 'Datos invÃ¡lidos.';
+          this.newUserError = issues[0]?.message || 'Datos inválidos.';
           return;
         }
         this.newUserError = err?.error?.message || 'No se pudo crear el usuario.';

@@ -41,7 +41,7 @@ addIcons({ cartOutline, searchOutline, personOutline });
           <img src="assets/kingston-estampados.png" alt="Kingstone logo" class="ks-logo" />
         </a>
 
-        <!-- Centro: menÃº -->
+        <!-- Centro: menú -->
         <nav class="ks-nav" style="color:#ffffff;">
           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
           <a routerLink="/productos" routerLinkActive="active">Productos</a>
@@ -75,7 +75,7 @@ addIcons({ cartOutline, searchOutline, personOutline });
       </div>
     </ion-toolbar>
 
-    <!-- Barra de bÃºsqueda desplegable -->
+    <!-- Barra de búsqueda desplegable -->
     <ion-toolbar *ngIf="showSearch" class="ks-toolbar-search">
       <ion-searchbar
         placeholder="Busca en toda la tienda..."
@@ -126,7 +126,7 @@ addIcons({ cartOutline, searchOutline, personOutline });
       </div>
     </div>
 
-    <!-- Columna centro: EnvÃ­os/retiros -->
+    <!-- Columna centro: Envíos/retiros -->
     <div class="ks-footer-middle">
       <p><strong>Retiros en nuestro taller</strong></p>
       <p><strong>Delivery en RM</strong></p>
@@ -226,7 +226,7 @@ export class KingstoneLayoutComponent {
 
   onSearch(ev: any) {
     const q = (ev?.detail?.value ?? '').trim();
-    // TODO: dispara tu bÃºsqueda global aquÃ­
+    // TODO: dispara tu búsqueda global aquí
     // console.log('buscar:', q);
   }
 

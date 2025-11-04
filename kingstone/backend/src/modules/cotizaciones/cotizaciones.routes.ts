@@ -452,7 +452,10 @@ async function triggerWebhook(args: {
   return { skipped: false };
 }
 
-router.post('/', async (req, res) => {
+router.post(
+  '/',
+  authGuard,
+  async (req, res) => {
   try {
     const parsed = createSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -465,9 +468,20 @@ router.post('/', async (req, res) => {
 
     const dto = parsed.data;
     const payloadUser = (req as any).user as JwtUser | undefined;
-    const clienteId =
-      dto.cliente?.id ??
-      (payloadUser?.sub ? Number(payloadUser.sub) : undefined);
+    const requesterId = payloadUser?.sub ? Number(payloadUser.sub) : null;
+    const requestedClienteId =
+      typeof dto.cliente?.id === 'number' ? dto.cliente.id : null;
+    const isRequesterOperator = isOperator(payloadUser?.role);
+
+    if (!isRequesterOperator && requestedClienteId && requesterId !== requestedClienteId) {
+      return res
+        .status(403)
+        .json({ message: 'No puedes crear cotizaciones para otro usuario.' });
+    }
+
+    const clienteId = isRequesterOperator
+      ? requestedClienteId ?? requesterId
+      : requesterId;
 
     const operator = await pickOperator(dto.operadorId);
     if (!operator) {

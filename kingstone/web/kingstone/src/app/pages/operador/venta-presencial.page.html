@@ -1,221 +1,512 @@
 <div class="venta-container" [formGroup]="form">
+
   <header class="page-header">
+
     <div>
+
       <h1>Registrar venta presencial / WhatsApp</h1>
-      <p>Busca al cliente por RUT, completa la informaci\xf3n y registra la venta para que aparezca en el calendario.</p>
+
+      <p>Busca al cliente por RUT o documento, completa la información y registra la venta para que aparezca en el calendario.</p>
+
     </div>
+
     <button type="button" class="ghost" (click)="limpiar()">Limpiar formulario</button>
+
   </header>
 
   <section class="panel">
-    <h2>1. B\xfasqueda de cliente</h2>
+
+    <h2>1. Búsqueda de cliente</h2>
+
     <form class="rut-search" (ngSubmit)="buscarRut()">
-      <label for="rut-input">RUT del cliente</label>
+
+      <label for="rut-input">Documento del cliente (RUT o pasaporte)</label>
+
       <div class="search-row">
-        <input id="rut-input" type="text" [formControl]="lookupRut" placeholder="12.345.678-9" />
+
+        <input id="rut-input" type="text" [formControl]="lookupRut" placeholder="12.345.678-9 o número de pasaporte" />
+
         <button type="submit" [disabled]="searchLoading()">Buscar</button>
+
       </div>
+
     </form>
-    <p class="hint">Si el cliente ya tiene RUT registrado, lo vincularemos autom\xe1ticamente. Si no existe, se crear\xe1 como presencial.</p>
+
+    <p class="hint">Si el cliente ya tiene documento registrado, lo vincularemos automáticamente. Si no existe, se creará como presencial.</p>
+
     <p class="error" *ngIf="searchError()">{{ searchError() }}</p>
+
     <div class="result" *ngIf="clienteEncontrado() as resultado">
+
       <ng-container *ngIf="resultado.found && resultado.cliente; else sinCliente">
+
         <div class="cliente-data">
+
           <h3>Cliente encontrado</h3>
+
           <ul>
-            <li><strong>RUT:</strong> {{ resultado.cliente.rut || 'Sin registro' }}</li>
+
+            <li><strong>Documento:</strong> {{ resultado.cliente.rut || 'Sin registro' }}</li>
+
             <li><strong>Nombre:</strong> {{ resultado.cliente.nombre || 'Sin registro' }}</li>
+
             <li><strong>Correo:</strong> {{ resultado.cliente.email || 'Sin registro' }}</li>
-            <li><strong>Tel\xe9fono:</strong> {{ resultado.cliente.telefono || 'Sin registro' }}</li>
-            <li><strong>Estado:</strong> {{ resultado.cliente.estado === 'pending_claim' ? 'Pendiente de activaci\xf3n web' : 'Activo' }}</li>
+
+            <li><strong>Teléfono:</strong> {{ resultado.cliente.telefono || 'Sin registro' }}</li>
+
+            <li><strong>Estado:</strong> {{ resultado.cliente.estado === 'pending_claim' ? 'Pendiente de activación web' : 'Activo' }}</li>
+
+            <li *ngIf="resultado.resumen?.total !== undefined"><strong>Total solicitado:</strong> {{ (resultado.resumen?.total ?? 0) | currency:'CLP':'symbol-narrow':'1.0-0' }}</li>
+
+            <li *ngIf="resultado.resumen?.itemsCount !== undefined"><strong>Ítems de la última venta:</strong> {{ resultado.resumen?.itemsCount ?? 0 }}</li>
+
           </ul>
+
           <div class="alert" *ngIf="resultado.cliente.estado === 'pending_claim'">
-            Este cliente necesita que ingrese un c\xf3digo de reclamaci\xf3n al registrarse. Comparte el c\xf3digo generado tras la venta.
+
+            Este cliente necesita que ingrese un código de reclamación al registrarse. Comparte el código generado tras la venta.
+
           </div>
+
         </div>
+
       </ng-container>
+
       <ng-template #sinCliente>
-        <p class="muted">No existe un cliente con ese RUT. Se crear\xe1 un perfil presencial al registrar la venta.</p>
+
+        <div class="cliente-data provisional">
+
+          <h3>Nuevo cliente presencial</h3>
+
+          <p class="muted">No encontramos un cliente con ese documento. Completa los datos y registraremos un perfil presencial.</p>
+
+          <ng-container *ngIf="form.get('cliente')?.value as cliente">
+
+            <ul>
+
+              <li><strong>Documento:</strong> {{ cliente.rut || lookupRut.value || 'Por asignar' }}</li>
+
+              <li><strong>Nombre:</strong> {{ cliente.nombre || 'Sin registro' }}</li>
+
+              <li><strong>Correo:</strong> {{ cliente.email || 'Sin registro' }}</li>
+
+              <li><strong>Teléfono:</strong> {{ cliente.telefono || 'Sin registro' }}</li>
+
+            </ul>
+
+          </ng-container>
+
+          <div class="resumen-preview" *ngIf="form.get('resumen')?.value as resumen">
+
+            <p><strong>Total solicitado:</strong> {{ (resumen?.total ?? 0) | currency:'CLP':'symbol-narrow':'1.0-0' }}</p>
+
+            <p><strong>Ítems estimados:</strong> {{ resumen?.itemsCount ?? 0 }}</p>
+
+          </div>
+
+        </div>
+
       </ng-template>
+
     </div>
+
 </section>
 
 <section class="panel">
+
   <h2>2. Selecciona un producto del inventario</h2>
+
   <div class="inventory-search">
+
     <input
+
       #inventoryFilter
+
       type="text"
+
       [value]="inventorySearch()"
+
       (keyup.enter)="buscarInventario(inventoryFilter.value)"
+
       placeholder="Buscar por nombre, tipo o proveedor"
+
     />
+
     <button type="button" (click)="buscarInventario(inventoryFilter.value)" [disabled]="catalogLoading()">Buscar</button>
+
     <button type="button" class="ghost" (click)="limpiarInventario(inventoryFilter)">Limpiar</button>
+
   </div>
+
   <p class="hint">
+
     El precio se completar&aacute; autom&aacute;ticamente seg&uacute;n el canal de venta seleccionado.
+
   </p>
+
   <p class="error" *ngIf="catalogError()">{{ catalogError() }}</p>
+
   <p class="muted" *ngIf="catalogLoading()">Cargando inventario...</p>
+
   <div class="inventory-grid" *ngIf="!catalogLoading() && catalogItems().length">
+
     <div
+
       class="inventory-card"
+
       *ngFor="let item of catalogItems()"
-      [class.selected]="selectedItem()?.id === item.id"
+
+      [class.selected]="estaSeleccionado(item)"
+
     >
+
       <div class="inventory-header">
+
         <h3>{{ item.name }}</h3>
+
         <span class="stock">Stock: {{ item.quantity }}</span>
+
       </div>
+
+      <span class="selected-qty" *ngIf="estaSeleccionado(item)">
+
+        En resumen: {{ cantidadSeleccionada(item.id) }}
+
+      </span>
+
       <p class="muted">{{ item.itemType }} &bull; {{ item.color }} &bull; {{ item.provider }}</p>
+
       <div class="inventory-prices">
+
         <div>
+
           <span class="label">Precio presencial</span>
+
           <strong>{{ item.priceStore ?? item.price ?? item.priceWeb | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+
         </div>
+
         <div>
+
           <span class="label">Precio WhatsApp</span>
+
           <strong>{{ item.priceWsp ?? item.price ?? item.priceWeb | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+
         </div>
+
       </div>
+
       <button type="button" class="use-item" (click)="seleccionarItem(item)">
-        {{ selectedItem()?.id === item.id ? 'Seleccionado' : 'Usar este producto' }}
+
+        {{ estaSeleccionado(item) ? 'Agregar otra unidad' : 'Agregar a la venta' }}
+
       </button>
+
     </div>
+
   </div>
+
+  <div class="selected-items" *ngIf="selectedItems().length">
+
+    <h3>Productos seleccionados</h3>
+
+    <ul>
+
+      <li *ngFor="let entry of selectedItems(); trackBy: trackBySelectedItem">
+
+        <div class="info">
+
+          <span class="item-name">{{ entry.item.name }}</span>
+
+          <small class="item-meta">{{ entry.item.itemType }} &bull; {{ entry.item.provider }}</small>
+
+        </div>
+
+        <div class="quantity">
+
+          <button type="button" (click)="ajustarCantidad(entry.item.id, -1)" aria-label="Disminuir cantidad">-</button>
+
+          <input
+
+            type="number"
+
+            [value]="entry.quantity"
+
+            min="1"
+
+            (change)="fijarCantidad(entry.item.id, $any($event.target).value)"
+
+          />
+
+          <button type="button" (click)="ajustarCantidad(entry.item.id, 1)" aria-label="Aumentar cantidad">+</button>
+
+        </div>
+
+        <button type="button" class="remove" (click)="quitarItem(entry.item.id)">Quitar</button>
+
+      </li>
+
+    </ul>
+
+  </div>
+
   <p class="muted" *ngIf="!catalogLoading() && !catalogItems().length">No encontramos productos con ese filtro.</p>
+
 </section>
 
 <section class="panel">
+
   <h2>3. Datos de la venta</h2>
+
   <div class="grid">
+
     <div class="field">
+
       <label>Canal de venta</label>
+
       <select formControlName="canal">
+
         <option value="presencial">Presencial</option>
+
           <option value="wsp">WhatsApp</option>
+
         </select>
+
       </div>
+
       <div class="field" formGroupName="cliente">
+
         <label>Nombre del cliente</label>
+
         <input type="text" formControlName="nombre" placeholder="Nombre y apellido" />
+
       </div>
+
       <div class="field" formGroupName="cliente">
-        <label>Correo electr\xf3nico</label>
+
+        <label>Correo electrónico</label>
+
         <input type="email" formControlName="email" placeholder="cliente@correo.cl" />
+
       </div>
+
       <div class="field" formGroupName="cliente">
-        <label>Tel\xe9fono</label>
+
+        <label>Teléfono</label>
+
         <input type="tel" formControlName="telefono" placeholder="+56 9 xxxx xxxx" />
+
       </div>
+
     </div>
 
     <div class="grid" formGroupName="resumen">
+
       <div class="field">
-        <label>Material / T\xe9cnica</label>
+
+        <label>Material / Técnica</label>
+
         <input type="text" formControlName="materialLabel" placeholder="Ej: DTF 57 cm" />
+
       </div>
+
       <div class="field">
-        <label>C\xf3digo material (opcional)</label>
+
+        <label>Código material (opcional)</label>
+
         <input type="text" formControlName="materialId" placeholder="ID inventario o referencia" />
+
       </div>
+
       <div class="field">
+
         <label>Total venta (CLP)</label>
+
         <input type="number" formControlName="total" min="0" step="100" required />
+
       </div>
+
       <div class="field">
-        <label>Cantidad de \xedtems</label>
+
+        <label>Cantidad de ítems</label>
+
         <input type="number" formControlName="itemsCount" min="1" placeholder="Ej: 3" />
+
       </div>
+
       <div class="field">
+
         <label>Tipo de material</label>
+
         <select formControlName="dtfCategoria">
+
           <option value="dtf">DTF</option>
+
           <option value="textil">Textil</option>
+
           <option value="uv">UV</option>
+
           <option value="tela">Tela</option>
+
           <option value="pvc">PVC</option>
+
           <option value="sticker">Sticker</option>
+
           <option value="comprinter">Comprinter</option>
+
         </select>
+
       </div>
+
       <div class="field" *ngIf="form.get('resumen')?.value?.dtfCategoria === 'comprinter'">
+
         <label>Material Comprinter</label>
+
         <select formControlName="comprinterMaterial">
+
           <option value="pvc">PVC</option>
+
           <option value="pu">PU</option>
+
         </select>
+
       </div>
+
       <div class="field">
+
         <label>Metros utilizados</label>
+
         <input type="number" formControlName="dtfMetros" min="0" step="0.1" placeholder="Ej: 2.5" />
+
       </div>
+
       <div class="field">
-        <label>Cent\xedmetros adicionales</label>
+
+        <label>Centímetros adicionales</label>
+
         <input type="number" formControlName="dtfCentimetros" min="0" step="1" placeholder="Ej: 30" />
+
       </div>
+
       <div class="full field">
+
         <label>Notas internas</label>
-        <textarea formControlName="note" rows="3" placeholder="Detalles relevantes, instrucciones de producci\xf3n, etc."></textarea>
+
+        <textarea formControlName="note" rows="3" placeholder="Detalles relevantes, instrucciones de producción, etc."></textarea>
+
       </div>
+
       <div class="toggle-field">
+
         <input type="checkbox" id="adjunto" formControlName="adjuntoRequerido" />
+
         <label for="adjunto">Requiere adjuntar archivo DTF</label>
+
       </div>
+
     </div>
+
 </section>
 
 <section class="panel" formGroupName="agenda">
+
     <h2>4. Agenda en calendario</h2>
+
     <p class="muted">Opcional: programa una fecha estimada para que aparezca en el calendario del operador.</p>
+
     <div class="grid">
+
       <div class="field">
+
         <label>Fecha programada</label>
+
         <input type="date" formControlName="fecha" />
+
       </div>
+
       <div class="field">
+
         <label>Hora</label>
+
         <input type="time" formControlName="hora" />
+
       </div>
+
       <div class="field">
-        <label>T\xe9cnica / proceso</label>
-        <input type="text" formControlName="tecnica" placeholder="Ej: Impresi\xf3n DTF" />
+
+        <label>Técnica / proceso</label>
+
+        <input type="text" formControlName="tecnica" placeholder="Ej: Impresión DTF" />
+
       </div>
+
       <div class="field">
-        <label>M\xe1quina / recurso</label>
+
+        <label>Máquina / recurso</label>
+
         <input type="text" formControlName="maquina" placeholder="Ej: Plotter dtf 1" />
+
       </div>
+
       <div class="full field">
-        <label>Notas para producci\xf3n</label>
-        <textarea formControlName="notas" rows="2" placeholder="Indicaciones para el equipo de producci\xf3n"></textarea>
+
+        <label>Notas para producción</label>
+
+        <textarea formControlName="notas" rows="2" placeholder="Indicaciones para el equipo de producción"></textarea>
+
       </div>
+
     </div>
+
 </section>
 
 <section class="panel">
+
     <h2>5. Adjuntos</h2>
-    <p class="muted">Puedes agregar archivos (m\xe1ximo 10) con dise\xf1os o referencias para el pedido.</p>
+
+    <p class="muted">Puedes agregar archivos (máximo 10) con diseños o referencias para el pedido.</p>
+
     <input type="file" (change)="onAttachmentsSelected($event)" multiple />
+
     <ul class="files" *ngIf="attachments().length">
+
       <li *ngFor="let file of attachments()">{{ file.name }} ({{ file.size | number }} bytes)</li>
+
     </ul>
+
   </section>
 
   <section class="panel summary">
+
     <p class="error" *ngIf="error()">{{ error() }}</p>
+
     <div class="success" *ngIf="ventaRegistrada() as venta">
+
       <h3>Venta registrada correctamente</h3>
+
       <p>Pedido #{{ venta.id }} creado para el cliente.</p>
+
       <div *ngIf="venta.claimCode">
-        <strong>C\xf3digo de reclamaci\xf3n:</strong>
+
+        <strong>Código de reclamación:</strong>
+
         <span class="claim">{{ venta.claimCode }}</span>
-        <p class="muted">Entrega este c\xf3digo al cliente para que active su cuenta web. Expira el {{ venta.claimExpiresAt | date:'dd/MM/yyyy HH:mm' }}.</p>
+
+        <p class="muted">Entrega este código al cliente para que active su cuenta web. Expira el {{ venta.claimExpiresAt | date:'dd/MM/yyyy HH:mm' }}.</p>
+
       </div>
-      <div *ngIf="!venta.claimCode && requiereCodigo()">Este cliente ya cuenta con un c\xf3digo vigente. Confirma que lo haya recibido.</div>
+
+      <div *ngIf="!venta.claimCode && requiereCodigo()">Este cliente ya cuenta con un código vigente. Confirma que lo haya recibido.</div>
+
     </div>
+
     <button type="button" class="primary" (click)="registrar()" [disabled]="loading()">
+
       {{ loading() ? 'Registrando...' : 'Registrar venta' }}
+
     </button>
+
   </section>
+
 </div>
+

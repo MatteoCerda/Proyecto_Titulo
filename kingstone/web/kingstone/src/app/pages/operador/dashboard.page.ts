@@ -24,6 +24,10 @@ import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../serv
             <span *ngIf="pendingCount() > 0" class="warn">{{ pendingCount() }}</span>
           </a>
           <a routerLink="/operador/pagos" routerLinkActive="active">Pagos</a>
+          <span class="nav-divider">Gestión</span>
+          <a routerLink="/operador/clientes" routerLinkActive="active">Clientes</a>
+          <a routerLink="/operador/ventas/presencial" routerLinkActive="active">Venta presencial</a>
+          <a routerLink="/operador/calendario" routerLinkActive="active">Calendario</a>
         </nav>
         <footer>
           <button type="button" (click)="refresh()">Actualizar bandeja</button>

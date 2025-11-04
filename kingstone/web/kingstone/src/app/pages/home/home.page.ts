@@ -1,9 +1,14 @@
-import { Component, inject, signal } from '@angular/core';
+﻿import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonContent, IonButton } from '@ionic/angular/standalone';
+import { IonContent, IonButton, IonSlides, IonSlide } from '@ionic/angular/standalone';
 import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import SwiperCore, { Autoplay, Pagination } from 'swiper';
+import type { SwiperOptions } from 'swiper/types';
+
 import { environment } from '../../../environments/environment';
+
+SwiperCore.use([Autoplay, Pagination]);
 
 interface OfertaCliente {
   id: number;
@@ -20,7 +25,7 @@ interface OfertaCliente {
 @Component({
   standalone: true,
   selector: 'app-home',
-  imports: [CommonModule, IonContent, IonButton, RouterLink],
+  imports: [CommonModule, IonContent, IonButton, IonSlides, IonSlide, RouterLink],
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss']
 })
@@ -60,3 +65,5 @@ export class HomePage {
 
   // Footer hide/show se maneja globalmente en el layout
 }
+
+

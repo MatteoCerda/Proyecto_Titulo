@@ -1,334 +1,602 @@
-﻿/* =========================================================
+/* =========================================================
+
    HEADER
+
    ========================================================= */
 
 /* Paleta y tokens reutilizables */
+
 :root {
-  /* Tokens (si el scoping de Angular no aplica, forzamos mÃƒÂ¡s abajo) */
+
+  /* Tokens (si el scoping de Angular no aplica, forzamos más abajo) */
+
   --ks-brand-bg: #0c4a6e; /* azul principal */
+
   --ks-brand-bg-translucent: #0c4a6e;
+
   --ks-text-strong: rgba(255, 255, 255, 0.92);
+
   --ks-text-muted: rgba(255, 255, 255, 0.75);
+
   --ks-border: rgba(255, 255, 255, 0.08);
+
   --ks-accent: #f5d64b;
+
 }
 
 /* Header pegajoso con sutil sombra y blur */
+
 .ks-header {
+
   position: sticky;
+
   top: 0;
+
   z-index: 1000;
 
-  /* Barra sÃƒÂ³lida azul, sin efecto glass */
+  /* Barra sólida azul, sin efecto glass */
+
   /* Forzamos color incluso con dark mode activo o temas globales */
+
   --background: var(--ks-brand-bg) !important;
+
   --ion-background-color: var(--ks-brand-bg) !important;
+
   background: var(--ks-brand-bg) !important;
+
   color: #ffffff;
 
   ion-toolbar {
+
     --background: var(--ks-brand-bg) !important;
+
     --ion-toolbar-background: var(--ks-brand-bg) !important;
+
     --color: #ffffff;
+
     color: #ffffff !important;
+
     border-bottom: 1px solid var(--ks-border);
+
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+
     background: var(--ks-brand-bg) !important;
+
   }
+
 }
 
 /* Contenedor interno en flex para logo | nav | acciones */
+
 .ks-toolbar { padding-inline: 0; }
+
 .ks-bar { position: relative; display: flex; align-items: center; justify-content: center; min-height: 56px; width: 100%; padding: 0 72px; }
 
 /* Logo */
+
 .ks-logo-wrap { display:flex; align-items:center; position:absolute; left:8px; top:50%; transform:translateY(-50%); }
+
 .ks-logo { height: 30px; display: block; object-fit: contain; }
 
-/* MenÃƒÂº centrado */
+/* Menú centrado */
+
 .ks-nav { display:flex; align-items:center; gap:36px; color:#ffffff !important; }
+
 .ks-nav a {
+
   position: relative;
+
   color: #ffffff !important;
+
   opacity: 0.88;
+
   font-weight: 600;
+
   font-size: 14px;
+
   letter-spacing: 0.2px;
+
   text-decoration: none;
+
   padding-block: 8px;
+
   transition: color 0.15s ease, opacity 0.15s ease;
+
 }
+
 .ks-nav a:hover { opacity: 1; }
 
-/* Subrayado con animaciÃƒÂ³n: activo y hover */
+/* Subrayado con animación: activo y hover */
+
 .ks-nav a::after {
+
   content: "";
+
   position: absolute;
+
   left: 0;
+
   right: 0;
+
   bottom: 0;
+
   height: 2px;
+
   background: currentColor;
+
   border-radius: 2px;
+
   transform: scaleX(0);
+
   transform-origin: center;
+
   transition: transform 0.18s ease;
+
 }
+
 .ks-nav a:hover::after,
+
 .ks-nav a.active::after { transform: scaleX(1); }
 
 /* Acciones (iconos) a la derecha */
+
 .ks-actions { position:absolute; right:8px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:14px; color:#ffffff !important; }
+
 .icon-btn {
+
   display: inline-flex;
+
   align-items: center;
+
   justify-content: center;
+
   width: 40px;
+
   height: 40px;
+
   padding: 0;
+
   background: transparent;
+
   border: 0;
+
   border-radius: 10px;
+
   transition: background 0.15s ease, transform 0.08s ease;
+
 }
+
 .icon-btn:focus-visible { outline: 2px solid var(--ks-accent); outline-offset: 2px; }
+
 .icon-btn:hover { background: rgba(255, 255, 255, 0.06); }
+
 .icon-btn:active { transform: scale(0.98); }
+
 .icon-btn ion-icon { font-size: 22px; color: #ffffff !important; opacity: 0.95; }
 
 .ks-actions .cart-btn {
+
   position: relative;
+
 }
 
 .ks-actions .cart-badge {
+
   position: absolute;
+
   top: -4px;
+
   right: -6px;
+
   min-width: 20px;
+
   height: 20px;
+
   padding: 0 6px;
+
   border-radius: 999px;
+
   background: linear-gradient(135deg, #f97316, #ea580c);
+
   color: #fff;
+
   font-size: 12px;
+
   font-weight: 700;
+
   display: inline-flex;
+
   align-items: center;
+
   justify-content: center;
+
   box-shadow: 0 4px 8px rgba(249, 115, 22, 0.35);
+
 }
+
 /* Contraste garantizado en header azul: texto e iconos blancos */
+
 ion-header.ks-header .ks-nav,
+
 ion-header.ks-header .ks-nav a { color: #ffffff !important; opacity: 0.95; }
+
 ion-header.ks-header .ks-actions,
+
 ion-header.ks-header .ks-actions .icon-btn,
+
 ion-header.ks-header .ks-actions .icon-btn ion-icon { color: #ffffff !important; opacity: 1 !important; }
 
 .ks-actions .welcome {
+
   margin-right: 8px;
+
   font-size: 14px;
+
   color: #ffffff;
+
   opacity: .9;
+
   white-space: nowrap;
+
 }
 
 /* Popover simple del usuario */
+
 .ks-user-menu {
+
   position: absolute;
+
   right: 10px;
+
   top: 56px;
+
   background: #123b56;
+
   border: 1px solid #0a2a3d;
+
   border-radius: 8px;
+
   padding: 8px;
+
   display: flex;
+
   flex-direction: column;
+
   gap: 6px;
+
   z-index: 1000;
+
 }
+
 .ks-user-menu a,
+
 .ks-user-menu button {
+
   color: #ffffff;
+
   background: none;
+
   border: none;
+
   text-align: left;
+
   padding: 6px 8px;
+
   cursor: pointer;
+
   text-decoration: none;
+
 }
 
 /* Badge del carro */
+
 .ks-cart { position: relative; }
+
 .ks-badge {
+
   position: absolute;
+
   top: -4px;
+
   right: -8px;
+
   font-size: 10px;
+
   border-radius: 10px;
+
   padding: 0 4px;
+
   --background: #17c964;
+
   --color: #00140f;
+
 }
 
-/* Barra de bÃƒÂºsqueda (segunda lÃƒÂ­nea) */
+/* Barra de búsqueda (segunda línea) */
+
 .ks-toolbar-search {
+
   --background: var(--ks-brand-bg-translucent);
+
   padding-inline: 12px;
+
   border-top: 1px solid var(--ks-border);
+
   background: var(--ks-brand-bg) !important;
+
   color: #ffffff !important;
+
 }
+
 .ks-toolbar-search ion-searchbar {
+
   --background: rgba(255, 255, 255, 0.12);
+
   --color: #fff;
+
   --placeholder-color: var(--ks-text-muted);
+
   --icon-color: #ffffff;
+
   border-radius: 10px;
+
 }
+
 .ks-toolbar-search ion-searchbar {
+
   --background: rgba(255, 255, 255, 0.08);
+
   --color: #fff;
+
   --placeholder-color: var(--ks-text-muted);
+
   --icon-color: #ffffff;
+
   border-radius: 10px;
+
 }
 
-/* Responsive: escondemos el menÃƒÂº en mÃƒÂ³viles (hamburguesa futura) */
+/* Responsive: escondemos el menú en móviles (hamburguesa futura) */
+
 @media (max-width: 640px) {
-  .ks-nav { display:flex; align-items:center; gap:36px; color:#ffffff !important; }
-  .ks-bar { position: relative; display: flex; align-items: center; justify-content: center; min-height: 56px; width: 100%; padding: 0 72px; }
-}
 
+  .ks-nav { display:flex; align-items:center; gap:36px; color:#ffffff !important; }
+
+  .ks-bar { position: relative; display: flex; align-items: center; justify-content: center; min-height: 56px; width: 100%; padding: 0 72px; }
+
+}
 
 /* =========================================================
+
    FOOTER
+
    ========================================================= */
 
 .ks-footer {
+
   /* Fuerza fondo azul y texto blanco, igual que el header */
+
   --background: var(--ks-brand-bg) !important;
+
   --ion-background-color: var(--ks-brand-bg) !important;
+
   background: var(--ks-brand-bg) !important;
+
   background-color: var(--ks-brand-bg) !important;
+
   --color: #ffffff;
+
   color: #ffffff !important;
+
   border-top: 1px solid var(--ks-border);
+
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.25);
+
 }
 
 /* Contenedor de 3 columnas: izquierda | centro | derecha */
+
 .ks-footer-wrap {
+
   max-width: 1180px;
+
   margin: 0 auto;
+
   /* Compactamos el footer por defecto */
+
   padding: 12px 16px;
+
   display: grid;
+
   grid-template-columns: 1.2fr 1fr 0.9fr;
+
   gap: 16px;
+
   align-items: start;
+
   font-size: 13px;
+
   line-height: 1.4;
+
 }
 
 /* ---- Columna izquierda: logo + items con icono ---- */
+
 .ks-footer-logo {
+
   height: 40px;
+
   margin-bottom: 6px;
+
   display: block;
+
   object-fit: contain;
+
 }
 
 .ks-footer-item {
+
   display: flex;
+
   align-items: flex-start;
+
   gap: 8px;
+
   margin: 6px 0;
+
 }
+
 .ks-footer-item ion-icon {
+
   font-size: 18px;
+
   color: var(--ks-accent);
+
   margin-top: 2px;
+
 }
+
 .ks-footer-item strong { font-weight: 600; }
+
 .ks-footer-item a {
+
   color: #ffffff;
+
   text-decoration: none;
+
 }
+
 .ks-footer-item a:hover { text-decoration: underline; }
 
-/* ---- Columna centro: textos de envÃƒÂ­os/retiros ---- */
+/* ---- Columna centro: textos de envíos/retiros ---- */
+
 .ks-footer-middle p { margin: 4px 0; }
+
 .ks-footer-middle strong { font-weight: 600; }
+
 .ks-footer-middle ul { margin: 6px 0 0 18px; padding: 0; }
+
 .ks-footer-middle li { list-style: disc; }
 
 /* ---- Columna derecha: redes sociales ---- */
+
 .ks-footer-right {
+
   display: flex;
+
   align-items: flex-end;
+
   justify-content: flex-end;
+
   /* Evita que estire la altura del footer */
+
   min-height: auto;
+
 }
+
 .ks-socials { display: flex; gap: 12px; }
+
 .ks-socials a {
+
   width: 32px;
+
   height: 32px;
+
   border-radius: 50%;
+
   border: 2px solid var(--ks-accent);
+
   display: inline-flex;
+
   align-items: center;
+
   justify-content: center;
+
   color: var(--ks-accent);
+
   transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+
 }
+
 .ks-socials a ion-icon { font-size: 18px; }
+
 .ks-socials a:hover {
+
   background: rgba(245, 214, 75, 0.12);
+
   color: #1b1b1b;
+
   transform: translateY(-1px);
+
 }
 
 /* ---- Responsive ---- */
+
 @media (max-width: 1100px) {
+
   .ks-footer-wrap { max-width: 100%; padding-inline: 12px; }
+
 }
+
 @media (max-width: 900px) {
+
   .ks-footer-wrap { grid-template-columns: 1fr; gap: 18px; }
+
   .ks-footer-right { justify-content: flex-start; }
+
 }
 
-/* Footer compacto en mÃƒÂ³viles */
+/* Footer compacto en móviles */
+
 @media (max-width: 600px) {
-  .ks-footer { box-shadow: 0 -1px 8px rgba(0,0,0,0.15); }
-  .ks-footer-wrap {
-    padding: 8px 10px;
-    gap: 8px;
-    font-size: 12.5px;
-    line-height: 1.35;
-  }
-  .ks-footer-logo { height: 36px; margin-bottom: 4px; }
-  .ks-footer-item { margin: 4px 0; gap: 6px; }
-  .ks-footer-item ion-icon { font-size: 16px; }
-  .ks-socials a { width: 30px; height: 30px; }
-}
 
+  .ks-footer { box-shadow: 0 -1px 8px rgba(0,0,0,0.15); }
+
+  .ks-footer-wrap {
+
+    padding: 8px 10px;
+
+    gap: 8px;
+
+    font-size: 12.5px;
+
+    line-height: 1.35;
+
+  }
+
+  .ks-footer-logo { height: 36px; margin-bottom: 4px; }
+
+  .ks-footer-item { margin: 4px 0; gap: 6px; }
+
+  .ks-footer-item ion-icon { font-size: 16px; }
+
+  .ks-socials a { width: 30px; height: 30px; }
+
+}
 
 /* Refuerzo directo para fondo azul */
+
 .ks-header, .ks-toolbar { background-color: #0c4a6e !important; }
 
-
 /* Refuerzo directo de color para el footer (evita choques globales) */
+
 .ks-footer { background: #0c4a6e !important; background-color: #0c4a6e !important; color: #ffffff !important; }
+
 .ks-footer .ks-footer-wrap { background: #0c4a6e !important; color: #ffffff !important; }
+
 .ks-footer a { color: #ffffff !important; }
 
 /* ---- Modo ultra-compacto (slim) ---- */
-.ks-footer.ks-slim .ks-footer-wrap { padding: 6px 10px; gap: 8px; font-size: 12px; line-height: 1.3; }
-.ks-footer.ks-slim .ks-footer-logo { display: none; }
-.ks-footer.ks-slim .ks-footer-item { margin: 2px 0; gap: 6px; }
-.ks-footer.ks-slim .ks-socials a { width: 28px; height: 28px; }
-.ks-footer.ks-slim .ks-footer-middle ul { margin: 0; padding: 0; }
-.ks-footer.ks-slim .ks-footer-middle li { list-style: none; display: inline; margin-right: 10px; }
 
+.ks-footer.ks-slim .ks-footer-wrap { padding: 6px 10px; gap: 8px; font-size: 12px; line-height: 1.3; }
+
+.ks-footer.ks-slim .ks-footer-logo { display: none; }
+
+.ks-footer.ks-slim .ks-footer-item { margin: 2px 0; gap: 6px; }
+
+.ks-footer.ks-slim .ks-socials a { width: 28px; height: 28px; }
+
+.ks-footer.ks-slim .ks-footer-middle ul { margin: 0; padding: 0; }
+
+.ks-footer.ks-slim .ks-footer-middle li { list-style: none; display: inline; margin-right: 10px; }
 
