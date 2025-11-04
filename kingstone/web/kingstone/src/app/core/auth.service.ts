@@ -20,7 +20,18 @@ export class AuthService {
 
   private endpoint(path: string): string {
     const normalized = path.startsWith('/') ? path : `/${path}`;
-    return this.apiBase ? `${this.apiBase}${normalized}` : normalized;
+    if (this.apiBase) {
+      return `${this.apiBase}${normalized}`;
+    }
+    if (normalized.startsWith('/api/')) {
+      return normalized;
+    }
+    const firstSegment = normalized.split('/')[1] || '';
+    const passthroughSegments = new Set(['auth', 'catalogo']);
+    if (passthroughSegments.has(firstSegment)) {
+      return normalized;
+    }
+    return `/api${normalized}`;
   }
 
   private mapRole(role?: string | null): UserRole {
