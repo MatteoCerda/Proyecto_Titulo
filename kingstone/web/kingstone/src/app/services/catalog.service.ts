@@ -9,7 +9,7 @@ export interface CatalogItem {
   color: string;
   provider: string;
   quantity: number;
-  price: number;
+  price: number | null;
   priceWeb: number | null;
   priceStore: number | null;
   priceWsp: number | null;

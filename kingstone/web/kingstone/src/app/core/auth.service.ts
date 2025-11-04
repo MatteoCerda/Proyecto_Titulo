@@ -107,7 +107,7 @@ export class AuthService {
   async getMe() {
     const res = await firstValueFrom(
       this.http.get<{ user: { email: string; role: string; fullName?: string } }>(
-        this.endpoint('/me')
+        this.endpoint('/api/me')
       )
     );
     const role = this.mapRole(res.user?.role);
@@ -119,7 +119,7 @@ export class AuthService {
   async updateProfile(fullName: string) {
     const res = await firstValueFrom(
       this.http.put<{ user: { email: string; role: string; fullName?: string } }>(
-        this.endpoint('/me'),
+        this.endpoint('/api/me'),
         { fullName }
       )
     );
@@ -131,7 +131,7 @@ export class AuthService {
 
   async updatePassword(currentPassword: string, newPassword: string) {
     await firstValueFrom(
-      this.http.put<{ ok: boolean }>(this.endpoint('/me/password'), {
+      this.http.put<{ ok: boolean }>(this.endpoint('/api/me/password'), {
         currentPassword,
         newPassword
       })
@@ -141,7 +141,7 @@ export class AuthService {
 
   async getClientProfile() {
     const res = await firstValueFrom(
-      this.http.get<{ profile: any }>(this.endpoint('/me/profile'))
+      this.http.get<{ profile: any }>(this.endpoint('/api/me/profile'))
     );
     return res.profile || null;
   }
@@ -155,7 +155,7 @@ export class AuthService {
     ciudad?: string;
   }) {
     const res = await firstValueFrom(
-      this.http.put<{ profile: any }>(this.endpoint('/me/profile'), data)
+      this.http.put<{ profile: any }>(this.endpoint('/api/me/profile'), data)
     );
     return res.profile;
   }
