@@ -20,7 +20,10 @@ interface OfertaCliente {
   startAt?: string | null;
   endAt?: string | null;
   inventario?: { code: string; name: string } | null;
-  precioOferta?: number | null;
+  basePrice?: number | null;
+  offerPrice?: number | null;
+  discountAmount?: number | null;
+  discountPercent?: number | null;
 }
 
 @Component({

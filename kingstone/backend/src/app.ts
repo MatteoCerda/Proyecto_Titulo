@@ -13,6 +13,32 @@ import operatorRoutes from './modules/operator/operator.routes';
 import { operatorGuard } from './modules/common/middlewares/operatorGuard';
 import { normalizeRut } from './modules/common/rut';
 
+function resolveInventoryUnitPrice(record?: {
+  priceWeb: any;
+  priceStore: any;
+  priceWsp: any;
+} | null): number | null {
+  if (!record) return null;
+  const candidates = [
+    record.priceWeb,
+    record.priceStore,
+    record.priceWsp
+  ];
+  for (const candidate of candidates) {
+    const value = typeof candidate === 'number' ? candidate : Number(candidate);
+    if (!Number.isNaN(value) && value > 0) {
+      return value;
+    }
+  }
+  for (const candidate of candidates) {
+    const value = typeof candidate === 'number' ? candidate : Number(candidate);
+    if (!Number.isNaN(value)) {
+      return value;
+    }
+  }
+  return null;
+}
+
 const app = express();
 app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
@@ -281,12 +307,60 @@ const offersHandler = async (_req: express.Request, res: express.Response) => {
         prioridad: true,
         startAt: true,
         endAt: true,
+        itemId: true,
+        precioOferta: true,
         inventario: {
-          select: { code: true, name: true }
-        },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            priceWeb: true,
+            priceStore: true,
+            priceWsp: true
+          }
+        }
       },
     });
-    res.json(offers);
+
+    const normalized = offers.map(offer => {
+      const basePrice = resolveInventoryUnitPrice(offer.inventario) ?? null;
+      const offerPrice =
+        offer.precioOferta && offer.precioOferta > 0 ? offer.precioOferta : null;
+      const discountAmount =
+        basePrice !== null && offerPrice !== null && basePrice > offerPrice
+          ? basePrice - offerPrice
+          : null;
+      const discountPercent =
+        discountAmount !== null && basePrice
+          ? Math.round((discountAmount / basePrice) * 100)
+          : null;
+
+      return {
+        id: offer.id,
+        titulo: offer.titulo,
+        descripcion: offer.descripcion,
+        imageUrl: offer.imageUrl,
+        link: offer.link,
+        prioridad: offer.prioridad,
+        startAt: offer.startAt,
+        endAt: offer.endAt,
+        itemId: offer.itemId ?? null,
+        basePrice,
+        offerPrice,
+        precioOferta: offerPrice,
+        discountAmount,
+        discountPercent,
+        inventario: offer.inventario
+          ? {
+              id: offer.inventario.id,
+              code: offer.inventario.code,
+              name: offer.inventario.name
+            }
+          : null
+      };
+    });
+
+    res.json(normalized);
   } catch (error) {
     console.error('Error obteniendo ofertas', error);
     res.status(500).json({ message: 'Error interno' });

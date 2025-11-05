@@ -74,11 +74,13 @@ export class ProductosPage implements OnInit {
       {
         id: item.id,
         name: item.name,
-        price: item.price ?? item.priceWeb ?? 0,
+        price: item.price,
         itemType: item.itemType,
         color: item.color,
         provider: item.provider,
-        imageUrl: item.imageUrl
+        imageUrl: item.imageUrl,
+        precioOferta: item.offerPrice ?? undefined,
+        precioOriginal: item.offerPrice ? item.basePrice : undefined
       },
       1
     );

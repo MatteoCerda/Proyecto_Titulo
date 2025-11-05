@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../lib/prisma';
 import { normalizeRut } from '../common/rut';
 import { generateClaimCode, hashClaimCode } from '../common/claim';
+import { calculateTaxBreakdown, DEFAULT_CURRENCY, TAX_RATE } from '../common/pricing';
 
 const router = Router();
 
@@ -163,16 +164,11 @@ router.post('/ventas', async (req, res) => {
       if (dto.cliente.telefono) updates['telefono'] = dto.cliente.telefono;
       updates['tipoRegistro'] = dto.canal;
       if (clienteRecord.estado === 'pending_claim') {
-        const expired =
-          !clienteRecord.claimExpiresAt ||
-          new Date(clienteRecord.claimExpiresAt).getTime() < Date.now();
-        if (expired) {
-          claimCode = generateClaimCode();
-          claimExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-          updates['claimCodeHash'] = hashClaimCode(claimCode);
-          updates['claimExpiresAt'] = claimExpiresAt;
-          updates['claimIssuedAt'] = now;
-        }
+        claimCode = generateClaimCode();
+        claimExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        updates['claimCodeHash'] = hashClaimCode(claimCode);
+        updates['claimExpiresAt'] = claimExpiresAt;
+        updates['claimIssuedAt'] = now;
       }
       if (Object.keys(updates).length) {
         clienteRecord = await (prisma as any).cliente.update({
@@ -203,6 +199,8 @@ router.post('/ventas', async (req, res) => {
     const clienteNombre = dto.cliente.nombre || clienteRecord.nombre_contacto || 'Cliente presencial';
     const clienteEmail = dto.cliente.email || clienteRecord.email || null;
     const pedidoUserId = clienteRecord.id_usuario ? Number(clienteRecord.id_usuario) : null;
+    const totalVenta = Math.round(dto.resumen.total);
+    const breakdown = calculateTaxBreakdown(totalVenta, TAX_RATE);
 
     const pedido = await prisma.pedido.create({
       data: {
@@ -212,7 +210,10 @@ router.post('/ventas', async (req, res) => {
         clienteNombre,
         estado: 'PENDIENTE',
         notificado: false,
-        total: Math.round(dto.resumen.total),
+        total: totalVenta,
+        subtotal: breakdown.subtotal,
+        taxTotal: breakdown.tax,
+        moneda: DEFAULT_CURRENCY,
         itemsCount: dto.resumen.itemsCount ?? null,
         materialId: dto.resumen.materialId ?? null,
         materialLabel: dto.resumen.materialLabel ?? null,
@@ -233,6 +234,13 @@ router.post('/ventas', async (req, res) => {
             estado: clienteRecord.estado
           },
           resumen: dto.resumen,
+          pricing: {
+            total: totalVenta,
+            subtotal: breakdown.subtotal,
+            taxTotal: breakdown.tax,
+            taxRate: TAX_RATE,
+            currency: DEFAULT_CURRENCY
+          },
           claim: {
             pending: clienteRecord.estado === 'pending_claim',
             expiresAt: claimExpiresAt ? claimExpiresAt.toISOString() : clienteRecord.claimExpiresAt,

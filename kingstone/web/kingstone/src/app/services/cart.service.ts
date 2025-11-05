@@ -1,5 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { OfferService } from './offer.service';
+import { take } from 'rxjs/operators';
 
 export interface CartProduct {
   id: number;
@@ -67,10 +68,11 @@ export class CartService {
   addProduct(product: Omit<CartProduct, 'quantity'>, quantity = 1) {
     if (quantity <= 0) return;
 
-    this.offerService.getOfferForProduct(product.id).subscribe(offer => {
-      const productToAdd: CartProduct = { ...product, quantity };
-      if (offer && offer.precioOferta) {
-        productToAdd.precioOferta = offer.precioOferta;
+    const commit = (productToAdd: CartProduct) => {
+      if (
+        productToAdd.precioOferta !== undefined &&
+        productToAdd.precioOriginal === undefined
+      ) {
         productToAdd.precioOriginal = product.price;
       }
 
@@ -80,19 +82,47 @@ export class CartService {
           const updated = [...state.products];
           updated[existingIndex] = {
             ...updated[existingIndex],
-            quantity: updated[existingIndex].quantity + quantity
+            quantity: updated[existingIndex].quantity + quantity,
+            price: productToAdd.price,
+            precioOferta: productToAdd.precioOferta ?? updated[existingIndex].precioOferta,
+            precioOriginal:
+              productToAdd.precioOriginal ?? updated[existingIndex].precioOriginal
           };
           return { ...state, products: updated };
         }
         return {
           ...state,
-          products: [
-            ...state.products,
-            productToAdd
-          ]
+          products: [...state.products, productToAdd]
         };
       });
-    });
+    };
+
+    const baseProduct: CartProduct = {
+      ...product,
+      quantity,
+      precioOferta: product.precioOferta,
+      precioOriginal: product.precioOriginal
+    };
+
+    if (baseProduct.precioOferta !== undefined) {
+      commit(baseProduct);
+      return;
+    }
+
+    this.offerService
+      .getOfferForProduct(product.id)
+      .pipe(take(1))
+      .subscribe({
+        next: offer => {
+          const productToAdd = { ...baseProduct };
+          if (offer && offer.precioOferta) {
+            productToAdd.precioOferta = offer.precioOferta;
+            productToAdd.precioOriginal = product.price;
+          }
+          commit(productToAdd);
+        },
+        error: () => commit(baseProduct)
+      });
   }
 
   updateProductQuantity(id: number, quantity: number) {

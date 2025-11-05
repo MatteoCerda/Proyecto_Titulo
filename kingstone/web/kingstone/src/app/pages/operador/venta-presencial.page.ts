@@ -424,5 +424,13 @@ export class OperatorVentaPresencialPage {
     }
     return item.priceWsp ?? item.price ?? item.priceWeb ?? item.priceStore ?? null;
   }
+
+  precioPresencial(item: CatalogItem): number {
+    return this.getPriceForItem(item, 'presencial') ?? 0;
+  }
+
+  precioWsp(item: CatalogItem): number {
+    return this.getPriceForItem(item, 'wsp') ?? 0;
+  }
 }
 

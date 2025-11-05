@@ -17,6 +17,7 @@ interface Oferta {
   itemId?: number | null;
   startAt?: string | null;
   endAt?: string | null;
+  precioOferta?: number | null;
   inventario?: { id: number; code: string; name: string } | null;
 }
 
@@ -30,6 +31,7 @@ interface OfertaForm {
   itemId: string;
   startAt: string;
   endAt: string;
+  precioOferta: string;
 }
 
 interface InventoryOption { id: number; code: string; name: string; }
@@ -82,7 +84,8 @@ export class AdminOfertasPage {
       prioridad: 0,
       itemId: '',
       startAt: '',
-      endAt: ''
+      endAt: '',
+      precioOferta: ''
     };
   }
 
@@ -133,7 +136,11 @@ export class AdminOfertasPage {
       prioridad: oferta.prioridad,
       itemId: oferta.itemId ? String(oferta.itemId) : '',
       startAt: oferta.startAt ? this.toLocalDateTime(oferta.startAt) : '',
-      endAt: oferta.endAt ? this.toLocalDateTime(oferta.endAt) : ''
+      endAt: oferta.endAt ? this.toLocalDateTime(oferta.endAt) : '',
+      precioOferta:
+        oferta.precioOferta !== undefined && oferta.precioOferta !== null
+          ? String(oferta.precioOferta)
+          : ''
     };
     this.formError = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -179,6 +186,16 @@ export class AdminOfertasPage {
       startAt: startAt ? startAt.toISOString() : undefined,
       endAt: endAt ? endAt.toISOString() : undefined
     };
+
+    const precioRaw = (this.form.precioOferta || '').trim();
+    if (precioRaw.length) {
+      const parsed = Number(precioRaw);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        this.formError = 'El precio de oferta debe ser un número mayor o igual a 0.';
+        return;
+      }
+      payload.precioOferta = Math.round(parsed);
+    }
 
     this.saving = true;
     this.formError = '';

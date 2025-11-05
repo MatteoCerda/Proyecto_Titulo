@@ -246,6 +246,49 @@
 
 .offer-link:hover { text-decoration:underline; }
 
+.offer-pricing {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: rgba(14, 165, 233, 0.08);
+  border-radius: 12px;
+}
+
+.offer-pricing .price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.price-row .before {
+  color: #94a3b8;
+  font-size: 14px;
+  text-decoration: line-through;
+}
+
+.price-row .now {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.price-row .discount {
+  background: #f97316;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.offer-pricing .savings {
+  margin: 0;
+  font-size: 13px;
+  color: #047857;
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   .home-offers { padding:24px; }
 }

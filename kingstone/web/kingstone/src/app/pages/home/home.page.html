@@ -52,6 +52,16 @@
           <h3>{{ oferta.titulo }}</h3>
           <p *ngIf="oferta.descripcion">{{ oferta.descripcion }}</p>
           <p class="offer-product" *ngIf="oferta.inventario">{{ oferta.inventario.code }} &mdash; {{ oferta.inventario.name }}</p>
+          <div class="offer-pricing" *ngIf="oferta.offerPrice !== null && oferta.offerPrice !== undefined">
+            <div class="price-row">
+              <span class="before" *ngIf="oferta.basePrice">{{ oferta.basePrice | currency:'CLP':'symbol-narrow':'1.0-0' }}</span>
+              <strong class="now">{{ oferta.offerPrice | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+              <span class="discount" *ngIf="oferta.discountPercent !== null && oferta.discountPercent !== undefined">
+                -{{ oferta.discountPercent }}%
+              </span>
+            </div>
+            <p class="savings" *ngIf="oferta.discountAmount">{{ 'Ahorra ' + (oferta.discountAmount | currency:'CLP':'symbol-narrow':'1.0-0') }}</p>
+          </div>
           <a *ngIf="oferta.link" class="offer-link" [href]="oferta.link" target="_blank" rel="noopener">
             Ver m&aacute;s
           </a>

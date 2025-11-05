@@ -12,6 +12,7 @@ import { promises as fsPromises } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { prisma } from '../../lib/prisma';
+import { calculateTaxBreakdown, DEFAULT_CURRENCY, TAX_RATE } from '../common/pricing';
 
 const router = Router();
 type DbClient = Prisma.TransactionClient | PrismaClient;
@@ -88,6 +89,8 @@ type MaterialPreset = {
 };
 
 const MATERIAL_PRESET_MAP: Record<string, MaterialPreset> = {};
+const MATERIAL_UNIT_LENGTH_CM = 100;
+const CURRENCY_CODE = DEFAULT_CURRENCY;
 
 type JwtUser = { sub?: number; email?: string; role?: string };
 
@@ -353,36 +356,73 @@ async function adjustMaterialStock(
   if (!deltaLengthCm || Math.abs(deltaLengthCm) < 0.01) return;
   const inventory = await findInventoryByMaterial(materialId, client);
   if (!inventory) return;
-  const meters = deltaLengthCm / 100;
-  if (meters > 0) {
-    const decrement = Math.max(1, Math.ceil(meters));
-    if (inventory.quantity < decrement) {
+  const deltaCm = Math.round(deltaLengthCm);
+  if (!deltaCm) {
+    return;
+  }
+
+  const remainderRecord = await client.inventoryLengthRemainder.findUnique({
+    where: { inventoryId: inventory.id }
+  });
+  let remainderCm = remainderRecord?.remainderCm ?? 0;
+
+  if (deltaCm > 0) {
+    const availableCm = (inventory.quantity ?? 0) * MATERIAL_UNIT_LENGTH_CM - remainderCm;
+    if (deltaCm > availableCm) {
       throw createStockError({
         materialId,
         inventoryId: inventory.id,
-        requested: decrement,
-        available: inventory.quantity ?? 0
+        requestedCentimeters: deltaCm,
+        availableCentimeters: availableCm,
+        remainderCentimeters: remainderCm
       });
     }
-    const result = await client.inventoryItem.updateMany({
-      where: { id: inventory.id, quantity: { gte: decrement } },
-      data: { quantity: { decrement } }
-    });
-    if (!result.count) {
-      throw createStockError({
-        materialId,
-        inventoryId: inventory.id,
-        requested: decrement,
-        available: inventory.quantity ?? 0
+    const totalConsumed = remainderCm + deltaCm;
+    const wholeMeters = Math.floor(totalConsumed / MATERIAL_UNIT_LENGTH_CM);
+    remainderCm = totalConsumed % MATERIAL_UNIT_LENGTH_CM;
+    if (wholeMeters > 0) {
+      const result = await client.inventoryItem.updateMany({
+        where: { id: inventory.id, quantity: { gte: wholeMeters } },
+        data: { quantity: { decrement: wholeMeters } }
       });
+      if (!result.count) {
+        throw createStockError({
+          materialId,
+          inventoryId: inventory.id,
+          requested: wholeMeters,
+          available: inventory.quantity ?? 0,
+          remainderCentimeters: remainderCm
+        });
+      }
+      inventory.quantity = (inventory.quantity ?? 0) - wholeMeters;
     }
   } else {
-    const increment = Math.max(1, Math.ceil(Math.abs(meters)));
-    await client.inventoryItem.update({
-      where: { id: inventory.id },
-      data: { quantity: { increment } }
-    });
+    let totalRemainder = remainderCm + deltaCm;
+    let metersToReturn = 0;
+    while (totalRemainder < 0) {
+      totalRemainder += MATERIAL_UNIT_LENGTH_CM;
+      metersToReturn += 1;
+    }
+    remainderCm = totalRemainder;
+    if (metersToReturn > 0) {
+      await client.inventoryItem.update({
+        where: { id: inventory.id },
+        data: { quantity: { increment: metersToReturn } }
+      });
+      inventory.quantity = (inventory.quantity ?? 0) + metersToReturn;
+    }
   }
+
+  if (remainderCm < 0) {
+    remainderCm =
+      ((remainderCm % MATERIAL_UNIT_LENGTH_CM) + MATERIAL_UNIT_LENGTH_CM) % MATERIAL_UNIT_LENGTH_CM;
+  }
+
+  await client.inventoryLengthRemainder.upsert({
+    where: { inventoryId: inventory.id },
+    create: { inventoryId: inventory.id, remainderCm },
+    update: { remainderCm }
+  });
 }
 
 async function decrementInventoryItem(
@@ -496,12 +536,20 @@ export async function recomputePedidoAggregates(pedidoId: number, client: DbClie
     filesTotalPrice: totalPrice ?? undefined
   };
 
+  const updateData: any = {
+    payload: nextPayload as any
+  };
+  if ((!pedido.total || pedido.total <= 0) && typeof totalPrice === 'number' && totalPrice > 0) {
+    const breakdown = calculateTaxBreakdown(totalPrice, TAX_RATE);
+    updateData.total = totalPrice;
+    updateData.subtotal = breakdown.subtotal;
+    updateData.taxTotal = breakdown.tax;
+    updateData.moneda = pedido.moneda || CURRENCY_CODE;
+  }
+
   await client.pedido.update({
     where: { id: pedidoId },
-    data: {
-      payload: nextPayload as any,
-      total: pedido.total && pedido.total > 0 ? pedido.total : (totalPrice ?? pedido.total)
-    }
+    data: updateData
   });
 
   const deltaLength = totalLength - (oldLength || 0);
@@ -611,6 +659,9 @@ type PedidoNotifyPayload = {
   clienteEmail: string | null;
   clienteNombre: string | null;
   total: number | null;
+  subtotal?: number | null;
+  taxTotal?: number | null;
+  currency?: string | null;
   materialLabel: string | null;
   payload: any;
   createdAt: Date;
@@ -678,6 +729,10 @@ async function notifyPedidoEstado(pedido: PedidoNotifyPayload) {
     html: message.html,
     enlaces: message.enlaces,
     total: pedido.total ?? null,
+    subtotal: typeof pedido.subtotal === 'number' ? pedido.subtotal : null,
+    taxTotal: typeof pedido.taxTotal === 'number' ? pedido.taxTotal : null,
+    currency: pedido.currency || CURRENCY_CODE,
+    taxRate: TAX_RATE,
     material: pedido.materialLabel ?? null,
     origen: typeof pedido.payload === 'object' && pedido.payload !== null ? (pedido.payload as any).source ?? null : null
   };
@@ -741,6 +796,35 @@ async function handleCartOrder(dto: CartCreate, user: JwtUser | undefined, res: 
       })
     : [];
 
+  const now = new Date();
+  const offers = productIds.length
+    ? await prisma.oferta.findMany({
+        where: {
+          activo: true,
+          itemId: { in: productIds },
+          OR: [{ startAt: null }, { startAt: { lte: now } }],
+          AND: [{ OR: [{ endAt: null }, { endAt: { gte: now } }] }]
+        },
+        select: {
+          id: true,
+          itemId: true,
+          titulo: true,
+          precioOferta: true
+        }
+      })
+    : [];
+
+  const offersByItemId = new Map<number, { id: number; titulo: string | null; precioOferta: number | null }>();
+  for (const offer of offers) {
+    if (typeof offer.itemId === 'number') {
+      offersByItemId.set(offer.itemId, {
+        id: offer.id,
+        titulo: offer.titulo,
+        precioOferta: offer.precioOferta
+      });
+    }
+  }
+
   const inventoryById = new Map(inventoryItems.map(item => [item.id, item]));
   for (const product of dto.products) {
     if (!inventoryById.get(product.id)) {
@@ -753,14 +837,27 @@ async function handleCartOrder(dto: CartCreate, user: JwtUser | undefined, res: 
 
   const sanitizedProducts = dto.products.map(product => {
     const record = inventoryById.get(product.id)!;
-    const unitPrice = resolveInventoryUnitPrice(record);
+    const baseUnitPrice = resolveInventoryUnitPrice(record);
+    const offer = offersByItemId.get(record.id);
+    const offerUnitPrice = offer?.precioOferta && offer.precioOferta > 0 ? offer.precioOferta : null;
+    const unitPrice = offerUnitPrice ?? baseUnitPrice;
     const lineTotal = unitPrice * product.quantity;
+    const originalLineTotal = baseUnitPrice * product.quantity;
     return {
       id: record.id,
       name: record.name,
       quantity: product.quantity,
       price: unitPrice,
       lineTotal,
+      originalPrice: baseUnitPrice,
+      originalLineTotal,
+      offerApplied: offer
+        ? {
+            id: offer.id,
+            title: offer.titulo,
+            price: offerUnitPrice
+          }
+        : null,
       itemType: record.itemType ?? null,
       color: record.color ?? null,
       provider: record.provider ?? null,
@@ -769,6 +866,11 @@ async function handleCartOrder(dto: CartCreate, user: JwtUser | undefined, res: 
   });
 
   const catalogTotal = sanitizedProducts.reduce((acc, item) => acc + item.lineTotal, 0);
+  const catalogOriginalTotal = sanitizedProducts.reduce(
+    (acc, item) => acc + (item.originalLineTotal ?? item.lineTotal),
+    0
+  );
+  const catalogDiscount = catalogOriginalTotal - catalogTotal;
   const clientCatalogTotal = dto.products.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
   let sanitizedQuote: (CartQuote & {
@@ -818,6 +920,7 @@ async function handleCartOrder(dto: CartCreate, user: JwtUser | undefined, res: 
   const quoteCount = sanitizedQuote?.items?.reduce((acc, item) => acc + item.quantity, 0) ?? 0;
   const itemsCount = productsCount + quoteCount;
   const total = Math.round(catalogTotal + quoteTotal);
+  const { subtotal, tax } = calculateTaxBreakdown(total, TAX_RATE);
   const clientQuoteTotal = dto.quote?.totalPrice ?? null;
 
   const pedidoId = await prisma.$transaction(async tx => {
@@ -830,6 +933,9 @@ async function handleCartOrder(dto: CartCreate, user: JwtUser | undefined, res: 
         estado: 'PENDIENTE',
         notificado: true,
         total,
+        subtotal,
+        taxTotal: tax,
+        moneda: CURRENCY_CODE,
         itemsCount,
         materialId: quoteMaterialId,
         materialLabel: quoteMaterialLabel,
@@ -840,8 +946,14 @@ async function handleCartOrder(dto: CartCreate, user: JwtUser | undefined, res: 
           note: dto.note ?? null,
           pricing: {
             catalogTotal,
+            catalogOriginalTotal,
+            catalogDiscount,
             quoteTotal,
             computedTotal: total,
+            subtotal,
+            taxTotal: tax,
+            taxRate: TAX_RATE,
+            currency: CURRENCY_CODE,
             clientCatalogTotal,
             clientQuoteTotal,
             quotePricePerMeter: sanitizedQuote?.pricePerMeter ?? null,
@@ -907,6 +1019,7 @@ async function handleDesignerOrder(dto: DesignerCreate, user: JwtUser | undefine
     });
   }
   const computedTotal = calculateMaterialPrice(dto.usedHeight, pricePerMeter);
+  const breakdown = calculateTaxBreakdown(computedTotal, TAX_RATE);
   const itemsCount = dto.items.reduce((acc, item) => acc + item.quantity, 0);
   const materialLabel =
     materialInventory?.name ?? dto.materialLabel ?? materialPreset?.label ?? dto.materialId;
@@ -928,6 +1041,9 @@ async function handleDesignerOrder(dto: DesignerCreate, user: JwtUser | undefine
         estado: 'PENDIENTE',
         notificado: true,
         total: computedTotal,
+        subtotal: breakdown.subtotal,
+        taxTotal: breakdown.tax,
+        moneda: CURRENCY_CODE,
         itemsCount,
         materialId: dto.materialId,
         materialLabel,
@@ -937,6 +1053,10 @@ async function handleDesignerOrder(dto: DesignerCreate, user: JwtUser | undefine
           pricing: {
             pricePerMeter,
             computedTotal,
+            subtotal: breakdown.subtotal,
+            taxTotal: breakdown.tax,
+            taxRate: TAX_RATE,
+            currency: CURRENCY_CODE,
             clientTotal: dto.totalPrice ?? null,
             presetLabel: materialPreset?.label ?? null
           },
@@ -1026,15 +1146,18 @@ router.get('/', async (req, res) => {
       const respuesta = pedidos.map(p => ({
         id: p.id,
         cliente: p.clienteNombre || p.clienteEmail || 'Tu pedido',
-        email: p.clienteEmail || email || '',
-        estado: p.estado,
-        createdAt: p.createdAt,
-        total: p.total || undefined,
-        items: p.itemsCount || undefined,
-        materialLabel: p.materialLabel || undefined,
-        note: typeof p.payload === 'object' && p.payload !== null ? (p.payload as any).note ?? undefined : undefined,
-        payload: p.payload
-      }));
+      email: p.clienteEmail || email || '',
+      estado: p.estado,
+      createdAt: p.createdAt,
+      total: typeof p.total === 'number' ? p.total : undefined,
+      subtotal: typeof p.subtotal === 'number' ? p.subtotal : undefined,
+      taxTotal: typeof p.taxTotal === 'number' ? p.taxTotal : undefined,
+      currency: p.moneda || undefined,
+      items: p.itemsCount || undefined,
+      materialLabel: p.materialLabel || undefined,
+      note: typeof p.payload === 'object' && p.payload !== null ? (p.payload as any).note ?? undefined : undefined,
+      payload: p.payload
+    }));
 
       return res.json(respuesta);
     }
@@ -1063,7 +1186,10 @@ router.get('/', async (req, res) => {
       email: p.clienteEmail || '',
       estado: p.estado,
       createdAt: p.createdAt,
-      total: p.total || undefined,
+      total: typeof p.total === 'number' ? p.total : undefined,
+      subtotal: typeof p.subtotal === 'number' ? p.subtotal : undefined,
+      taxTotal: typeof p.taxTotal === 'number' ? p.taxTotal : undefined,
+      currency: p.moneda || undefined,
       items: p.itemsCount || undefined,
       notificado: p.notificado,
       materialLabel: p.materialLabel || undefined,
@@ -1107,6 +1233,9 @@ router.get('/admin/clientes', async (req, res) => {
           estado: pedido.estado,
           createdAt: pedido.createdAt,
           total: pedido.total ?? null,
+          subtotal: pedido.subtotal ?? null,
+          taxTotal: pedido.taxTotal ?? null,
+          currency: pedido.moneda ?? null,
           material: pedido.materialLabel ?? null
         }));
         return {
@@ -1540,6 +1669,67 @@ router.get('/:id/quote.pdf', async (req, res) => {
   }
 });
 
+router.get('/:id/files/jobs', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: 'ID invalido' });
+    }
+    const user = (req as any).user as JwtUser | undefined;
+    if (!user) {
+      return res.status(401).json({ message: 'No autorizado' });
+    }
+
+    const pedido = await prisma.pedido.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        userId: true,
+        clienteEmail: true,
+        processingJobs: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            status: true,
+            retryCount: true,
+            lastError: true,
+            createdAt: true,
+            startedAt: true,
+            completedAt: true,
+            updatedAt: true
+          }
+        }
+      }
+    });
+
+    if (!pedido) {
+      return res.status(404).json({ message: 'Pedido no encontrado' });
+    }
+    const canOperator = isOperator(user.role);
+    const canOwner = canAccessPedido(user, { userId: pedido.userId ?? null, clienteEmail: pedido.clienteEmail ?? null });
+    if (!(canOperator || canOwner)) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    res.json({
+      pedidoId: pedido.id,
+      jobs: pedido.processingJobs.map(job => ({
+        id: job.id,
+        status: job.status,
+        retryCount: job.retryCount,
+        lastError: job.lastError,
+        createdAt: job.createdAt,
+        startedAt: job.startedAt,
+        completedAt: job.completedAt,
+        updatedAt: job.updatedAt
+      }))
+    });
+  } catch (error) {
+    console.error('Error listando trabajos de archivos de pedido', error);
+    res.status(500).json({ message: 'Error interno' });
+  }
+});
+
 router.get('/:id/files', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -1776,6 +1966,9 @@ router.post('/:id/ack', async (req, res) => {
         clienteEmail: true,
         clienteNombre: true,
         total: true,
+        subtotal: true,
+        taxTotal: true,
+        moneda: true,
         materialLabel: true,
         payload: true,
         createdAt: true
@@ -1788,6 +1981,9 @@ router.post('/:id/ack', async (req, res) => {
       clienteEmail: updated.clienteEmail || null,
       clienteNombre: updated.clienteNombre || null,
       total: typeof updated.total === 'number' ? updated.total : null,
+      subtotal: typeof updated.subtotal === 'number' ? updated.subtotal : null,
+      taxTotal: typeof updated.taxTotal === 'number' ? updated.taxTotal : null,
+      currency: updated.moneda || CURRENCY_CODE,
       materialLabel: updated.materialLabel || null,
       payload: updated.payload,
       createdAt: updated.createdAt

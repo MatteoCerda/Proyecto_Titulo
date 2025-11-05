@@ -16,6 +16,10 @@ export interface Offer {
   startAt?: string | null;
   endAt?: string | null;
   precioOferta?: number | null;
+  basePrice?: number | null;
+  offerPrice?: number | null;
+  discountAmount?: number | null;
+  discountPercent?: number | null;
   inventario?: {
     id: number;
     code: string;
