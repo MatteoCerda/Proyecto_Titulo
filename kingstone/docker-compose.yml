@@ -34,14 +34,7 @@
     build:
       context: ./backend
     container_name: kingstone_api
-    environment:
-      DATABASE_URL: mysql://king:stone@db:3306/kingstone
-      SHADOW_DATABASE_URL: mysql://king:stone@db:3306/kingstone_shadow
-      JWT_SECRET: Duoc2025
-      JWT_EXPIRES_IN: 1d
-      PORT: 3000
-      NODE_ENV: production
-      PEDIDOS_UPLOAD_DIR: /app/uploads/pedidos
+    env_file: ./.env
     ports:
       - "3000:3000"
     depends_on:
@@ -53,12 +46,7 @@
     build:
       context: ./backend
     container_name: kingstone_worker
-    environment:
-      DATABASE_URL: mysql://king:stone@db:3306/kingstone
-      SHADOW_DATABASE_URL: mysql://king:stone@db:3306/kingstone_shadow
-      NODE_ENV: production
-      PEDIDOS_UPLOAD_DIR: /app/uploads/pedidos
-      FILE_JOB_POLL_INTERVAL_MS: 3000
+    env_file: ./.env
     depends_on:
       db:
         condition: service_healthy

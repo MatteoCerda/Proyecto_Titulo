@@ -48,12 +48,8 @@ export async function postRegister(req: Request, res: Response) {
 
 function handleLoginErrors(err: any, res: Response) {
   if (tryHandleValidationError(err, res)) return true;
-  if (err?.message === 'INVALID_CREDENTIALS') {
-    res.status(401).json({ message: 'Credenciales invalidas' });
-    return true;
-  }
-  if (err?.message === 'ROLE_NOT_ALLOWED') {
-    res.status(403).json({ message: 'Rol no autorizado para este acceso' });
+  if (err?.message === 'INVALID_CREDENTIALS' || err?.message === 'ROLE_NOT_ALLOWED') {
+    res.status(401).json({ message: 'Error de autenticación' });
     return true;
   }
   if (err?.message === 'JWT_SECRET_MISSING') {

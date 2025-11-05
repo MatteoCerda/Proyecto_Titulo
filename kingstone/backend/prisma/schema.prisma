@@ -203,6 +203,7 @@ model Oferta {
   link          String?         @db.VarChar(255)
   activo        Boolean         @default(true)
   prioridad     Int             @default(0)
+  precioOferta  Int             @default(0) @map("precio_oferta")
   itemId        Int?            @map("item_id")
   startAt       DateTime?       @map("inicio_en")
   endAt         DateTime?       @map("fin_en")

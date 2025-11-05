@@ -301,7 +301,8 @@ const offerCreateSchema = z.object({
   prioridad: z.coerce.number().int().min(0).optional(),
   itemId: z.coerce.number().int().optional(),
   startAt: z.coerce.date().optional(),
-  endAt: z.coerce.date().optional()
+  endAt: z.coerce.date().optional(),
+  precioOferta: z.coerce.number().int().min(0).optional()
 });
 
 const offerUpdateSchema = offerCreateSchema.partial();
@@ -628,7 +629,8 @@ router.post('/offers', async (req, res) => {
         prioridad: dto.prioridad ?? 0,
         itemId: dto.itemId ?? null,
         startAt: dto.startAt ?? null,
-        endAt: dto.endAt ?? null
+        endAt: dto.endAt ?? null,
+        precioOferta: dto.precioOferta ?? 0
       },
       include: {
         inventario: { select: { id: true, code: true, name: true } }
@@ -662,7 +664,8 @@ router.patch('/offers/:id', async (req, res) => {
         ...(dto.prioridad !== undefined ? { prioridad: dto.prioridad } : {}),
         ...(dto.itemId !== undefined ? { itemId: dto.itemId ?? null } : {}),
         ...(dto.startAt !== undefined ? { startAt: dto.startAt ?? null } : {}),
-        ...(dto.endAt !== undefined ? { endAt: dto.endAt ?? null } : {})
+        ...(dto.endAt !== undefined ? { endAt: dto.endAt ?? null } : {}),
+        ...(dto.precioOferta !== undefined ? { precioOferta: dto.precioOferta } : {})
       },
       include: {
         inventario: { select: { id: true, code: true, name: true } }

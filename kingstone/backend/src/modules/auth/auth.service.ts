@@ -163,7 +163,10 @@ export async function forgotPassword(email: string) {
   // Enviar email: aquí integrar proveedor. Por ahora devolvemos ok.
   // Para facilitar pruebas, devolvemos el token en dev solamente
   const isDev = process.env.NODE_ENV !== 'production';
-  return isDev ? { ok: true, token } : { ok: true };
+  if (isDev) {
+    console.log(`Password reset token for ${email}: ${token}`);
+  }
+  return { ok: true };
 }
 
 export async function resetPassword(token: string, newPassword: string) {

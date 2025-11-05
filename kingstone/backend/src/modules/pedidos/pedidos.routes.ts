@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { CartCreate, CartProduct, CartQuote, CartQuoteItem, DesignerCreate, PedidoPayload } from './pedidos.types';
 import multer from 'multer';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { imageSize } from 'image-size';
@@ -44,7 +45,14 @@ const uploadStorage = multer.diskStorage({
 
 const upload = multer({
   storage: uploadStorage,
-  limits: { fileSize: 25 * 1024 * 1024, files: 10 }
+  limits: { fileSize: 25 * 1024 * 1024, files: 10 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'image/png' || file.mimetype === 'image/jpeg' || file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Tipo de archivo no soportado'));
+    }
+  }
 });
 const DEFAULT_IMAGE_DPI = 300;
 
@@ -227,18 +235,18 @@ function canAccessPedido(user: JwtUser | undefined, pedido: { userId: number | n
   return false;
 }
 
-function parsePayload(payload: any): any {
+function parsePayload(payload: string | object): PedidoPayload | null {
   if (payload && typeof payload === 'object') {
-    return payload;
+    return payload as PedidoPayload;
   }
   try {
-    return JSON.parse(payload);
+    return JSON.parse(payload as string) as PedidoPayload;
   } catch {
-    return {};
+    return null;
   }
 }
 
-export function extractMaterialIdFromPedido(pedido: any): string | null {
+export function extractMaterialIdFromPedido(pedido: { materialId: string | null, payload: any }): string | null {
   if (typeof pedido?.materialId === 'string' && pedido.materialId.length) {
     return pedido.materialId;
   }
@@ -262,7 +270,7 @@ export function extractMaterialIdFromPedido(pedido: any): string | null {
   return null;
 }
 
-export function extractMaterialWidthFromPedido(pedido: any): number | null {
+export function extractMaterialWidthFromPedido(pedido: { materialWidthCm?: number | null, payload: any }): number | null {
   if (typeof pedido?.materialWidthCm === 'number') {
     return pedido.materialWidthCm;
   }
@@ -412,7 +420,7 @@ async function decrementInventoryItem(
   }
 }
 
-async function adjustCatalogStock(products: any[] | undefined | null, client: DbClient = prisma) {
+async function adjustCatalogStock(products: CartProduct[] | undefined | null, client: DbClient = prisma) {
   if (!Array.isArray(products)) return;
   for (const product of products) {
     const itemId = typeof product?.id === 'number' ? product.id : null;
@@ -423,7 +431,7 @@ async function adjustCatalogStock(products: any[] | undefined | null, client: Db
   }
 }
 
-async function adjustQuoteStock(materialId: string | null, quote: any, client: DbClient = prisma) {
+async function adjustQuoteStock(materialId: string | null, quote: CartQuote | null, client: DbClient = prisma) {
   if (!quote) return;
   const usedHeight = typeof quote?.usedHeight === 'number' ? quote.usedHeight : null;
   if (!usedHeight || usedHeight <= 0) return;
@@ -689,10 +697,271 @@ async function notifyPedidoEstado(pedido: PedidoNotifyPayload) {
   }
 }
 
+async function handleCartOrder(dto: CartCreate, user: JwtUser | undefined, res: any) {
+  const userId = user?.sub ? Number(user.sub) : null;
+  let email: string | null = user?.email ?? null;
+  let nombre: string | null = null;
+  let clienteId: number | null = null;
+
+  if (userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, fullName: true }
+    });
+    if (user) {
+      email = user.email;
+      nombre = user.fullName;
+      const cliente = await (prisma as any).cliente.findUnique({
+        where: { id_usuario: userId },
+        select: { id_cliente: true }
+      });
+      if (cliente?.id_cliente) {
+        clienteId = Number(cliente.id_cliente);
+      }
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+
+  const productIds = dto.products.map(product => product.id);
+  const inventoryItems = productIds.length
+    ? await prisma.inventoryItem.findMany({
+        where: { id: { in: productIds } },
+        select: {
+          id: true,
+          name: true,
+          itemType: true,
+          color: true,
+          provider: true,
+          imageUrl: true,
+          priceWeb: true,
+          priceStore: true,
+          priceWsp: true
+        }
+      })
+    : [];
+
+  const inventoryById = new Map(inventoryItems.map(item => [item.id, item]));
+  for (const product of dto.products) {
+    if (!inventoryById.get(product.id)) {
+      return res.status(400).json({
+        message: 'Producto de catálogo inválido',
+        detalles: { productId: product.id }
+      });
+    }
+  }
+
+  const sanitizedProducts = dto.products.map(product => {
+    const record = inventoryById.get(product.id)!;
+    const unitPrice = resolveInventoryUnitPrice(record);
+    const lineTotal = unitPrice * product.quantity;
+    return {
+      id: record.id,
+      name: record.name,
+      quantity: product.quantity,
+      price: unitPrice,
+      lineTotal,
+      itemType: record.itemType ?? null,
+      color: record.color ?? null,
+      provider: record.provider ?? null,
+      imageUrl: record.imageUrl ?? null
+    };
+  });
+
+  const catalogTotal = sanitizedProducts.reduce((acc, item) => acc + item.lineTotal, 0);
+  const clientCatalogTotal = dto.products.reduce((acc, item) => acc + item.price * item.quantity, 0);
+
+  let sanitizedQuote: (CartQuote & {
+    totalPrice: number;
+    pricePerMeter?: number | null;
+    inventoryId?: number | null;
+  }) | null = null;
+  let quotePreset: MaterialPreset | null = null;
+  let quoteTotal = 0;
+  let quoteMaterialId: string | null = null;
+  let quoteMaterialLabel: string | null = null;
+
+  if (dto.quote) {
+    const quoteInventory = await findInventoryByMaterial(dto.quote.materialId);
+    quotePreset = getMaterialPreset(dto.quote.materialId);
+    if (!quoteInventory && !quotePreset) {
+      return res.status(400).json({
+        message: 'Material de cotizacion invalido',
+        detalles: { materialId: dto.quote.materialId }
+      });
+    }
+    const pricePerMeter = quoteInventory
+      ? resolveInventoryUnitPrice(quoteInventory)
+      : quotePreset?.pricePerMeter ?? 0;
+    if (!pricePerMeter) {
+      return res.status(400).json({
+        message: 'No existe tarifa configurada para el material seleccionado',
+        detalles: { materialId: dto.quote.materialId }
+      });
+    }
+    quoteTotal = calculateMaterialPrice(dto.quote.usedHeight, pricePerMeter);
+    const effectiveLabel =
+      quoteInventory?.name ?? dto.quote.materialLabel ?? quotePreset?.label ?? null;
+    sanitizedQuote = {
+      ...dto.quote,
+      materialLabel: effectiveLabel ?? dto.quote.materialLabel ?? quotePreset?.label ?? null,
+      totalPrice: quoteTotal,
+      pricePerMeter,
+      inventoryId: quoteInventory?.id ?? null
+    };
+    quoteMaterialId = dto.quote.materialId ?? null;
+    quoteMaterialLabel =
+      sanitizedQuote.materialLabel ?? quotePreset?.label ?? quoteMaterialId;
+  }
+
+  const productsCount = sanitizedProducts.reduce((acc, item) => acc + item.quantity, 0);
+  const quoteCount = sanitizedQuote?.items?.reduce((acc, item) => acc + item.quantity, 0) ?? 0;
+  const itemsCount = productsCount + quoteCount;
+  const total = Math.round(catalogTotal + quoteTotal);
+  const clientQuoteTotal = dto.quote?.totalPrice ?? null;
+
+  const pedidoId = await prisma.$transaction(async tx => {
+    const pedido = await tx.pedido.create({
+      data: {
+        userId,
+        clienteId,
+        clienteEmail: email,
+        clienteNombre: nombre,
+        estado: 'PENDIENTE',
+        notificado: true,
+        total,
+        itemsCount,
+        materialId: quoteMaterialId,
+        materialLabel: quoteMaterialLabel,
+        payload: {
+          source: 'cart',
+          products: sanitizedProducts,
+          quote: sanitizedQuote,
+          note: dto.note ?? null,
+          pricing: {
+            catalogTotal,
+            quoteTotal,
+            computedTotal: total,
+            clientCatalogTotal,
+            clientQuoteTotal,
+            quotePricePerMeter: sanitizedQuote?.pricePerMeter ?? null,
+            quotePresetLabel: sanitizedQuote?.inventoryId ? null : (quotePreset?.label ?? null)
+          },
+          createdAt: nowIso,
+          cliente: { email, nombre }
+        }
+      },
+      select: { id: true }
+    });
+
+    await adjustCatalogStock(sanitizedProducts, tx);
+    await adjustQuoteStock(quoteMaterialId, sanitizedQuote, tx);
+
+    return pedido.id;
+  });
+
+  return res.status(201).json({ id: pedidoId });
+}
+
+async function handleDesignerOrder(dto: DesignerCreate, user: JwtUser | undefined, res: any) {
+  const userId = user?.sub ? Number(user.sub) : null;
+  let email: string | null = user?.email ?? null;
+  let nombre: string | null = null;
+  let clienteId: number | null = null;
+
+  if (userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, fullName: true }
+    });
+    if (user) {
+      email = user.email;
+      nombre = user.fullName;
+      const cliente = await (prisma as any).cliente.findUnique({
+        where: { id_usuario: userId },
+        select: { id_cliente: true }
+      });
+      if (cliente?.id_cliente) {
+        clienteId = Number(cliente.id_cliente);
+      }
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+
+  const materialInventory = await findInventoryByMaterial(dto.materialId);
+  const materialPreset = getMaterialPreset(dto.materialId);
+  if (!materialInventory && !materialPreset) {
+    return res.status(400).json({
+      message: 'Material invalido',
+      detalles: { materialId: dto.materialId }
+    });
+  }
+  const pricePerMeter = materialInventory
+    ? resolveInventoryUnitPrice(materialInventory)
+    : materialPreset?.pricePerMeter ?? 0;
+  if (!pricePerMeter) {
+    return res.status(400).json({
+      message: 'No existe tarifa configurada para el material seleccionado',
+      detalles: { materialId: dto.materialId }
+    });
+  }
+  const computedTotal = calculateMaterialPrice(dto.usedHeight, pricePerMeter);
+  const itemsCount = dto.items.reduce((acc, item) => acc + item.quantity, 0);
+  const materialLabel =
+    materialInventory?.name ?? dto.materialLabel ?? materialPreset?.label ?? dto.materialId;
+  const sanitizedDesignerPayload = {
+    ...dto,
+    materialLabel,
+    totalPrice: computedTotal,
+    pricePerMeter,
+    inventoryId: materialInventory?.id ?? null
+  };
+
+  const pedidoId = await prisma.$transaction(async tx => {
+    const pedido = await tx.pedido.create({
+      data: {
+        userId,
+        clienteId,
+        clienteEmail: email,
+        clienteNombre: nombre,
+        estado: 'PENDIENTE',
+        notificado: true,
+        total: computedTotal,
+        itemsCount,
+        materialId: dto.materialId,
+        materialLabel,
+        payload: {
+          source: 'designer',
+          ...sanitizedDesignerPayload,
+          pricing: {
+            pricePerMeter,
+            computedTotal,
+            clientTotal: dto.totalPrice ?? null,
+            presetLabel: materialPreset?.label ?? null
+          },
+          createdAt: nowIso,
+          cliente: {
+            email,
+            nombre
+          }
+        }
+      },
+      select: { id: true }
+    });
+
+    await adjustMaterialStock(dto.materialId, dto.usedHeight, tx);
+
+    return pedido.id;
+  });
+
+  res.status(201).json({ id: pedidoId });
+}
+
 router.post('/', async (req, res) => {
   try {
     const isCartSource = typeof req.body?.source === 'string' && req.body.source === 'cart';
-    const parsed = isCartSource ? cartCreateSchema.safeParse(req.body) : createSchema.safeParse(req.body);
+    const parsed = isCartSource ? createCartSchema.safeParse(req.body) : createDesignerSchema.safeParse(req.body);
     if (!parsed.success) {
       const issue = parsed.error.issues?.[0];
       return res.status(400).json({
@@ -700,244 +969,14 @@ router.post('/', async (req, res) => {
         issues: parsed.error.issues
       });
     }
-    const dto = parsed.data as typeof parsed.data;
-    const payloadUser = (req as any).user as { sub?: number; email?: string } | undefined;
-    const userId = payloadUser?.sub ? Number(payloadUser.sub) : null;
-
-    let email: string | null = payloadUser?.email ?? null;
-    let nombre: string | null = null;
-    let clienteId: number | null = null;
-
-    if (userId) {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { email: true, fullName: true }
-      });
-      if (user) {
-        email = user.email;
-        nombre = user.fullName;
-        const cliente = await (prisma as any).cliente.findUnique({
-          where: { id_usuario: userId },
-          select: { id_cliente: true }
-        });
-        if (cliente?.id_cliente) {
-          clienteId = Number(cliente.id_cliente);
-        }
-      }
-    }
-
-    const nowIso = new Date().toISOString();
+    const dto = parsed.data;
+    const user = req.user as JwtUser | undefined;
 
     if (isCartSource) {
-      const cartDto = dto as z.infer<typeof cartCreateSchema>;
-      const productIds = cartDto.products.map(product => product.id);
-      const inventoryItems = productIds.length
-        ? await prisma.inventoryItem.findMany({
-            where: { id: { in: productIds } },
-            select: {
-              id: true,
-              name: true,
-              itemType: true,
-              color: true,
-              provider: true,
-              imageUrl: true,
-              priceWeb: true,
-              priceStore: true,
-              priceWsp: true
-            }
-          })
-        : [];
-
-      const inventoryById = new Map(inventoryItems.map(item => [item.id, item]));
-      for (const product of cartDto.products) {
-        if (!inventoryById.get(product.id)) {
-          return res.status(400).json({
-            message: 'Producto de catálogo inválido',
-            detalles: { productId: product.id }
-          });
-        }
-      }
-
-      const sanitizedProducts = cartDto.products.map(product => {
-        const record = inventoryById.get(product.id)!;
-        const unitPrice = resolveInventoryUnitPrice(record);
-        const lineTotal = unitPrice * product.quantity;
-        return {
-          id: record.id,
-          name: record.name,
-          quantity: product.quantity,
-          price: unitPrice,
-          lineTotal,
-          itemType: record.itemType ?? null,
-          color: record.color ?? null,
-          provider: record.provider ?? null,
-          imageUrl: record.imageUrl ?? null
-        };
-      });
-
-      const catalogTotal = sanitizedProducts.reduce((acc, item) => acc + item.lineTotal, 0);
-      const clientCatalogTotal = cartDto.products.reduce((acc, item) => acc + item.price * item.quantity, 0);
-
-      let sanitizedQuote: (z.infer<typeof cartQuoteSchema> & {
-        totalPrice: number;
-        pricePerMeter?: number | null;
-        inventoryId?: number | null;
-      }) | null = null;
-      let quotePreset: MaterialPreset | null = null;
-      let quoteTotal = 0;
-      let quoteMaterialId: string | null = null;
-      let quoteMaterialLabel: string | null = null;
-
-      if (cartDto.quote) {
-        const quoteInventory = await findInventoryByMaterial(cartDto.quote.materialId);
-        quotePreset = getMaterialPreset(cartDto.quote.materialId);
-        if (!quoteInventory && !quotePreset) {
-          return res.status(400).json({
-            message: 'Material de cotizacion invalido',
-            detalles: { materialId: cartDto.quote.materialId }
-          });
-        }
-        const pricePerMeter = quoteInventory
-          ? resolveInventoryUnitPrice(quoteInventory)
-          : quotePreset?.pricePerMeter ?? 0;
-        if (!pricePerMeter) {
-          return res.status(400).json({
-            message: 'No existe tarifa configurada para el material seleccionado',
-            detalles: { materialId: cartDto.quote.materialId }
-          });
-        }
-        quoteTotal = calculateMaterialPrice(cartDto.quote.usedHeight, pricePerMeter);
-        const effectiveLabel =
-          quoteInventory?.name ?? cartDto.quote.materialLabel ?? quotePreset?.label ?? null;
-        sanitizedQuote = {
-          ...cartDto.quote,
-          materialLabel: effectiveLabel ?? cartDto.quote.materialLabel ?? quotePreset?.label ?? null,
-          totalPrice: quoteTotal,
-          pricePerMeter,
-          inventoryId: quoteInventory?.id ?? null
-        };
-        quoteMaterialId = cartDto.quote.materialId ?? null;
-        quoteMaterialLabel =
-          sanitizedQuote.materialLabel ?? quotePreset?.label ?? quoteMaterialId;
-      }
-
-      const productsCount = sanitizedProducts.reduce((acc, item) => acc + item.quantity, 0);
-      const quoteCount = sanitizedQuote?.items?.reduce((acc, item) => acc + item.quantity, 0) ?? 0;
-      const itemsCount = productsCount + quoteCount;
-      const total = Math.round(catalogTotal + quoteTotal);
-      const clientQuoteTotal = cartDto.quote?.totalPrice ?? null;
-
-      const pedidoId = await prisma.$transaction(async tx => {
-        const pedido = await tx.pedido.create({
-          data: {
-            userId,
-            clienteId,
-            clienteEmail: email,
-            clienteNombre: nombre,
-            estado: 'PENDIENTE',
-            notificado: true,
-            total,
-            itemsCount,
-            materialId: quoteMaterialId,
-            materialLabel: quoteMaterialLabel,
-            payload: {
-              source: 'cart',
-              products: sanitizedProducts,
-              quote: sanitizedQuote,
-              note: cartDto.note ?? null,
-              pricing: {
-                catalogTotal,
-                quoteTotal,
-                computedTotal: total,
-                clientCatalogTotal,
-                clientQuoteTotal,
-                quotePricePerMeter: sanitizedQuote?.pricePerMeter ?? null,
-                quotePresetLabel: sanitizedQuote?.inventoryId ? null : (quotePreset?.label ?? null)
-              },
-              createdAt: nowIso,
-              cliente: { email, nombre }
-            }
-          },
-          select: { id: true }
-        });
-
-        await adjustCatalogStock(sanitizedProducts, tx);
-        await adjustQuoteStock(quoteMaterialId, sanitizedQuote, tx);
-
-        return pedido.id;
-      });
-
-      return res.status(201).json({ id: pedidoId });
+      await handleCartOrder(dto as CartCreate, user, res);
+    } else {
+      await handleDesignerOrder(dto as DesignerCreate, user, res);
     }
-
-    const designerDto = dto as z.infer<typeof createSchema>;
-    const materialInventory = await findInventoryByMaterial(designerDto.materialId);
-    const materialPreset = getMaterialPreset(designerDto.materialId);
-    if (!materialInventory && !materialPreset) {
-      return res.status(400).json({
-        message: 'Material invalido',
-        detalles: { materialId: designerDto.materialId }
-      });
-    }
-    const pricePerMeter = materialInventory
-      ? resolveInventoryUnitPrice(materialInventory)
-      : materialPreset?.pricePerMeter ?? 0;
-    if (!pricePerMeter) {
-      return res.status(400).json({
-        message: 'No existe tarifa configurada para el material seleccionado',
-        detalles: { materialId: designerDto.materialId }
-      });
-    }
-    const computedTotal = calculateMaterialPrice(designerDto.usedHeight, pricePerMeter);
-    const itemsCount = designerDto.items.reduce((acc, item) => acc + item.quantity, 0);
-    const materialLabel =
-      materialInventory?.name ?? designerDto.materialLabel ?? materialPreset?.label ?? designerDto.materialId;
-    const sanitizedDesignerPayload = {
-      ...designerDto,
-      materialLabel,
-      totalPrice: computedTotal,
-      pricePerMeter,
-      inventoryId: materialInventory?.id ?? null
-    };
-
-    const pedidoId = await prisma.$transaction(async tx => {
-      const pedido = await tx.pedido.create({
-        data: {
-          userId,
-          clienteId,
-          clienteEmail: email,
-          clienteNombre: nombre,
-          estado: 'PENDIENTE',
-          notificado: true,
-          total: computedTotal,
-          itemsCount,
-          materialId: designerDto.materialId,
-          materialLabel,
-          payload: {
-            source: 'designer',
-            ...sanitizedDesignerPayload,
-            pricing: {
-              pricePerMeter,
-              computedTotal,
-              clientTotal: designerDto.totalPrice ?? null,
-              presetLabel: materialPreset?.label ?? null
-            },
-            createdAt: nowIso,
-            cliente: {
-              email,
-              nombre
-            }
-          }
-        },
-        select: { id: true }
-      });
-
-      await adjustMaterialStock(designerDto.materialId, designerDto.usedHeight, tx);
-
-      return pedido.id;
-    });
-
-    res.status(201).json({ id: pedidoId });
   } catch (error: any) {
     if (error?.code === 'INSUFFICIENT_STOCK') {
       return res.status(409).json({
@@ -952,7 +991,7 @@ router.post('/', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const user = (req as any).user as { role?: string; sub?: number; email?: string } | undefined;
+    const user = req.user as JwtUser | undefined;
     const isOp = isOperator(user?.role);
     if (!isOp) {
       const userId = user?.sub ? Number(user.sub) : null;
@@ -961,7 +1000,7 @@ router.get('/', async (req, res) => {
         return res.json([]);
       }
 
-      const pedidoWhere: any = {
+      const pedidoWhere: Prisma.PedidoWhereInput = {
         OR: [
           userId ? { userId } : undefined,
           email ? { clienteEmail: email } : undefined
@@ -1002,7 +1041,7 @@ router.get('/', async (req, res) => {
 
     const statusRaw = (req.query.status as string | undefined)?.trim();
     const status = statusRaw && statusRaw.length ? statusRaw.toUpperCase() : 'PENDIENTE';
-    const where: any = {};
+    const where: Prisma.PedidoWhereInput = {};
     if (status !== 'TODOS') {
       where.estado = status;
     }
