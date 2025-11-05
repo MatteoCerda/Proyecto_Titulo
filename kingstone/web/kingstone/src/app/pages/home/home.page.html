@@ -1,11 +1,18 @@
 <ion-content class="home" fullscreen>
   <section class="hero">
     <div class="hero-media">
-      <ion-slides class="hero-slides" [options]="heroSlides" pager="true">
-        <ion-slide *ngFor="let slide of heroImages">
+      <swiper-container
+        class="hero-slides"
+        [slidesPerView]="heroSlides.slidesPerView"
+        [loop]="heroSlides.loop"
+        [speed]="heroSlides.speed"
+        [autoplay]="heroSlides.autoplay"
+        [pagination]="heroSlides.pagination"
+      >
+        <swiper-slide *ngFor="let slide of heroImages">
           <img [src]="slide.src" [alt]="slide.alt" loading="lazy" />
-        </ion-slide>
-      </ion-slides>
+        </swiper-slide>
+      </swiper-container>
     </div>
     <div class="hero-info">
       <h1>Kingston Estampados</h1>

@@ -1,14 +1,16 @@
-﻿import { Component, inject, signal } from '@angular/core';
+﻿import { Component, CUSTOM_ELEMENTS_SCHEMA, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonContent, IonButton, IonSlides, IonSlide } from '@ionic/angular/standalone';
+import { IonContent, IonButton } from '@ionic/angular/standalone';
 import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-import SwiperCore, { Autoplay, Pagination } from 'swiper';
+import { register } from 'swiper/element/bundle';
 import type { SwiperOptions } from 'swiper/types';
+import 'swiper/css';
+import 'swiper/css/pagination';
 
 import { environment } from '../../../environments/environment';
 
-SwiperCore.use([Autoplay, Pagination]);
+register();
 
 interface OfertaCliente {
   id: number;
@@ -25,13 +27,40 @@ interface OfertaCliente {
 @Component({
   standalone: true,
   selector: 'app-home',
-  imports: [CommonModule, IonContent, IonButton, IonSlides, IonSlide, RouterLink],
+  imports: [CommonModule, IonContent, IonButton, RouterLink],
   templateUrl: './home.page.html',
-  styleUrls: ['./home.page.scss']
+  styleUrls: ['./home.page.scss'],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class HomePage {
   private readonly http = inject(HttpClient);
   private readonly apiBase = (environment.apiUrl || '').replace(/\/$/, '');
+  readonly heroSlides: SwiperOptions = {
+    slidesPerView: 1,
+    loop: true,
+    speed: 600,
+    autoplay: {
+      delay: 5000,
+      disableOnInteraction: false
+    },
+    pagination: {
+      clickable: true
+    }
+  };
+  readonly heroImages = [
+    {
+      src: 'assets/kingston-hero-placeholder.png',
+      alt: 'Hero Kingston Estampados'
+    },
+    {
+      src: 'assets/kingston-estampados.png',
+      alt: 'Productos y estampados disponibles'
+    },
+    {
+      src: 'assets/grafico-barras.png',
+      alt: 'Soluciones profesionales de impresion'
+    }
+  ];
 
   private endpoint(path: string): string {
     const normalized = path.startsWith('/') ? path : `/${path}`;
@@ -45,7 +74,6 @@ export class HomePage {
   ngOnInit() {
     this.cargarOfertas();
   }
-
 
   cargarOfertas() {
     this.cargando.set(true);
@@ -65,5 +93,6 @@ export class HomePage {
 
   // Footer hide/show se maneja globalmente en el layout
 }
+
 
 

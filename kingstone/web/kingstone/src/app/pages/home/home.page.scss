@@ -30,18 +30,15 @@
   min-height: 320px;
 }
 
-.hero-media ion-slides {
+.hero-media .hero-slides {
   width: 100%;
   height: 100%;
-  --bullet-background: rgba(255, 255, 255, 0.6);
-  --bullet-background-active: #1d4ed8;
+  display: block;
+  --swiper-pagination-color: #1d4ed8;
+  --swiper-pagination-bullet-inactive-color: rgba(255, 255, 255, 0.6);
 }
 
-.hero-media ion-slides::part(container) {
-  height: 100%;
-}
-
-.hero-media ion-slide {
+.hero-media .hero-slides swiper-slide {
   display: flex;
   align-items: center;
   justify-content: center;
