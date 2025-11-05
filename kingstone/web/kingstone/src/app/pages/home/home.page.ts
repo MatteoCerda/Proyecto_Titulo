@@ -5,8 +5,6 @@ import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { register } from 'swiper/element/bundle';
 import type { SwiperOptions } from 'swiper/types';
-import 'swiper/css';
-import 'swiper/css/pagination';
 
 import { environment } from '../../../environments/environment';
 
@@ -49,16 +47,16 @@ export class HomePage {
   };
   readonly heroImages = [
     {
-      src: 'assets/kingston-hero-placeholder.png',
+      src: 'assets/Pagina-inicio/Pagina inicio Kingston.jpg',
+      alt: 'Pagina inicio Kingston'
+    },
+    {
+      src: 'assets/Pagina-inicio/Artboard 1-100.jpg',
       alt: 'Hero Kingston Estampados'
     },
     {
-      src: 'assets/kingston-estampados.png',
-      alt: 'Productos y estampados disponibles'
-    },
-    {
-      src: 'assets/grafico-barras.png',
-      alt: 'Soluciones profesionales de impresion'
+      src: 'assets/Pagina-inicio/ofertas.jpg',
+      alt: 'Ofertas'
     }
   ];
 

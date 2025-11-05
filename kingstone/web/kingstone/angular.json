@@ -35,7 +35,9 @@
                                                                                             ],
                                                                                  "styles":  [
                                                                                                 "src/global.scss",
-                                                                                                "src/theme/variables.scss"
+                                                                                                "src/theme/variables.scss",
+                                                                                                "node_modules/swiper/swiper.css",
+                                                                                                "node_modules/swiper/modules/pagination.css"
                                                                                             ],
                                                                                  "scripts":  [
 
@@ -128,7 +130,9 @@
                                                                                            ],
                                                                                 "styles":  [
                                                                                                "src/global.scss",
-                                                                                               "src/theme/variables.scss"
+                                                                                               "src/theme/variables.scss",
+                                                                                               "node_modules/swiper/swiper.css",
+                                                                                               "node_modules/swiper/modules/pagination.css"
                                                                                            ],
                                                                                 "scripts":  [
 
