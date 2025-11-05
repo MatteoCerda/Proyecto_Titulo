@@ -82,7 +82,12 @@ router.get('/clientes/search', async (req, res) => {
         claimExpiresAt: true,
         claimIssuedAt: true,
         id_usuario: true,
-        tipoRegistro: true
+        tipoRegistro: true,
+        pedidos: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { total: true, itemsCount: true }
+        }
       }
     });
     if (!record) {
@@ -101,7 +106,13 @@ router.get('/clientes/search', async (req, res) => {
         claimIssuedAt: record.claimIssuedAt,
         hasAccount: !!record.id_usuario,
         tipoRegistro: record.tipoRegistro
-      }
+      },
+      resumen: record.pedidos?.[0]
+        ? {
+            total: record.pedidos[0].total,
+            itemsCount: record.pedidos[0].itemsCount
+          }
+        : null
     });
   } catch (error) {
     console.error('[operator] search cliente error', error);

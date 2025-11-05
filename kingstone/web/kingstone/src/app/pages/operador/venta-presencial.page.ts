@@ -59,7 +59,7 @@ export class OperatorVentaPresencialPage {
   readonly clienteEncontrado = signal<OperatorClienteSearchResult | null>(null);
   readonly ventaRegistrada = signal<OperatorSaleResponse | null>(null);
   readonly attachments = signal<File[]>([]);
-  readonly selectedItem = signal<CatalogItem | null>(null);
+  readonly selectedItems = signal<Array<{ item: CatalogItem; quantity: number }>>([]);
   readonly inventorySearch = signal<string>('');
 
   readonly claimCode = computed(() => this.ventaRegistrada()?.claimCode || null);
@@ -71,11 +71,8 @@ export class OperatorVentaPresencialPage {
   constructor() {
     this.form.controls.canal.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(canal => {
-        const item = this.selectedItem();
-        if (item) {
-          this.applyPriceFromItem(item, canal as CanalVenta);
-        }
+      .subscribe(() => {
+        this.syncSelectionSummary(true);
       });
 
     void this.catalog.loadCatalog();
@@ -91,7 +88,29 @@ export class OperatorVentaPresencialPage {
     }
     const normalized = this.normalizeRutForSearch(rut);
     if (!normalized) {
-      this.searchError.set('El RUT ingresado no es válido.');
+      this.clienteEncontrado.set({
+        found: false,
+        cliente: {
+          id: 0,
+          rut,
+          estado: 'nuevo',
+          nombre: null,
+          email: null,
+          telefono: null,
+          hasAccount: false
+        }
+      });
+      this.form.patchValue(
+        {
+          cliente: {
+            rut,
+            nombre: null,
+            email: null,
+            telefono: null
+          }
+        },
+        { emitEvent: false }
+      );
       return;
     }
     this.searchLoading.set(true);
@@ -99,23 +118,29 @@ export class OperatorVentaPresencialPage {
       const result = await firstValueFrom(this.pedidos.searchClienteByRut(normalized));
       this.clienteEncontrado.set(result);
       if (result.found && result.cliente) {
-        this.form.patchValue({
-          cliente: {
-            rut: result.cliente.rut,
-            nombre: result.cliente.nombre,
-            email: result.cliente.email,
-            telefono: result.cliente.telefono
-          }
-        });
+        this.form.patchValue(
+          {
+            cliente: {
+              rut: result.cliente.rut,
+              nombre: result.cliente.nombre,
+              email: result.cliente.email,
+              telefono: result.cliente.telefono
+            }
+          },
+          { emitEvent: false }
+        );
       } else {
-        this.form.patchValue({
-          cliente: {
-            rut: this.formatRut(normalized),
-            nombre: null,
-            email: null,
-            telefono: null
-          }
-        });
+        this.form.patchValue(
+          {
+            cliente: {
+              rut: this.formatRut(normalized),
+              nombre: null,
+              email: null,
+              telefono: null
+            }
+          },
+          { emitEvent: false }
+        );
       }
     } catch (error) {
       console.error('Error buscando cliente', error);
@@ -166,7 +191,7 @@ export class OperatorVentaPresencialPage {
     this.ventaRegistrada.set(null);
     this.error.set(null);
     this.searchError.set(null);
-    this.selectedItem.set(null);
+    this.selectedItems.set([]);
   }
 
   async registrar(): Promise<void> {
@@ -281,31 +306,123 @@ export class OperatorVentaPresencialPage {
   }
 
   seleccionarItem(item: CatalogItem): void {
-    this.selectedItem.set(item);
-    this.form.patchValue({
-      resumen: {
-        materialId: String(item.id),
-        materialLabel: item.name
+    this.selectedItems.update(entries => {
+      const existing = entries.find(entry => entry.item.id === item.id);
+      if (existing) {
+        return entries.map(entry =>
+          entry.item.id === item.id ? { ...entry, quantity: entry.quantity + 1 } : entry
+        );
       }
+      return [...entries, { item, quantity: 1 }];
     });
-    this.applyPriceFromItem(item);
+    this.syncSelectionSummary(true);
   }
 
-  private applyPriceFromItem(item: CatalogItem, canal?: CanalVenta | null): void {
-    const targetCanal = canal ?? ((this.form.get('canal')?.value as CanalVenta) || 'presencial');
-    const basePrice =
-      targetCanal === 'presencial'
-        ? item.priceStore ?? item.price ?? item.priceWeb ?? item.priceWsp ?? null
-        : item.priceWsp ?? item.price ?? item.priceWeb ?? item.priceStore ?? null;
-    const rounded = basePrice !== null && basePrice !== undefined ? Math.round(basePrice) : null;
+  quitarItem(itemId: number): void {
+    this.selectedItems.update(entries => entries.filter(entry => entry.item.id !== itemId));
+    this.syncSelectionSummary(true);
+  }
 
+  ajustarCantidad(itemId: number, delta: number): void {
+    this.selectedItems.update(entries =>
+      entries
+        .map(entry =>
+          entry.item.id === itemId
+            ? { ...entry, quantity: Math.max(1, entry.quantity + delta) }
+            : entry
+        )
+        .filter(entry => entry.quantity > 0)
+    );
+    this.syncSelectionSummary(true);
+  }
+
+  fijarCantidad(itemId: number, value: number): void {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return;
+    this.selectedItems.update(entries =>
+      entries
+        .map(entry =>
+          entry.item.id === itemId
+            ? { ...entry, quantity: Math.max(1, Math.floor(parsed)) }
+            : entry
+        )
+        .filter(entry => entry.quantity > 0)
+    );
+    this.syncSelectionSummary(true);
+  }
+
+  estaSeleccionado(item: CatalogItem): boolean {
+    return this.selectedItems().some(entry => entry.item.id === item.id);
+  }
+
+  cantidadSeleccionada(itemId: number): number {
+    return this.selectedItems().find(entry => entry.item.id === itemId)?.quantity ?? 0;
+  }
+
+  trackBySelectedItem = (_: number, entry: { item: CatalogItem; quantity: number }): number => entry.item.id;
+
+  private syncSelectionSummary(updateTotal: boolean): void {
+    const items = this.selectedItems();
     const resumenGroup = this.form.get('resumen');
     if (!resumenGroup) return;
-    const current = (resumenGroup as any).value?.total ?? null;
-    const total = rounded ?? current ?? null;
 
-    (resumenGroup as any).patchValue({
-      total
-    });
+    if (!items.length) {
+      (resumenGroup as any).patchValue(
+        {
+          materialId: null,
+          materialLabel: null,
+          itemsCount: null
+        },
+        { emitEvent: false }
+      );
+      return;
+    }
+
+    const canal = (this.form.get('canal')?.value as CanalVenta) || 'presencial';
+    const itemsCount = items.reduce((acc, entry) => acc + entry.quantity, 0);
+    const label =
+      items.length === 1
+        ? items[0].item.name
+        : items.map(entry => entry.item.name).join(', ');
+    const materialId = items.length === 1 ? String(items[0].item.id) : 'multiple';
+
+    const patch: Record<string, unknown> = {
+      materialId,
+      materialLabel: label,
+      itemsCount
+    };
+
+    if (updateTotal) {
+      const suggested = this.calculateSuggestedTotal(canal);
+      if (suggested !== null) {
+        patch['total'] = suggested;
+      }
+    }
+
+    (resumenGroup as any).patchValue(patch, { emitEvent: false });
+  }
+
+  private calculateSuggestedTotal(canal: CanalVenta): number | null {
+    const items = this.selectedItems();
+    if (!items.length) {
+      return null;
+    }
+    let total = 0;
+    for (const entry of items) {
+      const price = this.getPriceForItem(entry.item, canal);
+      if (price === null) {
+        return null;
+      }
+      total += price * entry.quantity;
+    }
+    return Math.round(total);
+  }
+
+  private getPriceForItem(item: CatalogItem, canal: CanalVenta): number | null {
+    if (canal === 'presencial') {
+      return item.priceStore ?? item.price ?? item.priceWeb ?? item.priceWsp ?? null;
+    }
+    return item.priceWsp ?? item.price ?? item.priceWeb ?? item.priceStore ?? null;
   }
 }
+

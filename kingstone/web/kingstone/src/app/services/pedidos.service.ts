@@ -140,6 +140,10 @@ export interface OperatorClienteSearchResult {
     hasAccount: boolean;
     tipoRegistro?: string | null;
   };
+  resumen?: {
+    total?: number | null;
+    itemsCount?: number | null;
+  };
 }
 
 export interface OperatorSalePayload {

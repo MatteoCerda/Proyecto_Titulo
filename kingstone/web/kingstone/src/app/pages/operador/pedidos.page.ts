@@ -681,8 +681,11 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
   }
 
   private derivePedidoEstadoFromStage(stage: string): string | null {
-    const normalized = (stage || '').toUpperCase();
-    if (normalized === 'COLA' || normalized === 'PRODUCCION' || normalized === 'PRODUCCIÓN' || normalized === 'CONTROL_CALIDAD') {
+    const normalized = (stage || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase();
+    if (normalized === 'COLA' || normalized === 'PRODUCCION' || normalized === 'CONTROL_CALIDAD') {
       return 'EN_IMPRESION';
     }
     if (normalized === 'LISTO_RETIRO') {

@@ -96,7 +96,7 @@ export class ProfilePage {
     if (this.passForm.invalid) return;
     const { currentPassword, newPassword, confirmNewPassword } = this.passForm.value;
     if (newPassword !== confirmNewPassword) {
-      const t = await this.toast.create({ message: 'Las contraseñÃ±as no coinciden', duration: 2000, position: 'top', color: 'warning' });
+      const t = await this.toast.create({ message: 'Las contraseñas no coinciden', duration: 2000, position: 'top', color: 'warning' });
       await t.present();
       return;
     }

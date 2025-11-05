@@ -332,3 +332,102 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* === Light theme overrides === */
+.clientes::part(scroll) {
+  background: #f6f8fb;
+}
+
+.header {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+}
+
+.header h1 { color: #0f172a; }
+.header p { color: #64748b; }
+
+.client-list {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  color: #1f2937;
+}
+
+.state { background: #f1f5f9; color: #1f2937; }
+.state.error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.empty {
+  background: #f9fafb;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.client-item {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #1f2937;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+}
+
+.client-item:hover { border-color: #94a3b8; }
+
+.client-item.active {
+  border-color: #1d4ed8;
+  background: #e0e7ff;
+}
+
+.name strong { color: #0f172a; }
+.name small { color: #64748b; }
+
+.meta span { color: #475569; }
+
+.client-detail {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #1f2937;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+}
+
+.detail-header h2 { color: #0f172a; }
+.detail-header p { color: #64748b; }
+
+.highlight-cards article {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  color: #1f2937;
+}
+
+.highlight-cards span { color: #64748b; }
+.highlight-cards strong { color: #0f172a; }
+
+.order-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #1f2937;
+}
+
+.order-card header h3 { color: #0f172a; }
+
+.order-meta li {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #1f2937;
+}
+
+.order-meta span { color: #94a3b8; }
+.order-meta strong { color: #0f172a; }
+
+.placeholder { color: #94a3b8; }
+
+.pending { background: #fee2e2; color: #b91c1c; }
+.review { background: #fef3c7; color: #b45309; }
+.por-pagar { background: #dcfce7; color: #15803d; }
+.in-progress { background: #fef3c7; color: #b45309; }
+.done { background: #dbeafe; color: #1d4ed8; }
+.cancelled { background: #fee2e2; color: #b91c1c; }
