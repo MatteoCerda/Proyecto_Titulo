@@ -21,6 +21,8 @@ app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
+app.get('/', (_req, res) => { res.json({ ok: true, service: 'kingstone-api' }); });
+
 // Auth (register/login)
 app.use('/auth', authRoutes);
 

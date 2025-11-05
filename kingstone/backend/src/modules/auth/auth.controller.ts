@@ -56,6 +56,10 @@ function handleLoginErrors(err: any, res: Response) {
     res.status(403).json({ message: 'Rol no autorizado para este acceso' });
     return true;
   }
+  if (err?.message === 'JWT_SECRET_MISSING') {
+    res.status(500).json({ message: 'Configuracion del servidor incompleta (JWT)' });
+    return true;
+  }
   return false;
 }
 

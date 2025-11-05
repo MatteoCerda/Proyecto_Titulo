@@ -143,6 +143,9 @@ export async function login(dto: LoginDTO, options?: LoginOptions) {
   const payload: JwtPayload = { sub: user.id, email: user.email, role: user.role };
   const opts: SignOptions = { expiresIn: (process.env.JWT_EXPIRES_IN as any) || '1d' };
   const secret = process.env.JWT_SECRET as string;
+  if (!secret || secret.trim().length === 0) {
+    throw new Error('JWT_SECRET_MISSING');
+  }
   const token = jwt.sign(payload, secret, opts);
   return { token, user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role } };
 }
