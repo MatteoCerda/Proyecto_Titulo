@@ -36,6 +36,29 @@
     </div>
   </section>
 
+  <section class="home-marquee" aria-label="Listado de servicios destacados">
+    <div class="marquee-track">
+      <div class="marquee">
+        <span>DTF TEXTIL</span>
+        <span>DTF UV</span>
+        <span>ESTAMPADO EXPRESS</span>
+        <span>COMPRINTER</span>
+        <span>TELA PVC</span>
+        <span>VINILO TEXTIL</span>
+        <span>VINILO DECORATIVO</span>
+      </div>
+      <div class="marquee marquee-clone">
+        <span>DTF TEXTIL</span>
+        <span>DTF UV</span>
+        <span>ESTAMPADO EXPRESS</span>
+        <span>COMPRINTER</span>
+        <span>TELA PVC</span>
+        <span>VINILO TEXTIL</span>
+        <span>VINILO DECORATIVO</span>
+      </div>
+    </div>
+  </section>
+
   <section class="home-cards">
     <div class="card" *ngFor="let card of cardImages">
       <img [src]="card.src" [alt]="card.alt" loading="lazy" />
@@ -58,16 +81,21 @@
           <h3>{{ oferta.titulo }}</h3>
           <p *ngIf="oferta.descripcion">{{ oferta.descripcion }}</p>
           <p class="offer-product" *ngIf="oferta.inventario">{{ oferta.inventario.code }} &mdash; {{ oferta.inventario.name }}</p>
-          <div class="offer-pricing" *ngIf="oferta.offerPrice !== null && oferta.offerPrice !== undefined">
+          <div class="offer-pricing" *ngIf="tieneDescuento(oferta)">
             <div class="price-row">
-              <span class="before" *ngIf="oferta.basePrice">{{ oferta.basePrice | currency:'CLP':'symbol-narrow':'1.0-0' }}</span>
+              <span class="before">{{ oferta.basePrice | currency:'CLP':'symbol-narrow':'1.0-0' }}</span>
               <strong class="now">{{ oferta.offerPrice | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
-              <span class="discount" *ngIf="oferta.discountPercent !== null && oferta.discountPercent !== undefined">
+              <span class="discount" *ngIf="oferta.discountPercent !== null">
                 -{{ oferta.discountPercent }}%
               </span>
             </div>
-            <p class="savings" *ngIf="oferta.discountAmount">{{ 'Ahorra ' + (oferta.discountAmount | currency:'CLP':'symbol-narrow':'1.0-0') }}</p>
+            <p class="savings" *ngIf="oferta.discountAmount">
+              {{ 'Ahorra ' + (oferta.discountAmount | currency:'CLP':'symbol-narrow':'1.0-0') }}
+            </p>
           </div>
+          <p class="offer-price-only" *ngIf="!tieneDescuento(oferta) && (oferta.offerPrice ?? oferta.basePrice) as precioActual">
+            {{ precioActual | currency:'CLP':'symbol-narrow':'1.0-0' }}
+          </p>
           <a *ngIf="oferta.link" class="offer-link" [href]="oferta.link" target="_blank" rel="noopener">
             Ver m&aacute;s
           </a>

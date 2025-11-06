@@ -60,6 +60,85 @@
   gap: 18px;
 }
 
+.home-marquee {
+  width: 100%;
+  margin: 14px 0 28px;
+  padding: 16px 0;
+  background: #f6f8fb;
+  color: #0f172a;
+  overflow: hidden;
+  position: relative;
+  z-index: 5;
+  mask-image: none;
+  -webkit-mask-image: none;
+  isolation: isolate;
+}
+
+.home-marquee::before,
+.home-marquee::after {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+}
+
+.home-marquee .marquee {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  gap: 48px;
+  align-items: center;
+  white-space: nowrap;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 20px;
+  letter-spacing: 0.16em;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.home-marquee .marquee-track {
+  position: relative;
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 14s linear infinite;
+  will-change: transform;
+  z-index: 1;
+}
+
+.home-marquee .marquee-clone {
+  margin-left: 48px;
+}
+
+.home-marquee .marquee span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.home-marquee .marquee span::after {
+  content: '\2022';
+  font-size: 20px;
+  color: rgba(15, 23, 42, 0.4);
+  margin-left: 48px;
+}
+
+.home-marquee .marquee span:last-child::after {
+  content: '';
+  margin: 0;
+}
+
+.home-marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
 .hero-info h1 {
   margin: 0;
   font-size: 40px;
@@ -168,6 +247,24 @@
 
   .home-catalog {
     padding: 24px;
+  }
+
+  .home-marquee {
+    margin: 12px 0 24px;
+    padding: 14px 0;
+  }
+
+  .home-marquee .marquee {
+    font-size: 16px;
+    gap: 32px;
+  }
+
+  .home-marquee .marquee-track {
+    animation-duration: 18s;
+  }
+
+  .home-marquee .marquee span::after {
+    margin-left: 32px;
   }
 }
 
@@ -287,6 +384,13 @@
   font-size: 13px;
   color: #047857;
   font-weight: 600;
+}
+
+.offer-price-only {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 @media (max-width: 768px) {

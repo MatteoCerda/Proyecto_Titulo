@@ -6,10 +6,11 @@ import { environment } from '../../environments/environment';
 export type UserRole = 'ADMIN' | 'OPERATOR' | 'CLIENT';
 type UserInfo = { email: string; role: UserRole; fullName?: string };
 type LoginScope = 'client' | 'admin' | 'operator';
+export const AUTH_TOKEN_KEY = 'auth.token';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly tokenKey = 'auth.token';
+  private readonly tokenKey = AUTH_TOKEN_KEY;
   private readonly roleKey = 'auth.role';
   private readonly emailKey = 'auth.email';
   private readonly apiBase = (environment.apiUrl || '').replace(/\/$/, '');
@@ -44,7 +45,6 @@ export class AuthService {
 
   private persistSession(token: string, role: UserRole, email: string, fullName?: string) {
     localStorage.setItem(this.tokenKey, token);
-    localStorage.setItem('ks_token', token);
     localStorage.setItem(this.roleKey, role);
     localStorage.setItem(this.emailKey, email);
     this.user.set({ email, role, fullName });
@@ -179,7 +179,6 @@ export class AuthService {
 
   logout() {
     localStorage.removeItem(this.tokenKey);
-    localStorage.removeItem('ks_token');
     localStorage.removeItem(this.roleKey);
     localStorage.removeItem(this.emailKey);
     this.user.set(null);

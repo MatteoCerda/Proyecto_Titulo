@@ -3,12 +3,12 @@
     <header class="header">
       <div>
         <h1>Tu carrito</h1>
-        <p>Revisa tus productos seleccionados y la cotización que generaste.</p>
+        <p>Revisa tus productos seleccionados y la cotizaci&oacute;n que generaste.</p>
       </div>
       <div class="summary">
-        <span>Total estimado</span>
+        <span>Total actual</span>
         <strong>{{ total() | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
-        <ion-button color="danger" fill="outline" (click)="clearCart()" [disabled]="!hasItems()">
+        <ion-button color="light" fill="outline" (click)="clearCart()" [disabled]="!hasItems()">
           Vaciar carrito
         </ion-button>
       </div>
@@ -18,112 +18,130 @@
       {{ feedback.message }}
     </div>
 
-
-    <section *ngIf="!hasItems()" class="empty">
-      <ion-icon name="cart-outline"></ion-icon>
-      <h2>Tu carrito está vacío</h2>
-      <p>Agrega productos desde el catálogo o guarda tu cotización para revisarla más tarde.</p>
-      <a routerLink="/productos">
-        <ion-button color="primary">Ir al catálogo</ion-button>
-      </a>
-    </section>
-
-    <section *ngIf="products().length > 0" class="cards">
-      <article class="card" *ngFor="let product of products()">
-        <div class="card-img">
-          <img *ngIf="product.imageUrl; else noImg" [src]="product.imageUrl" [alt]="product.name" />
-          <ng-template #noImg>
-            <div class="placeholder">Sin imagen</div>
-          </ng-template>
-        </div>
-        <div class="card-body">
-          <header>
-            <h3>{{ product.name }}</h3>
-            <button type="button" (click)="removeProduct(product.id)" title="Quitar">
-              <ion-icon name="close-outline"></ion-icon>
-            </button>
-          </header>
-          <p class="meta">
-            {{ product.itemType }} • {{ product.color }}
-            <span *ngIf="product.provider">Proveedor: {{ product.provider }}</span>
-          </p>
-          <div class="price-row">
-            <span>Precio unidad</span>
-            <div *ngIf="product.precioOferta">
-              <span class="original-price">Antes: {{ product.precioOriginal | currency:'CLP':'symbol-narrow':'1.0-0' }}</span>
-              <strong>Ahora: {{ product.precioOferta | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+    <ng-container *ngIf="hasItems(); else emptyState">
+      <div class="cart-layout">
+        <section class="cards" *ngIf="products().length > 0">
+          <article class="card" *ngFor="let product of products()">
+            <div class="card-img">
+              <img *ngIf="product.imageUrl; else noImg" [src]="product.imageUrl" [alt]="product.name" />
+              <ng-template #noImg>
+                <div class="placeholder">Sin imagen</div>
+              </ng-template>
             </div>
-            <strong *ngIf="!product.precioOferta">{{ product.price | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
-          </div>
-          <div class="quantity-control">
-            <ion-button fill="outline" size="small" (click)="decrement(product.id)">
-              <ion-icon slot="icon-only" name="remove-outline"></ion-icon>
-            </ion-button>
-            <span>{{ product.quantity }}</span>
-            <ion-button fill="outline" size="small" (click)="increment(product.id)">
-              <ion-icon slot="icon-only" name="add-outline"></ion-icon>
-            </ion-button>
-          </div>
-          <div class="subtotal">
-            <span>Subtotal</span>
-            <strong>{{ ((product.precioOferta ?? product.price) * product.quantity) | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
-          </div>
-        </div>
-      </article>
-    </section>
+            <div class="card-body">
+              <header>
+                <h3>{{ product.name }}</h3>
+                <button type="button" (click)="removeProduct(product.id)" title="Quitar">
+                  <ion-icon name="close-outline"></ion-icon>
+                </button>
+              </header>
+              <p class="meta">
+                {{ product.itemType }} &#8226; {{ product.color }}
+                <span *ngIf="product.provider">Proveedor: {{ product.provider }}</span>
+              </p>
+              <div class="price-row">
+                <span>Precio unidad</span>
+                <div *ngIf="product.precioOferta">
+                  <span class="original-price">Antes: {{ product.precioOriginal | currency:'CLP':'symbol-narrow':'1.0-0' }}</span>
+                  <strong>Ahora: {{ product.precioOferta | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+                </div>
+                <strong *ngIf="!product.precioOferta">{{ product.price | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+              </div>
+              <div class="quantity-control">
+                <ion-button fill="outline" size="small" (click)="decrement(product.id)">
+                  <ion-icon slot="icon-only" name="remove-outline"></ion-icon>
+                </ion-button>
+                <span>{{ product.quantity }}</span>
+                <ion-button fill="outline" size="small" (click)="increment(product.id)">
+                  <ion-icon slot="icon-only" name="add-outline"></ion-icon>
+                </ion-button>
+              </div>
+              <div class="subtotal">
+                <span>Subtotal</span>
+                <strong>{{ ((product.precioOferta ?? product.price) * product.quantity) | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+              </div>
+            </div>
+          </article>
+        </section>
 
-    <section *ngIf="quote()" class="quote card">
-      <header class="quote-header">
-        <div>
-          <h2>Cotización guardada</h2>
-          <p>{{ quote()?.materialLabel }} • {{ quote()?.usedHeight | number:'1.0-0' }} cm usados</p>
-        </div>
-        <ion-button fill="clear" color="medium" (click)="clearQuote()">
-          <ion-icon slot="start" name="trash-outline"></ion-icon>
-          Quitar cotización
-        </ion-button>
-      </header>
-      <ul class="quote-list">
-        <li *ngFor="let item of quote()?.items">
-          <div class="q-name">
-            {{ item.name }}
-            <span>x{{ item.quantity }}</span>
+        <aside class="cart-bubble" aria-label="Resumen del carrito">
+          <div class="bubble-header">
+            <h2>Resumen del pedido</h2>
+            <p class="bubble-total">{{ total() | currency:'CLP':'symbol-narrow':'1.0-0' }}</p>
           </div>
-          <div class="q-size">
-            {{ item.widthCm | number:'1.0-1' }} × {{ item.heightCm | number:'1.0-1' }} cm
+          <p class="bubble-copy">
+            Impuestos incluidos. Env&iacute;os y descuentos se confirmar&aacute;n al coordinar tu pedido.
+          </p>
+          <label class="bubble-terms">
+            <input type="checkbox" />
+            <span>Acepto los t&eacute;rminos y condiciones.</span>
+          </label>
+          <div class="bubble-actions">
+            <ion-button color="success" expand="block" (click)="submitOrder()" [disabled]="submitting() || !hasItems()">
+              <ng-container *ngIf="!submitting(); else bubbleSending">Pedir ahora</ng-container>
+            </ion-button>
+            <ng-template #bubbleSending>Enviando...</ng-template>
+            <ion-button expand="block" fill="outline" color="primary" routerLink="/crea-tu-diseno">
+              Editar cotizaci&oacute;n
+            </ion-button>
+            <ion-button expand="block" color="primary" routerLink="/productos">
+              Seguir comprando
+            </ion-button>
           </div>
-        </li>
-      </ul>
-      <div class="quote-footer">
-        <div>
-          <span>Cotización creada</span>
-          <strong>{{ quote()?.createdAt | date:'dd/MM/yyyy HH:mm' }}</strong>
-        </div>
-        <div>
-          <span>Total estimado</span>
-          <strong>{{ quote()?.totalPrice | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
-        </div>
+          <button type="button" class="bubble-clear" (click)="clearCart()" [disabled]="!hasItems()">
+            <ion-icon name="trash-outline"></ion-icon>
+            Vaciar carrito
+          </button>
+        </aside>
       </div>
-      <p *ngIf="quote()?.note" class="quote-note">
-        <strong>Nota:</strong> {{ quote()?.note }}
-      </p>
-    </section>
 
-    <footer *ngIf="hasItems()" class="cta">
-      <p>Revisa tu carrito y continúa con el proceso de compra desde tu cuenta o escribiendo a nuestros canales.</p>
-      <p class="request-hint">Las solicitudes suelen responderse durante el dia.</p>
-      <div class="buttons">
-        <ion-button color="success" (click)="submitOrder()" [disabled]="submitting() || !hasItems()">
-          <ng-container *ngIf="!submitting(); else sendingState">Pedir ya</ng-container>
-        </ion-button>
-        <ng-template #sendingState>Enviando...</ng-template>
-        <a routerLink="/crea-tu-diseno">
-          <ion-button fill="outline" color="primary">Editar cotización</ion-button>
-        </a>
+      <section *ngIf="quote()" class="quote card bubble-quote">
+        <header class="quote-header">
+          <div>
+            <h2>Cotizaci&oacute;n guardada</h2>
+            <p>{{ quote()?.materialLabel }} &#8226; {{ quote()?.usedHeight | number:'1.0-0' }} cm usados</p>
+          </div>
+          <ion-button fill="clear" color="medium" (click)="clearQuote()">
+            <ion-icon slot="start" name="trash-outline"></ion-icon>
+            Quitar cotizaci&oacute;n
+          </ion-button>
+        </header>
+        <ul class="quote-list">
+          <li *ngFor="let item of quote()?.items">
+            <div class="q-name">
+              {{ item.name }}
+              <span>x{{ item.quantity }}</span>
+            </div>
+            <div class="q-size">
+              {{ item.widthCm | number:'1.0-1' }} &times; {{ item.heightCm | number:'1.0-1' }} cm
+            </div>
+          </li>
+        </ul>
+        <div class="quote-footer">
+          <div>
+            <span>Cotizaci&oacute;n creada</span>
+            <strong>{{ quote()?.createdAt | date:'dd/MM/yyyy HH:mm' }}</strong>
+          </div>
+          <div>
+            <span>Total estimado</span>
+            <strong>{{ quote()?.totalPrice | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+          </div>
+        </div>
+        <p *ngIf="quote()?.note" class="quote-note">
+          <strong>Nota:</strong> {{ quote()?.note }}
+        </p>
+      </section>
+    </ng-container>
+
+    <ng-template #emptyState>
+      <section class="empty">
+        <ion-icon name="cart-outline"></ion-icon>
+        <h2>Tu carrito est&aacute; vac&iacute;o</h2>
+        <p>Agrega productos desde el cat&aacute;logo o guarda tu cotizaci&oacute;n para revisarla m&aacute;s tarde.</p>
         <a routerLink="/productos">
-          <ion-button color="primary">Seguir comprando</ion-button>
+          <ion-button color="primary">Ir al cat&aacute;logo</ion-button>
         </a>
-      </div>
-    </footer>
+      </section>
+    </ng-template>
   </div>
 </ion-content>

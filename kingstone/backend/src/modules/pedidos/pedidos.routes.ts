@@ -2,7 +2,16 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { CartCreate, CartProduct, CartQuote, CartQuoteItem, DesignerCreate, PedidoPayload } from './pedidos.types';
+import {
+  CartCreate,
+  CartProduct,
+  CartQuote,
+  CartQuoteItem,
+  DesignerCreate,
+  PedidoPayload,
+  createCartSchema,
+  createDesignerSchema
+} from './pedidos.types';
 import multer from 'multer';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { imageSize } from 'image-size';
@@ -238,22 +247,28 @@ function canAccessPedido(user: JwtUser | undefined, pedido: { userId: number | n
   return false;
 }
 
-function parsePayload(payload: string | object): PedidoPayload | null {
-  if (payload && typeof payload === 'object') {
-    return payload as PedidoPayload;
-  }
-  try {
-    return JSON.parse(payload as string) as PedidoPayload;
-  } catch {
+function parsePayload(payload: unknown): PedidoPayload | null {
+  if (!payload) {
     return null;
   }
+  if (typeof payload === 'object') {
+    return payload as PedidoPayload;
+  }
+  if (typeof payload === 'string') {
+    try {
+      return JSON.parse(payload) as PedidoPayload;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 export function extractMaterialIdFromPedido(pedido: { materialId: string | null, payload: any }): string | null {
   if (typeof pedido?.materialId === 'string' && pedido.materialId.length) {
     return pedido.materialId;
   }
-  const payload = parsePayload(pedido?.payload);
+  const payload = parsePayload(pedido?.payload) as any;
   if (typeof payload?.materialId === 'string') {
     return payload.materialId;
   }
@@ -277,7 +292,7 @@ export function extractMaterialWidthFromPedido(pedido: { materialWidthCm?: numbe
   if (typeof pedido?.materialWidthCm === 'number') {
     return pedido.materialWidthCm;
   }
-  const payload = parsePayload(pedido?.payload);
+  const payload = parsePayload(pedido?.payload) as any;
   const widths = [
     payload?.materialWidthCm,
     payload?.materialWidth,
@@ -487,7 +502,7 @@ export async function recomputePedidoAggregates(pedidoId: number, client: DbClie
     return null;
   }
 
-  const payload = parsePayload(pedido.payload);
+  const payload = parsePayload(pedido.payload) as any;
   const oldLength = typeof payload?.filesTotalLengthCm === 'number' ? payload.filesTotalLengthCm : 0;
 
   const totalArea = pedido.adjuntos.reduce((acc, file) => acc + (file.areaCm2 ?? 0), 0);
@@ -1090,7 +1105,7 @@ router.post('/', async (req, res) => {
       });
     }
     const dto = parsed.data;
-    const user = req.user as JwtUser | undefined;
+    const user = (req as any).user as JwtUser | undefined;
 
     if (isCartSource) {
       await handleCartOrder(dto as CartCreate, user, res);
@@ -1111,7 +1126,7 @@ router.post('/', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const user = req.user as JwtUser | undefined;
+    const user = (req as any).user as JwtUser | undefined;
     const isOp = isOperator(user?.role);
     if (!isOp) {
       const userId = user?.sub ? Number(user.sub) : null;
@@ -1120,16 +1135,21 @@ router.get('/', async (req, res) => {
         return res.json([]);
       }
 
-      const pedidoWhere: Prisma.PedidoWhereInput = {
-        OR: [
-          userId ? { userId } : undefined,
-          email ? { clienteEmail: email } : undefined
-        ].filter(Boolean)
-      };
+      const orClauses: Prisma.PedidoWhereInput[] = [];
+      if (userId) {
+        orClauses.push({ userId });
+      }
+      if (email) {
+        orClauses.push({ clienteEmail: email });
+      }
 
-      if (!pedidoWhere.OR || !pedidoWhere.OR.length) {
+      if (!orClauses.length) {
         return res.json([]);
       }
+
+      const pedidoWhere: Prisma.PedidoWhereInput = {
+        OR: orClauses
+      };
 
       const statusRaw = (req.query.status as string | undefined)?.trim();
       const status = statusRaw && statusRaw.length ? statusRaw.toUpperCase() : undefined;
@@ -1509,7 +1529,7 @@ router.get('/:id/quote.pdf', async (req, res) => {
       return res.status(403).json({ message: 'No autorizado' });
     }
 
-    const payload = parsePayload(pedido.payload);
+    const payload = parsePayload(pedido.payload) as any;
     const products = Array.isArray(payload?.products) ? payload.products : [];
     const quote = payload?.quote && typeof payload.quote === 'object' ? payload.quote : null;
     const attachments = Array.isArray(payload?.attachments) ? payload.attachments : [];

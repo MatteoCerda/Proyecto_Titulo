@@ -54,6 +54,138 @@
   font-weight: 700;
 }
 
+.cart-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
+  gap: 28px;
+  align-items: start;
+}
+
+.cart-bubble {
+  position: sticky;
+  top: 28px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+  border-radius: 32px;
+  padding: 28px 26px;
+  box-shadow: 0 32px 48px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  backdrop-filter: blur(14px);
+}
+
+.cart-bubble::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at top, rgba(14, 165, 233, 0.12), transparent 65%);
+  pointer-events: none;
+}
+
+.bubble-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.bubble-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.bubble-total {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.bubble-copy {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 14px;
+  color: #475569;
+}
+
+.bubble-terms {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.bubble-terms input {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1px solid #94a3b8;
+  accent-color: #0f172a;
+}
+
+.bubble-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bubble-actions ion-button {
+  --border-radius: 18px;
+  --box-shadow: none;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.bubble-actions ion-button[color='success'] {
+  --background: linear-gradient(135deg, #0ea5e9, #0c4a6e);
+  --background-activated: #0c4a6e;
+  --background-focused: #0c4a6e;
+  color: #ffffff;
+  box-shadow: 0 18px 30px rgba(14, 165, 233, 0.35);
+}
+
+.bubble-clear {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.bubble-clear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bubble-clear:not(:disabled):hover {
+  background: rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
+}
+
+.bubble-clear ion-icon {
+  font-size: 18px;
+}
+
 .empty {
   background: #fff;
   border-radius: 20px;
@@ -71,6 +203,7 @@
 
 .cards {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
 
@@ -273,6 +406,10 @@
   color: #b91c1c;
 }
 
+.bubble-quote {
+  margin-top: 12px;
+}
+
 .request-hint {
   margin: 0 0 18px;
   font-size: 14px;
@@ -288,6 +425,15 @@
 }
 
 @media (max-width: 768px) {
+  .cart-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cart-bubble {
+    position: relative;
+    top: 0;
+  }
+
   .card {
     flex-direction: column;
   }
@@ -302,5 +448,16 @@
 
   .header {
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .cart-bubble {
+    padding: 24px 20px;
+    border-radius: 26px;
+  }
+
+  .bubble-total {
+    font-size: 24px;
   }
 }

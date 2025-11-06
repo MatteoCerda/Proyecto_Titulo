@@ -7,6 +7,7 @@ import { register } from 'swiper/element/bundle';
 import type { SwiperOptions } from 'swiper/types';
 
 import { environment } from '../../../environments/environment';
+import { CatalogService } from '../../services/catalog.service';
 
 register();
 
@@ -19,7 +20,9 @@ interface OfertaCliente {
   prioridad: number;
   startAt?: string | null;
   endAt?: string | null;
+  itemId?: number | null;
   inventario?: { code: string; name: string } | null;
+  precioOferta?: number | null;
   basePrice?: number | null;
   offerPrice?: number | null;
   discountAmount?: number | null;
@@ -37,18 +40,7 @@ interface OfertaCliente {
 export class HomePage {
   private readonly http = inject(HttpClient);
   private readonly apiBase = (environment.apiUrl || '').replace(/\/$/, '');
-  readonly heroSlides: SwiperOptions = {
-    slidesPerView: 1,
-    loop: true,
-    speed: 600,
-    autoplay: {
-      delay: 5000,
-      disableOnInteraction: false
-    },
-    pagination: {
-      clickable: true
-    }
-  };
+  private readonly catalog = inject(CatalogService);
   readonly heroImages = [
     {
       src: 'assets/Pagina-inicio/pagina inicio kingston.png',
@@ -63,6 +55,7 @@ export class HomePage {
       alt: 'Ofertas'
     }
   ];
+  readonly heroSlides: SwiperOptions = this.buildHeroSlidesConfig();
 
   readonly cardImages = [
     {
@@ -95,8 +88,9 @@ export class HomePage {
   cargarOfertas() {
     this.cargando.set(true);
     this.http.get<OfertaCliente[]>(this.endpoint('/api/offers')).subscribe({
-      next: data => {
-        this.ofertas.set(data);
+      next: async data => {
+        const enriched = await Promise.all(data.map(oferta => this.enrichOffer(oferta)));
+        this.ofertas.set(enriched);
         this.error.set(null);
         this.cargando.set(false);
       },
@@ -108,7 +102,89 @@ export class HomePage {
     });
   }
 
+  private async enrichOffer(oferta: OfertaCliente): Promise<OfertaCliente> {
+    const base = oferta.basePrice ?? null;
+    const rawOffer = oferta.offerPrice ?? oferta.precioOferta ?? null;
+
+    const discountAmountDirect =
+      oferta.discountAmount ??
+      (base !== null && rawOffer !== null && base > rawOffer ? base - rawOffer : null);
+    const discountPercentDirect =
+      oferta.discountPercent ??
+      (discountAmountDirect !== null && base ? Math.round((discountAmountDirect / base) * 100) : null);
+
+    if (!oferta.itemId || base !== null) {
+      return {
+        ...oferta,
+        basePrice: base,
+        offerPrice: rawOffer,
+        discountAmount: discountAmountDirect,
+        discountPercent: discountPercentDirect
+      };
+    }
+
+    try {
+      const item = await this.catalog.getItem(oferta.itemId);
+      if (!item) {
+        return {
+          ...oferta,
+          basePrice: base,
+          offerPrice: rawOffer,
+          discountAmount: discountAmountDirect,
+          discountPercent: discountPercentDirect
+        };
+      }
+
+      const basePrice = item.basePrice ?? item.price ?? item.priceWeb ?? 0;
+      const offerPrice = rawOffer ?? item.offerPrice ?? null;
+      const discountAmount =
+        offerPrice !== null && basePrice > offerPrice ? basePrice - offerPrice : null;
+      const discountPercent =
+        discountAmount !== null && basePrice
+          ? Math.round((discountAmount / basePrice) * 100)
+          : null;
+
+      return {
+        ...oferta,
+        basePrice,
+        offerPrice,
+        discountAmount,
+        discountPercent
+      };
+    } catch {
+      return {
+        ...oferta,
+        basePrice: base,
+        offerPrice: rawOffer,
+        discountAmount: discountAmountDirect,
+        discountPercent: discountPercentDirect
+      };
+    }
+  }
+
+  tieneDescuento(oferta: OfertaCliente): boolean {
+    const base = oferta.basePrice ?? null;
+    const current = oferta.offerPrice ?? oferta.precioOferta ?? null;
+    return base !== null && current !== null && current < base;
+  }
+
   // Footer hide/show se maneja globalmente en el layout
+
+  private buildHeroSlidesConfig(): SwiperOptions {
+    const slidesCount = this.heroImages.length;
+    return {
+      slidesPerView: 1,
+      loop: slidesCount > 1,
+      speed: 600,
+      autoplay: {
+        delay: 5000,
+        disableOnInteraction: false
+      },
+      pagination: {
+        clickable: true
+      }
+    };
+  }
 }
 
 

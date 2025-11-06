@@ -1,13 +1,18 @@
 <ion-content class="productos">
   <div class="catalog">
     <header class="catalog-header">
-      <h1>Catálogo para clientes</h1>
+      <h1>Cat&aacute;logo para clientes</h1>
       <p>Explora los insumos disponibles: vinilos textiles, decorativos y soportes para tus pedidos.</p>
       <ion-searchbar
         placeholder="Buscar por nombre, tipo, color o proveedor"
         [debounce]="200"
         (ionInput)="onSearch($event)">
       </ion-searchbar>
+      <div class="catalog-actions">
+        <ion-button fill="clear" size="small" (click)="refreshCatalog()" [disabled]="loading()">
+          {{ loading() ? 'Actualizando...' : 'Actualizar cat&aacute;logo' }}
+        </ion-button>
+      </div>
     </header>
 
     <section *ngIf="loading()" class="status">
@@ -79,3 +84,4 @@
     </section>
   </div>
 </ion-content>
+

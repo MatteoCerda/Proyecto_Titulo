@@ -2,6 +2,7 @@ Levantar front web
 1. Abrir terminal en el proyecto: `cd C:\Kingstone\kingstone\web\kingstone`.
 2. Instalar dependencias (solo primera vez): `npm install`.
 3. Iniciar servidor local: `npx @ionic/cli@latest serve --host=localhost --port=8100`.
+   Nota: si ejecutas este comando desde otra carpeta (por ejemplo `Proyecto_Titulo`), Angular no encontrara las plantillas (`NG2008: Could not find template file`).
 4. Detener el front con `Ctrl+C` cuando ya no se necesite.
 5. Front disponible en `http://localhost:8100/`.
 

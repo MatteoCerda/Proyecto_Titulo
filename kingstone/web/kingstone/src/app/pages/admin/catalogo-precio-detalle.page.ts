@@ -5,6 +5,8 @@ import { HttpClient } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { IonContent } from '@ionic/angular/standalone';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
+import { environment } from '../../../environments/environment';
+import { CatalogService } from '../../services/catalog.service';
 
 interface InventoryItemDetail {
   id: number;
@@ -162,7 +164,8 @@ export class AdminCatalogoPrecioDetallePage {
   private fb = inject(FormBuilder);
   private router = inject(Router);
   private sanitizer = inject(DomSanitizer);
-  private api = 'http://localhost:3000';
+  private catalogService = inject(CatalogService);
+  private readonly apiBase = (environment.apiUrl || '').replace(/\/$/, '');
 
   id = Number(this.route.snapshot.paramMap.get('id'));
   cargando = signal(true);
@@ -187,6 +190,11 @@ export class AdminCatalogoPrecioDetallePage {
     qrRaw: [{ value: '', disabled: true }]
   });
 
+  private endpoint(path: string): string {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return this.apiBase ? `${this.apiBase}${normalized}` : normalized;
+  }
+
   ngOnInit() {
     if (!Number.isFinite(this.id) || this.id <= 0) {
       this.cargando.set(false);
@@ -210,7 +218,7 @@ export class AdminCatalogoPrecioDetallePage {
       this.cargando.set(true);
       this.error.set('');
     }
-    this.http.get<InventoryItemDetail>(`${this.api}/admin/inventory/${this.id}`).subscribe({
+    this.http.get<InventoryItemDetail>(this.endpoint(`/api/admin/inventory/${this.id}`)).subscribe({
       next: item => {
         this.applyItem(item);
         if (!silent) this.cargando.set(false);
@@ -265,11 +273,12 @@ export class AdminCatalogoPrecioDetallePage {
       payload.imageUrl = this.imageRaw || null;
     }
 
-    this.http.patch(`${this.api}/admin/inventory/${this.id}`, payload).subscribe({
+    this.http.patch(this.endpoint(`/api/admin/inventory/${this.id}`), payload).subscribe({
       next: () => {
         this.guardando.set(false);
         this.exito.set('Producto actualizado correctamente.');
         this.fetchItem({ silent: true });
+        this.catalogService.invalidateCache();
       },
       error: () => {
         this.guardando.set(false);

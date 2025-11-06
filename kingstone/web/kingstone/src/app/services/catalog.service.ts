@@ -39,6 +39,7 @@ export class CatalogService {
   private readonly http = inject(HttpClient);
   private readonly basePath = '/api/catalogo';
   private readonly offerService = inject(OfferService);
+  private readonly storageKey = 'kingstone.catalog.invalidateAt';
 
   private readonly itemsSignal = signal<CatalogItem[]>([]);
   private readonly loadingSignal = signal(false);
@@ -48,6 +49,12 @@ export class CatalogService {
   readonly items = computed(() => this.itemsSignal());
   readonly loading = computed(() => this.loadingSignal());
   readonly error = computed(() => this.errorSignal());
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', this.handleStorageInvalidate as any);
+    }
+  }
 
   async loadCatalog(filters: CatalogFilters = {}, force = false): Promise<void> {
     const sameFilters = !force && this.areSameFilters(filters, this.lastFilters);
@@ -88,6 +95,27 @@ export class CatalogService {
       this.loadingSignal.set(false);
     }
   }
+
+  invalidateCache = (options: { broadcast?: boolean } = {}) => {
+    this.itemsSignal.set([]);
+    this.lastFilters = {};
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('catalog:invalidate'));
+      if (options.broadcast !== false) {
+        try {
+          window.localStorage?.setItem(this.storageKey, Date.now().toString());
+        } catch {
+          // ignore quota errors
+        }
+      }
+    }
+  };
+
+  private handleStorageInvalidate = (event: StorageEvent) => {
+    if (event.key === this.storageKey) {
+      this.invalidateCache({ broadcast: false });
+    }
+  };
 
   async getItem(id: number): Promise<CatalogItem | null> {
     try {
