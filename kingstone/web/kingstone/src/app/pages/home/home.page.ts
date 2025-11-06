@@ -51,7 +51,7 @@ export class HomePage {
   };
   readonly heroImages = [
     {
-      src: 'assets/Pagina-inicio/Pagina inicio Kingston.jpg',
+      src: 'assets/Pagina-inicio/pagina inicio kingston.png',
       alt: 'Pagina inicio Kingston'
     },
     {
@@ -61,6 +61,21 @@ export class HomePage {
     {
       src: 'assets/Pagina-inicio/ofertas.jpg',
       alt: 'Ofertas'
+    }
+  ];
+
+  readonly cardImages = [
+    {
+      src: 'assets/Pagina-inicio/BANNER-INICIO/banner-atencion.png',
+      alt: 'Atencion'
+    },
+    {
+      src: 'assets/Pagina-inicio/BANNER-INICIO/banner-envio.png',
+      alt: 'Envio'
+    },
+    {
+      src: 'assets/Pagina-inicio/BANNER-INICIO/banner-retiro.png',
+      alt: 'Retiro'
     }
   ];
 

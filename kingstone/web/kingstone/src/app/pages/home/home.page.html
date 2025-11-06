@@ -36,6 +36,12 @@
     </div>
   </section>
 
+  <section class="home-cards">
+    <div class="card" *ngFor="let card of cardImages">
+      <img [src]="card.src" [alt]="card.alt" loading="lazy" />
+    </div>
+  </section>
+
   <section class="home-offers" *ngIf="cargando() || error() || ofertas().length">
     <div class="offers-header">
       <h2>Ofertas destacadas</h2>
