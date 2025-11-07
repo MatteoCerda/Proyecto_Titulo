@@ -39,3 +39,17 @@ Migraciones y datos
 
 SQL util
 * Dar privilegios de administrador: `UPDATE User SET role='admin' WHERE email='tu@correo.com';`
+
+n8n en producción (workflow cotizaciones)
+1. Preparar archivo `.env.production` copiando `.env` y ajustando: `N8N_HOST=n8n.kingstone.local`, `N8N_PROTOCOL=https`, `N8N_PORT=5678` (si usarás un proxy externo para TLS) y `N8N_WEBHOOK_URL=http://n8n:5678/webhook/cotizacion-alerta` para que la API hable por red interna. Define credenciales reales en `N8N_BASIC_AUTH_USER/N8N_BASIC_AUTH_PASSWORD`.
+2. Subir a tu servidor los archivos `n8n-smtp-credentials.json` y `n8n-cotizacion-alerta.workflow.json` (`scp` o Git). Ejecutar `docker compose --env-file .env.production up -d n8n` para levantar el contenedor con el nuevo dominio.
+3. Copiar los JSON dentro del contenedor y registrar credenciales/workflow:
+   * `docker cp n8n-smtp-credentials.json kingstone_n8n:/tmp/`
+   * `docker exec kingstone_n8n n8n import:credentials --input=/tmp/n8n-smtp-credentials.json`
+   * `docker cp n8n-cotizacion-alerta.workflow.json kingstone_n8n:/tmp/`
+   * `docker exec kingstone_n8n n8n import:workflow --input=/tmp/n8n-cotizacion-alerta.workflow.json`
+   * `docker exec kingstone_n8n n8n list:workflow` (anota el ID) y `docker exec kingstone_n8n n8n update:workflow --id <ID> --active=true`
+4. En el mismo servidor reinicia API y worker para que lean `N8N_WEBHOOK_URL`: `docker compose --env-file .env.production restart api worker`.
+5. Prueba desde una máquina con DNS apuntando a la instancia: `curl -u admin@kingstone.local:TU_PASSWORD https://n8n.kingstone.local/webhook/cotizacion-alerta -H "Content-Type: application/json" -d "{\"cotizacionId\":999,\"asignacionId\":1,\"operadorEmail\":\"ops@kingstone.local\",\"operadorNombre\":\"Operador\",\"clienteNombre\":\"Cliente\",\"enlace\":\"https://app.kingstone.local/operacion/cotizaciones/999\"}"`. Debería responder `200 OK` y verás el correo en el buzón SMTP configurado.
+6. El workflow envía automáticamente dos correos: uno al operador (`operadorEmail`) y otro al cliente (`clienteEmail`). Si ese campo no llega en el payload, la rama del cliente se omite sin afectar la notificación del operador.
+7. Para los cambios de estado de pedidos define también `N8N_PEDIDOS_WEBHOOK_URL=http://n8n:5678/webhook/pedido-estado`, importa `n8n-pedido-estado.workflow.json` y actívalo. Ese flujo lee el payload de `notifyPedidoEstado`, envía el correo al cliente y reenvía un resumen al operador que ejecutó la acción (usando su email como `reply-to`), por lo que la app detecta automáticamente qué operador tomó el pedido.

@@ -1,0 +1,142 @@
+[
+  {
+    "name": "Alerta nueva cotizacion",
+    "active": true,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "cotizacion-alerta",
+          "responseMode": "onReceived",
+          "options": {
+            "responseHeaders": [
+              {
+                "name": "cache-control",
+                "value": "no-store"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "id": "3b4e6952-cf72-4790-ad05-3731bc7c7eec",
+        "name": "Webhook cotizacion",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          480,
+          300
+        ],
+        "webhookId": "d439cbd5-cdc2-4217-8688-a813b0ac6b5e"
+      },
+      {
+        "parameters": {
+          "resource": "email",
+          "operation": "send",
+          "fromEmail": "Kingstone Operaciones <rcarrasco6661@gmail.com>",
+          "toEmail": "={{$json['operadorEmail'] ?? 'operador@kingstone.local'}}",
+          "subject": "={{'Nueva cotizacion #' + ($json['cotizacionId'] ?? '?')}}",
+          "emailFormat": "html",
+          "html": "={{'<p>Hola ' + ($json['operadorNombre'] ?? 'equipo') + ',</p>' + '<p>Tienes una nueva cotizacion <strong>#' + ($json['cotizacionId'] ?? '?') + '</strong> asignada.</p>' + '<p>Cliente: ' + (($json['clienteNombre'] ?? $json['clienteEmail']) ?? 'sin datos') + '</p>' + '<p><a href=\\\"' + ($json['enlace'] ?? '') + '\\\">Abrir en panel</a></p>'}}",
+          "options": {
+            "replyTo": "operaciones@kingstone.local"
+          }
+        },
+        "id": "173ede10-2c1b-48f5-91c9-442b73e82be3",
+        "name": "Correo operador",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          780,
+          300
+        ],
+        "credentials": {
+          "smtp": {
+            "id": "ebad36ef-7d34-44d9-8fc3-d0fa40fac741",
+            "name": "SMTP Personal"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "functionCode": "const filtered = items.filter(item => {\n  const email = item.json?.clienteEmail;\n  return typeof email === 'string' && email.trim().length > 0;\n});\nreturn filtered;"
+        },
+        "id": "c7e1d19d-a9ee-43e0-b6bb-abbddaef635a",
+        "name": "Filtrar cliente",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 2,
+        "position": [
+          760,
+          120
+        ]
+      },
+      {
+        "parameters": {
+          "resource": "email",
+          "operation": "send",
+          "fromEmail": "Kingstone Operaciones <rcarrasco6661@gmail.com>",
+          "toEmail": "={{$json['clienteEmail']}}",
+          "subject": "={{'Recibimos tu solicitud #' + ($json['cotizacionId'] ?? '?')}}",
+          "emailFormat": "html",
+          "html": "={{'<p>Hola ' + ($json['clienteNombre'] ?? 'cliente') + ',</p>' + '<p>Recibimos tu solicitud y ya estamos trabajando en ella.</p>' + '<p>Puedes hacer seguimiento desde: <a href=\\\"' + ($json['enlace'] ?? '') + '\\\">este enlace</a>.</p>' + '<p>Si necesitas hacer cambios, responde a este correo.</p>'}}",
+          "options": {
+            "replyTo": "soporte@kingstone.local"
+          }
+        },
+        "id": "309681e7-f405-4ca7-abbd-7ae16985315c",
+        "name": "Correo cliente",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          1040,
+          120
+        ],
+        "credentials": {
+          "smtp": {
+            "id": "ebad36ef-7d34-44d9-8fc3-d0fa40fac741",
+            "name": "SMTP Personal"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook cotizacion": {
+        "main": [
+          [
+            {
+              "node": "Correo operador",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Filtrar cliente",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filtrar cliente": {
+        "main": [
+          [
+            {
+              "node": "Correo cliente",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {},
+    "staticData": null,
+    "tags": [],
+    "meta": {},
+    "pinData": null,
+    "versionId": "f7f017fe-0f99-4cd5-950c-aec248c745aa",
+    "triggerCount": 0,
+    "id": "294dhUTLgZWScLiC"
+  }
+]

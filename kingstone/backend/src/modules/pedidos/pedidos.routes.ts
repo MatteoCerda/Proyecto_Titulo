@@ -22,6 +22,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { prisma } from '../../lib/prisma';
 import { calculateTaxBreakdown, DEFAULT_CURRENCY, TAX_RATE } from '../common/pricing';
+import { sendEmail } from '../../lib/email';
 
 const router = Router();
 type DbClient = Prisma.TransactionClient | PrismaClient;
@@ -102,6 +103,20 @@ const MATERIAL_UNIT_LENGTH_CM = 100;
 const CURRENCY_CODE = DEFAULT_CURRENCY;
 
 type JwtUser = { sub?: number; email?: string; role?: string };
+
+async function getOperatorContact(userId?: number | null) {
+  if (!userId) {
+    return { email: null, nombre: null };
+  }
+  const operator = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, fullName: true }
+  });
+  return {
+    email: operator?.email ?? null,
+    nombre: operator?.fullName ?? null
+  };
+}
 
 function createStockError(details: Record<string, unknown> = {}) {
   return Object.assign(new Error('INSUFFICIENT_STOCK'), { code: 'INSUFFICIENT_STOCK', details });
@@ -681,6 +696,7 @@ type PedidoNotifyPayload = {
   payload: any;
   createdAt: Date;
 };
+import { sendEmail } from '../../lib/email';
 
 function buildEstadoMessage(pedido: PedidoNotifyPayload) {
   const baseLabel = pedido.clienteNombre?.split(' ')?.[0] || 'Hola';
@@ -692,79 +708,52 @@ function buildEstadoMessage(pedido: PedidoNotifyPayload) {
     pagosOperador: `${panelBase}/operador/pagos/${pedido.id}`
   };
 
-  if (pedido.estado === 'EN_REVISION') {
-    return {
-      subject: `Tu pedido #${pedido.id} esta en revision`,
-      text: `${baseLabel}, tu solicitud esta siendo revisada por el equipo. Te avisaremos cuando este lista para pago.`,
-      html: `<p>${baseLabel},</p><p>Tu solicitud <strong>#${pedido.id}</strong> fue tomada por el equipo y esta en revision.</p><p>Puedes seguir el avance en tu panel: <a href="${enlaces.cliente}">${enlaces.cliente}</a>.</p>`,
-      enlaces
-    };
+  switch (pedido.estado) {
+    case 'EN_REVISION':
+      return {
+        subject: `Tu pedido #${pedido.id} esta en revision`,
+        html: `<p>${baseLabel},</p><p>Tu solicitud <strong>#${pedido.id}</strong> fue tomada por el equipo y esta en revision.</p><p>Puedes seguir el avance en tu panel: <a href="${enlaces.cliente}">${enlaces.cliente}</a>.</p>`
+      };
+    case 'POR_PAGAR':
+      return {
+        subject: `Pedido #${pedido.id} listo para pago`,
+        html: `<p>${baseLabel},</p><p>Tu pedido <strong>#${pedido.id}</strong> fue aprobado y esta listo para pago.</p><p>Puedes completar el pago desde tu panel: <a href="${enlaces.pagosCliente}">${enlaces.pagosCliente}</a>.</p>`
+      };
+    case 'EN_PRODUCCION':
+      return {
+        subject: `Tu pedido #${pedido.id} está en producción`,
+        html: `<p>${baseLabel},</p><p>Tu pedido <strong>#${pedido.id}</strong> ha entrado en producción.</p><p>Te notificaremos cuando esté listo para retiro.</p><p>Puedes seguir el avance en tu panel: <a href="${enlaces.cliente}">${enlaces.cliente}</a>.</p>`
+      };
+    case 'LISTO_RETIRO':
+      return {
+        subject: `Tu pedido #${pedido.id} está listo para retiro`,
+        html: `<p>${baseLabel},</p><p>Tu pedido <strong>#${pedido.id}</strong> está listo para ser retirado en nuestra tienda.</p><p>Gracias por tu compra!</p>`
+      };
+    case 'COMPLETADO':
+      return {
+        subject: `Tu pedido #${pedido.id} ha sido completado`,
+        html: `<p>${baseLabel},</p><p>Tu pedido <strong>#${pedido.id}</strong> ha sido marcado como completado.</p><p>¡Gracias por preferirnos!</p>`
+      };
+    default:
+      return null;
   }
-
-  if (pedido.estado === 'POR_PAGAR') {
-    return {
-      subject: `Pedido #${pedido.id} listo para pago`,
-      text: `${baseLabel}, tu pedido esta listo para pago. Ingresa a tu panel para completar el proceso.`,
-      html: `<p>${baseLabel},</p><p>Tu pedido <strong>#${pedido.id}</strong> fue aprobado y esta listo para pago.</p><p>Puedes completar el pago desde tu panel: <a href="${enlaces.pagosCliente}">${enlaces.pagosCliente}</a>.</p>`,
-      enlaces
-    };
-  }
-
-  return null;
 }
 
 async function notifyPedidoEstado(pedido: PedidoNotifyPayload) {
   if (!pedido.clienteEmail) {
     return;
   }
-  if (!['EN_REVISION', 'POR_PAGAR'].includes(pedido.estado)) {
-    return;
-  }
-  const fetchFn = (globalThis as any).fetch as typeof fetch | undefined;
-  if (!fetchFn) {
-    console.warn('[pedidos] fetch no disponible para notificar estado');
-    return;
-  }
-  const webhookUrl = process.env.N8N_PEDIDOS_WEBHOOK_URL || process.env.N8N_WEBHOOK_URL;
-  if (!webhookUrl) {
-    console.info('[pedidos] Notificacion omitida (sin webhook configurado)');
-    return;
-  }
+
   const message = buildEstadoMessage(pedido);
   if (!message) {
     return;
   }
-  const payload = {
-    tipo: 'pedido_estado',
-    pedidoId: pedido.id,
-    estado: pedido.estado,
-    destinatario: pedido.clienteEmail,
-    asunto: message.subject,
-    mensaje: message.text,
-    html: message.html,
-    enlaces: message.enlaces,
-    total: pedido.total ?? null,
-    subtotal: typeof pedido.subtotal === 'number' ? pedido.subtotal : null,
-    taxTotal: typeof pedido.taxTotal === 'number' ? pedido.taxTotal : null,
-    currency: pedido.currency || CURRENCY_CODE,
-    taxRate: TAX_RATE,
-    material: pedido.materialLabel ?? null,
-    origen: typeof pedido.payload === 'object' && pedido.payload !== null ? (pedido.payload as any).source ?? null : null
-  };
 
-  try {
-    const response = await fetchFn(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      console.error('[pedidos] Webhook respondio error', response.status, text);
-    }
-  } catch (error) {
-    console.error('[pedidos] Error enviando notificacion', error);
-  }
+  await sendEmail({
+    to: pedido.clienteEmail,
+    subject: message.subject,
+    html: message.html,
+  });
 }
 
 async function handleCartOrder(dto: CartCreate, user: JwtUser | undefined, res: any) {
@@ -1093,137 +1082,13 @@ async function handleDesignerOrder(dto: DesignerCreate, user: JwtUser | undefine
   res.status(201).json({ id: pedidoId });
 }
 
-router.post('/', async (req, res) => {
-  try {
-    const isCartSource = typeof req.body?.source === 'string' && req.body.source === 'cart';
-    const parsed = isCartSource ? createCartSchema.safeParse(req.body) : createDesignerSchema.safeParse(req.body);
-    if (!parsed.success) {
-      const issue = parsed.error.issues?.[0];
-      return res.status(400).json({
-        message: issue?.message || 'Solicitud invalida',
-        issues: parsed.error.issues
-      });
-    }
-    const dto = parsed.data;
-    const user = (req as any).user as JwtUser | undefined;
+router.post('/', pedidosController.createPedido);
 
-    if (isCartSource) {
-      await handleCartOrder(dto as CartCreate, user, res);
-    } else {
-      await handleDesignerOrder(dto as DesignerCreate, user, res);
-    }
-  } catch (error: any) {
-    if (error?.code === 'INSUFFICIENT_STOCK') {
-      return res.status(409).json({
-        message: 'No hay stock suficiente para completar el pedido.',
-        detalles: error?.details || null
-      });
-    }
-    console.error('Error creando pedido', error);
-    res.status(500).json({ message: 'Error interno' });
-  }
-});
+import * as pedidosController from './pedidos.controller';
 
-router.get('/', async (req, res) => {
-  try {
-    const user = (req as any).user as JwtUser | undefined;
-    const isOp = isOperator(user?.role);
-    if (!isOp) {
-      const userId = user?.sub ? Number(user.sub) : null;
-      const email = user?.email ?? null;
-      if (!userId && !email) {
-        return res.json([]);
-      }
+const router = Router();
 
-      const orClauses: Prisma.PedidoWhereInput[] = [];
-      if (userId) {
-        orClauses.push({ userId });
-      }
-      if (email) {
-        orClauses.push({ clienteEmail: email });
-      }
-
-      if (!orClauses.length) {
-        return res.json([]);
-      }
-
-      const pedidoWhere: Prisma.PedidoWhereInput = {
-        OR: orClauses
-      };
-
-      const statusRaw = (req.query.status as string | undefined)?.trim();
-      const status = statusRaw && statusRaw.length ? statusRaw.toUpperCase() : undefined;
-      if (status && status !== 'TODOS') {
-        pedidoWhere.estado = status;
-      }
-
-      const pedidos = await prisma.pedido.findMany({
-        where: pedidoWhere,
-        orderBy: { id: 'desc' },
-        take: 50
-      });
-
-      const respuesta = pedidos.map(p => ({
-        id: p.id,
-        cliente: p.clienteNombre || p.clienteEmail || 'Tu pedido',
-      email: p.clienteEmail || email || '',
-      estado: p.estado,
-      createdAt: p.createdAt,
-      total: typeof p.total === 'number' ? p.total : undefined,
-      subtotal: typeof p.subtotal === 'number' ? p.subtotal : undefined,
-      taxTotal: typeof p.taxTotal === 'number' ? p.taxTotal : undefined,
-      currency: p.moneda || undefined,
-      items: p.itemsCount || undefined,
-      materialLabel: p.materialLabel || undefined,
-      note: typeof p.payload === 'object' && p.payload !== null ? (p.payload as any).note ?? undefined : undefined,
-      payload: p.payload
-    }));
-
-      return res.json(respuesta);
-    }
-
-    const statusRaw = (req.query.status as string | undefined)?.trim();
-    const status = statusRaw && statusRaw.length ? statusRaw.toUpperCase() : 'PENDIENTE';
-    const where: Prisma.PedidoWhereInput = {};
-    if (status !== 'TODOS') {
-      where.estado = status;
-    }
-
-    const pedidos = await prisma.pedido.findMany({
-      where,
-      include: {
-        ordenesTrabajo: {
-          orderBy: { createdAt: 'desc' }
-        }
-      },
-      orderBy: { id: 'desc' },
-      take: 100
-    });
-
-    const respuesta = pedidos.map(p => ({
-      id: p.id,
-      cliente: p.clienteNombre || p.clienteEmail || 'Cliente',
-      email: p.clienteEmail || '',
-      estado: p.estado,
-      createdAt: p.createdAt,
-      total: typeof p.total === 'number' ? p.total : undefined,
-      subtotal: typeof p.subtotal === 'number' ? p.subtotal : undefined,
-      taxTotal: typeof p.taxTotal === 'number' ? p.taxTotal : undefined,
-      currency: p.moneda || undefined,
-      items: p.itemsCount || undefined,
-      notificado: p.notificado,
-      materialLabel: p.materialLabel || undefined,
-      note: typeof p.payload === 'object' && p.payload !== null ? (p.payload as any).note ?? undefined : undefined,
-      payload: p.payload,
-      workOrder: p.ordenesTrabajo?.[0]
-    }));
-
-    res.json(respuesta);
-  } catch (error) {
-    console.error('Error listando pedidos', error);
-    res.status(500).json({ message: 'Error interno' });
-  }
-});
+router.get('/', pedidosController.getPedidos);
 
 router.get('/admin/clientes', async (req, res) => {
   try {
@@ -1379,9 +1244,40 @@ router.patch('/work-orders/:workOrderId', async (req, res) => {
     });
 
     if (data.estado && data.estado.toUpperCase() === 'LISTO_RETIRO') {
-      await prisma.pedido.update({
+      const operatorContact = await getOperatorContact(user?.sub ? Number(user.sub) : null);
+      const updatedPedido = await prisma.pedido.update({
         where: { id: updated.pedidoId },
-        data: { estado: 'EN_PRODUCCION' }
+        data: { estado: 'LISTO_RETIRO' },
+        select: {
+          id: true,
+          estado: true,
+          notificado: true,
+          clienteEmail: true,
+          clienteNombre: true,
+          total: true,
+          subtotal: true,
+          taxTotal: true,
+          moneda: true,
+          materialLabel: true,
+          payload: true,
+          createdAt: true
+        }
+      });
+
+      await notifyPedidoEstado({
+        id: updatedPedido.id,
+        estado: updatedPedido.estado,
+        clienteEmail: updatedPedido.clienteEmail || null,
+        clienteNombre: updatedPedido.clienteNombre || null,
+        total: typeof updatedPedido.total === 'number' ? updatedPedido.total : null,
+        subtotal: typeof updatedPedido.subtotal === 'number' ? updatedPedido.subtotal : null,
+        taxTotal: typeof updatedPedido.taxTotal === 'number' ? updatedPedido.taxTotal : null,
+        currency: updatedPedido.moneda || CURRENCY_CODE,
+        materialLabel: updatedPedido.materialLabel || null,
+        payload: updatedPedido.payload,
+        createdAt: updatedPedido.createdAt,
+        operadorEmail: operatorContact.email,
+        operadorNombre: operatorContact.nombre
       });
     }
 
@@ -1962,7 +1858,7 @@ router.post('/:id/ack', async (req, res) => {
     }
 
     const estadoBody = typeof req.body?.estado === 'string' ? String(req.body.estado).trim().toUpperCase() : undefined;
-    const allowedStates = ['EN_REVISION', 'POR_PAGAR'];
+    const allowedStates = ['EN_REVISION', 'POR_PAGAR', 'EN_PRODUCCION', 'LISTO_RETIRO', 'COMPLETADO'];
     const nextEstado = estadoBody
       ? allowedStates.includes(estadoBody) ? estadoBody : null
       : (pedido.estado === 'PENDIENTE' ? 'EN_REVISION' : pedido.estado);
@@ -1995,6 +1891,8 @@ router.post('/:id/ack', async (req, res) => {
       }
     });
 
+    const operatorContact = await getOperatorContact(userId);
+
     await notifyPedidoEstado({
       id: updated.id,
       estado: updated.estado,
@@ -2006,7 +1904,9 @@ router.post('/:id/ack', async (req, res) => {
       currency: updated.moneda || CURRENCY_CODE,
       materialLabel: updated.materialLabel || null,
       payload: updated.payload,
-      createdAt: updated.createdAt
+      createdAt: updated.createdAt,
+      operadorEmail: operatorContact.email,
+      operadorNombre: operatorContact.nombre
     });
 
     res.json(updated);

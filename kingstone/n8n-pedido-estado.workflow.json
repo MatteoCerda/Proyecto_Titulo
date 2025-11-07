@@ -1,0 +1,137 @@
+{
+  "name": "Pedido estado notificacion",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pedido-estado",
+        "responseMode": "onReceived",
+        "responseCode": 200,
+        "options": {
+          "responseHeaders": [
+            {
+              "name": "cache-control",
+              "value": "no-store"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "97e714c1-9d69-4b07-97c8-03de752270d8",
+      "name": "Webhook pedido",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        400,
+        300
+      ],
+      "webhookId": "7da21bef-8e41-405d-98bf-3231961d3f2c"
+    },
+    {
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "Kingstone Operaciones <rcarrasco6661@gmail.com>",
+        "toEmail": "={{$json['destinatario']}}",
+        "subject": "={{$json['asunto'] ?? ('Tu pedido ' + ($json['pedidoCodigo'] ?? ('#' + ($json['pedidoId'] ?? '?'))) + ' - ' + ($json['estado'] ?? 'EN_REVISION'))}}",
+        "emailFormat": "html",
+        "html": "={{$json['html'] ?? ('<p>Hola ' + ($json['clienteNombre'] ?? 'cliente') + ',</p>' + '<p>Tu pedido ' + ($json['pedidoCodigo'] ?? ('#' + ($json['pedidoId'] ?? '?'))) + ' ahora esta en estado <strong>' + ($json['estado'] ?? 'EN_REVISION') + '</strong>.</p>' + '<p>Ultima actualizacion: ' + ($json['lastUpdatedDisplay'] ?? $now) + '</p>' + '<p>Cualquier duda, respondeme por aqui.</p>')}}",
+        "options": {
+          "replyTo": "={{$json['operadorEmail'] ?? 'operaciones@kingstone.local'}}"
+        }
+      },
+      "id": "42b8cb57-6e4d-4457-bb3b-9b68bec4b39a",
+      "name": "Correo cliente pedido",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        700,
+        240
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "ebad36ef-7d34-44d9-8fc3-d0fa40fac741",
+          "name": "SMTP Personal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "return items.filter(item => { const email = item.json?.operadorEmail; return typeof email === 'string' && email.includes('@'); });"
+      },
+      "id": "9015e490-0cbf-4400-ab4a-789b66ab98d9",
+      "name": "Filtrar operador",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "Kingstone Operaciones <rcarrasco6661@gmail.com>",
+        "toEmail": "={{$json['operadorEmail']}}",
+        "subject": "={{$json['subjectOperador'] ?? ('Cliente notificado: pedido ' + ($json['pedidoCodigo'] ?? ('#' + ($json['pedidoId'] ?? '?'))))}}",
+        "emailFormat": "html",
+        "html": "={{$json['htmlOperador'] ?? ('<p>Hola ' + ($json['operadorNombre'] ?? 'operador') + ',</p>' + '<p>Se notifico al cliente ' + ($json['clienteNombre'] ?? 'sin nombre') + ' (' + ($json['destinatario'] ?? 'sin correo') + ') sobre el estado <strong>' + ($json['estado'] ?? '') + '</strong> del pedido ' + ($json['pedidoCodigo'] ?? ('#' + ($json['pedidoId'] ?? '?'))) + '.</p>')}}"
+      },
+      "id": "a5ef67f6-03b1-4dd6-9a29-e95ef89fe704",
+      "name": "Correo operador resumen",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        980,
+        400
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "ebad36ef-7d34-44d9-8fc3-d0fa40fac741",
+          "name": "SMTP Personal"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook pedido": {
+      "main": [
+        [
+          {
+            "node": "Correo cliente pedido",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filtrar operador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar operador": {
+      "main": [
+        [
+          {
+            "node": "Correo operador resumen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "tags": [],
+  "meta": {},
+  "pinData": null,
+  "versionId": "0b5c0de3-d8fc-4457-8a3f-04e4c5073b59",
+  "triggerCount": 0
+}
