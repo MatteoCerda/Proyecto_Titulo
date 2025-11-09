@@ -66,8 +66,8 @@ addIcons({ cartOutline, searchOutline, personOutline });
             <ion-icon name="person-outline"></ion-icon>
           </button>
           <div class="ks-user-menu" *ngIf="showUserMenu">
-            <a routerLink="/perfil">Mi perfil</a>
-            <a routerLink="/cliente/mis-pedidos">Mis pedidos</a>
+            <a [routerLink]="['/perfil']" (click)="showUserMenu=false">Mi perfil</a>
+            <a [routerLink]="['/perfil']" [queryParams]="{ tab: 'pedidos' }" (click)="showUserMenu=false">Mis pedidos</a>
             <a routerLink="/cliente/metodos-pago">Metodos de pago</a>
             <button type="button" (click)="logout()">Cerrar sesion</button>
           </div>
@@ -240,7 +240,7 @@ export class KingstoneLayoutComponent {
     if (role === 'ADMIN') {
       (window as any).location.href = '/admin/inicio';
     } else {
-            const target = role === 'OPERATOR' ? '/operador/inicio' : '/cliente/mis-pedidos';
+            const target = role === 'OPERATOR' ? '/operador/inicio' : '/perfil';
       (window as any).location.href = target;
     }
   }

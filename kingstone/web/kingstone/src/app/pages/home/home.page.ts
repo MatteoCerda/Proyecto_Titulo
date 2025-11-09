@@ -1,14 +1,16 @@
 ﻿import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonContent, IonButton, IonSlides, IonSlide } from '@ionic/angular/standalone';
+import { IonContent, IonButton } from '@ionic/angular/standalone';
+import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { register } from 'swiper/element/bundle';
 import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-import SwiperCore, { Autoplay, Pagination } from 'swiper';
-import type { SwiperOptions } from 'swiper/types';
+// Register Swiper custom elements (v12)
+register();
 
 import { environment } from '../../../environments/environment';
 
-SwiperCore.use([Autoplay, Pagination]);
+// Swiper elements registered above
 
 interface OfertaCliente {
   id: number;
@@ -25,9 +27,10 @@ interface OfertaCliente {
 @Component({
   standalone: true,
   selector: 'app-home',
-  imports: [CommonModule, IonContent, IonButton, IonSlides, IonSlide, RouterLink],
+  imports: [CommonModule, IonContent, IonButton, RouterLink],
   templateUrl: './home.page.html',
-  styleUrls: ['./home.page.scss']
+  styleUrls: ['./home.page.scss'],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class HomePage {
   private readonly http = inject(HttpClient);
@@ -41,6 +44,12 @@ export class HomePage {
   ofertas = signal<OfertaCliente[]>([]);
   cargando = signal(false);
   error = signal<string | null>(null);
+
+  heroImages = [
+    { src: 'assets/kingston-hero-placeholder.png', alt: 'Imagen destacada 1' },
+    { src: 'assets/kingston-hero-placeholder.png', alt: 'Imagen destacada 2' },
+    { src: 'assets/kingston-hero-placeholder.png', alt: 'Imagen destacada 3' }
+  ];
 
   ngOnInit() {
     this.cargarOfertas();

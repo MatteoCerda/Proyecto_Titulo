@@ -8,13 +8,17 @@ ion-content.login {
   --background: #ffffff !important;
   --padding-top: 16px;
   --padding-bottom: 16px;
+  /* Fuerza a respetar el alto del header/footer de la app */
+  --offset-top: calc(var(--ks-header-h, 56px) + 16px);
+  --offset-bottom: calc(var(--ks-footer-h, 120px) + 16px);
 }
 
 .login::part(scroll) {
   display: flex;
-  align-items: center;   /* vertical */
-  justify-content: center; /* horizontal */
-  min-height: 100%;
+  align-items: center;      /* vertical */
+  justify-content: center;  /* horizontal */
+  /* Evita solapes con header/footer incluso en navegadores que no usan offsets */
+  min-height: calc(100% - (var(--ks-header-h, 56px) + 16px) - (var(--ks-footer-h, 120px) + 16px));
 }
 
 .login-wrap {
@@ -26,7 +30,7 @@ ion-content.login {
   justify-content: center; /* centra el bloque de dos columnas */
   align-items: center;      /* alinea verticalmente logo y caja */
   gap: 32px;
-  padding: 8px 12px;
+  padding: 24px 12px;       /* mayor separación del header */
 }
 
 .login-left { display: flex; align-items: center; justify-content: center; }

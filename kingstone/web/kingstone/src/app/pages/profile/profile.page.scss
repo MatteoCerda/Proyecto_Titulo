@@ -11,3 +11,63 @@
 .field { --background: #ffffff; border-radius: 8px; --border-color: #e5e7eb; }
 .actions { display:flex; gap: 10px; margin-top: 12px; }
 
+/* Orders block */
+.card-head-simple { display:flex; align-items:center; justify-content:space-between; gap: 12px; margin-bottom: 8px; }
+.orders { display: grid; gap: 12px; }
+.order { border: 1px solid var(--card-border); border-radius: 10px; padding: 10px; }
+.order > header { display:flex; align-items:center; justify-content:space-between; }
+.order-body { padding: 8px 4px 0; }
+.notice { color: #0f172a; font-size: 14px; }
+.notice.error { color: #b91c1c; }
+
+/* Left menu layout */
+.profile-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 24px;
+  max-width: none;      /* ocupar todo el ancho disponible */
+  margin: 0;            /* pegar a la izquierda */
+  padding: 16px;        /* respiración general */
+  /* Asegura respiración bajo el header en esta vista */
+  padding-top: calc(var(--ks-header-h, 56px) + 16px);
+  align-items: start;   /* alinear menú y contenido en la misma línea de base */
+}
+.profile-menu {
+  background: #0b2535;
+  color: #fff;
+  border-radius: 10px;
+  padding: 12px;
+  height: fit-content;
+  position: sticky;
+  top: calc(var(--ks-header-h, 56px) + 8px);
+  box-shadow: 0 6px 18px rgba(15,23,42,.12);
+}
+.profile-menu nav { display: flex; flex-direction: column; gap: 8px; }
+.profile-menu button {
+  text-align: left;
+  background: transparent;
+  color: #cfe9ff;
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.profile-menu button.active { background: #0f3d5a; color: #fff; border-color: transparent; }
+
+@media (max-width: 900px) {
+  .profile-layout { grid-template-columns: 1fr; }
+  .profile-menu { position: static; }
+}
+
+/* Ajustes del contenido para evitar desalineación vertical */
+.profile-main { display: grid; gap: 16px; min-width: 0; padding-bottom: calc(var(--ks-footer-h, 120px) + 24px); }
+.card { margin: 0; }
+
+:host {
+  /* Asegura offsets correctos en esta vista incluso si cambian globales */
+}
+
+.profile-content {
+  --offset-top: calc(var(--ks-header-h, 56px) + 12px);
+  --offset-bottom: calc(var(--ks-footer-h, 120px) + 12px);
+}

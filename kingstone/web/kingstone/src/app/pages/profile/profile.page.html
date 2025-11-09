@@ -1,50 +1,104 @@
 <ion-content class="profile-content">
-  <div class="profile-wrap">
-    <div class="card">
-      <div class="card-head">
-        <div class="avatar"><span>{{ (form.value.fullName || auth.getEmail() || '?').slice(0,1).toUpperCase() }}</span></div>
-        <div class="head-info">
-          <h1>Mi Perfil</h1>
-          <p class="muted">{{ form.get('email')?.value }}</p>
-        </div>
-      </div>
+  <div class="profile-layout">
+    <aside class="profile-menu">
+      <nav>
+        <button type="button" [class.active]="tab() === 'datos'" (click)="select('datos')">Datos de la cuenta</button>
+        <button type="button" [class.active]="tab() === 'pedidos'" (click)="select('pedidos')">Mis pedidos</button>
+      </nav>
+    </aside>
+    <main class="profile-main">
+      <ng-container *ngIf="tab() === 'datos'">
+        <div class="card">
+          <div class="card-head">
+            <div class="avatar"><span>{{ (form.value.fullName || auth.getEmail() || '?').slice(0,1).toUpperCase() }}</span></div>
+            <div class="head-info">
+              <h1>Mi Perfil</h1>
+              <p class="muted">{{ form.get('email')?.value }}</p>
+            </div>
+          </div>
 
-      <form [formGroup]="form" (ngSubmit)="onSubmit()">
-        <h3>Información personal</h3>
-        <div class="grid">
-          <ion-item class="field"><ion-label position="stacked">Correo electrónico</ion-label><ion-input type="email" formControlName="email"></ion-input></ion-item>
-          <ion-item class="field"><ion-label position="stacked">Nombre completo</ion-label><ion-input type="text" formControlName="fullName" placeholder="Tu nombre"></ion-input></ion-item>
+          <form [formGroup]="form" (ngSubmit)="onSubmit()">
+            <h3>Información personal</h3>
+            <div class="grid">
+              <ion-item class="field"><ion-label position="stacked">Correo electrónico</ion-label><ion-input type="email" formControlName="email"></ion-input></ion-item>
+              <ion-item class="field"><ion-label position="stacked">Nombre completo</ion-label><ion-input type="text" formControlName="fullName" placeholder="Tu nombre"></ion-input></ion-item>
+            </div>
+
+            <h3>Datos de contacto</h3>
+            <div class="grid">
+              <ion-item class="field"><ion-label position="stacked">RUT</ion-label><ion-input type="text" [formControl]="clientForm.controls.rut"></ion-input></ion-item>
+              <ion-item class="field"><ion-label position="stacked">Teléfono</ion-label><ion-input type="tel" [formControl]="clientForm.controls.telefono"></ion-input></ion-item>
+              <ion-item class="field"><ion-label position="stacked">Dirección</ion-label><ion-input type="text" [formControl]="clientForm.controls.direccion"></ion-input></ion-item>
+              <ion-item class="field"><ion-label position="stacked">Comuna</ion-label><ion-input type="text" [formControl]="clientForm.controls.comuna"></ion-input></ion-item>
+              <ion-item class="field"><ion-label position="stacked">Ciudad</ion-label><ion-input type="text" [formControl]="clientForm.controls.ciudad"></ion-input></ion-item>
+            </div>
+
+            <div class="actions">
+              <ion-button type="submit" [disabled]="form.invalid || loading()">Guardar perfil</ion-button>
+              <ion-button color="medium" fill="outline" (click)="logout()">Cerrar sesión</ion-button>
+            </div>
+          </form>
         </div>
 
-        <h3>Datos de contacto</h3>
-        <div class="grid">
-          <ion-item class="field"><ion-label position="stacked">RUT</ion-label><ion-input type="text" [formControl]="clientForm.controls.rut"></ion-input></ion-item>
-          <ion-item class="field"><ion-label position="stacked">Teléfono</ion-label><ion-input type="tel" [formControl]="clientForm.controls.telefono"></ion-input></ion-item>
-          <ion-item class="field"><ion-label position="stacked">Dirección</ion-label><ion-input type="text" [formControl]="clientForm.controls.direccion"></ion-input></ion-item>
-          <ion-item class="field"><ion-label position="stacked">Comuna</ion-label><ion-input type="text" [formControl]="clientForm.controls.comuna"></ion-input></ion-item>
-          <ion-item class="field"><ion-label position="stacked">Ciudad</ion-label><ion-input type="text" [formControl]="clientForm.controls.ciudad"></ion-input></ion-item>
+        <div class="card">
+          <h3>Cambiar contraseña</h3>
+          <form [formGroup]="passForm" (ngSubmit)="onSubmitPassword()">
+            <div class="grid">
+              <ion-item class="field"><ion-label position="stacked">Contraseña actual</ion-label><ion-input type="password" formControlName="currentPassword" placeholder="Tu contraseña actual"></ion-input></ion-item>
+              <ion-item class="field"><ion-label position="stacked">Nueva contraseña</ion-label><ion-input type="password" formControlName="newPassword" placeholder="Mínimo 6 caracteres"></ion-input></ion-item>
+              <ion-item class="field"><ion-label position="stacked">Confirmar nueva contraseña</ion-label><ion-input type="password" formControlName="confirmNewPassword" placeholder="Repite la nueva contraseña"></ion-input></ion-item>
+            </div>
+            <div class="actions">
+              <ion-button type="submit" [disabled]="passForm.invalid || loading()">Actualizar contraseña</ion-button>
+            </div>
+          </form>
         </div>
+      </ng-container>
 
-        <div class="actions">
-          <ion-button type="submit" [disabled]="form.invalid || loading()">Guardar perfil</ion-button>
-          <ion-button color="medium" fill="outline" (click)="logout()">Cerrar sesión</ion-button>
-        </div>
-      </form>
-    </div>
+      <ng-container *ngIf="tab() === 'pedidos'">
+        <div class="card" id="orders-section">
+          <div class="card-head-simple">
+            <h3>Mis pedidos</h3>
+            <div class="header-actions">
+              <ion-button fill="outline" color="primary" (click)="refreshOrders()">Actualizar</ion-button>
+              <ion-button fill="outline" color="medium" routerLink="/cliente/metodos-pago">Métodos de pago</ion-button>
+              <ion-button color="primary" routerLink="/crea-tu-diseno">Nuevo pedido</ion-button>
+            </div>
+          </div>
 
-    <div class="card">
-      <h3>Cambiar contraseña</h3>
-      <form [formGroup]="passForm" (ngSubmit)="onSubmitPassword()">
-        <div class="grid">
-          <ion-item class="field"><ion-label position="stacked">Contraseña actual</ion-label><ion-input type="password" formControlName="currentPassword" placeholder="Tu contraseña actual"></ion-input></ion-item>
-          <ion-item class="field"><ion-label position="stacked">Nueva contraseña</ion-label><ion-input type="password" formControlName="newPassword" placeholder="Mínimo 6 caracteres"></ion-input></ion-item>
-          <ion-item class="field"><ion-label position="stacked">Confirmar nueva contraseña</ion-label><ion-input type="password" formControlName="confirmNewPassword" placeholder="Repite la nueva contraseña"></ion-input></ion-item>
+          <section class="notice" *ngIf="loadingOrders()">Cargando tus pedidos...</section>
+          <section class="notice error" *ngIf="errorOrders()">{{ errorOrders() }}</section>
+
+          <section class="orders" *ngIf="orders().length > 0">
+            <article class="order" *ngFor="let order of orders()">
+              <header>
+                <div>
+                  <strong>#{{ order.id }}</strong>
+                  <small>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</small>
+                </div>
+                <ion-button fill="clear" size="small" (click)="toggleOrder(order.id)">
+                  {{ expandedId() === order.id ? 'Ocultar' : 'Ver detalle' }}
+                </ion-button>
+              </header>
+              <div class="order-body" *ngIf="expandedId() === order.id">
+                <div class="attachments" *ngIf="attachmentsOf(order).length">
+                  <h4>Archivos</h4>
+                  <ul>
+                    <li *ngFor="let file of attachmentsOf(order)">
+                      {{ file.filename }}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <section class="empty" *ngIf="!loadingOrders() && !errorOrders() && orders().length === 0">
+            Aún no tienes pedidos.
+          </section>
         </div>
-        <div class="actions">
-          <ion-button type="submit" [disabled]="passForm.invalid || loading()">Actualizar contraseña</ion-button>
-        </div>
-      </form>
-    </div>
+      </ng-container>
+    </main>
   </div>
 </ion-content>
 

@@ -1,14 +1,17 @@
 ﻿import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { CommonModule, DatePipe } from '@angular/common';
 import { IonContent, IonItem, IonLabel, IonInput, IonButton } from '@ionic/angular/standalone';
 import { AuthService } from '../../core/auth.service';
 import { ToastController } from '@ionic/angular';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/pedidos.service';
 
 @Component({
   standalone: true,
   selector: 'app-profile',
-  imports: [IonContent, IonItem, IonLabel, IonInput, IonButton, ReactiveFormsModule],
+  imports: [CommonModule, IonContent, IonItem, IonLabel, IonInput, IonButton, ReactiveFormsModule, DatePipe],
   templateUrl: './profile.page.html',
   styleUrls: ['./profile.page.scss']
 })
@@ -17,8 +20,17 @@ export class ProfilePage {
   readonly auth = inject(AuthService);
   private toast = inject(ToastController);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private pedidos = inject(PedidosService);
 
   loading = signal(false);
+  // Navegación lateral
+  tab = signal<'datos' | 'pedidos'>('datos');
+  // Estado de pedidos
+  orders = signal<PedidoResumen[]>([]);
+  loadingOrders = signal(false);
+  errorOrders = signal<string | null>(null);
+  expandedId = signal<number | null>(null);
   form = this.fb.group({
     email: [{ value: '', disabled: true }, [Validators.required, Validators.email]],
     fullName: ['', [Validators.required, Validators.minLength(2)]],
@@ -56,6 +68,13 @@ export class ProfilePage {
     } finally {
       this.loading.set(false);
     }
+    // Cargar pedidos
+    this.refreshOrders();
+    // Seleccionar pestaña por query param
+    this.route.queryParamMap.subscribe(q => {
+      const t = q.get('tab');
+      if (t === 'pedidos' || t === 'datos') this.tab.set(t as any);
+    });
   }
 
   async onSubmit() {
@@ -118,6 +137,38 @@ export class ProfilePage {
   logout() {
     this.auth.logout();
     this.router.navigateByUrl('/login', { replaceUrl: true });
+  }
+
+  async refreshOrders() {
+    this.loadingOrders.set(true);
+    try {
+      const data = await firstValueFrom(this.pedidos.listMine());
+      this.orders.set(data || []);
+      this.errorOrders.set(null);
+    } catch (err: any) {
+      const status = err?.status;
+      const msg = err?.error?.message;
+      if (status === 401) this.errorOrders.set('Debes iniciar sesión para ver tus pedidos.');
+      else if (status === 403) this.errorOrders.set('Tu cuenta no tiene permisos para ver esta información.');
+      else this.errorOrders.set(msg || 'No pudimos cargar tus pedidos.');
+    } finally {
+      this.loadingOrders.set(false);
+    }
+  }
+
+  toggleOrder(id: number) { this.expandedId.set(this.expandedId() === id ? null : id); }
+
+  attachmentsOf(order: PedidoResumen): PedidoAttachment[] {
+    try {
+      const payload = typeof order.payload === 'string' ? JSON.parse(order.payload) : (order.payload as any);
+      return (payload?.attachments ?? []) as PedidoAttachment[];
+    } catch { return []; }
+  }
+
+  select(tab: 'datos' | 'pedidos') {
+    this.tab.set(tab);
+    // Mantener URL en sincronía
+    this.router.navigate([], { relativeTo: this.route, queryParams: { tab }, queryParamsHandling: 'merge' });
   }
 }
 
