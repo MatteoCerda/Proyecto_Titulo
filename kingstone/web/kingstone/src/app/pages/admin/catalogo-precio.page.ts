@@ -4,6 +4,8 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { IonContent } from '@ionic/angular/standalone';
+import { ViewWillEnter } from '@ionic/angular';
+import { environment } from '../../../environments/environment';
 
 interface Producto {
   id: number;
@@ -97,22 +99,33 @@ interface Producto {
     `
   ]
 })
-export class AdminCatalogoPrecioPage {
+export class AdminCatalogoPrecioPage implements ViewWillEnter {
   private http = inject(HttpClient);
   private sanitizer = inject(DomSanitizer);
   private router = inject(Router);
+  private readonly apiBase = (environment.apiUrl || '').replace(/\/$/, '');
   productos = signal<Producto[]>([]);
   cargando = false;
 
-  ngOnInit() {
+  ionViewWillEnter() {
     this.cargar();
+  }
+
+  private endpoint(path: string): string {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return this.apiBase ? `${this.apiBase}${normalized}` : normalized;
   }
 
   cargar() {
     this.cargando = true;
-    this.http.get<Producto[]>(`http://localhost:3000/admin/inventory`).subscribe({
-      next: (items) => { this.productos.set(items); this.cargando = false; },
-      error: () => { this.cargando = false; }
+    this.http.get<Producto[]>(this.endpoint('/api/admin/inventory')).subscribe({
+      next: (items) => {
+        this.productos.set(items);
+        this.cargando = false;
+      },
+      error: () => {
+        this.cargando = false;
+      }
     });
   }
 

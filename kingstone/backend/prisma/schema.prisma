@@ -80,6 +80,7 @@ model InventoryItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   ofertas   Oferta[]
+  lengthRemainder InventoryLengthRemainder?
 
   @@map("inventory_item")
 }
@@ -95,6 +96,9 @@ model Pedido {
   estado         String   @default("PENDIENTE")
   notificado     Boolean  @default(true)
   total          Int?     @default(0)
+  subtotal       Int?     @default(0)
+  taxTotal       Int?     @default(0) @map("tax_total")
+  moneda         String   @default("CLP")
   itemsCount     Int?     @default(0)
   materialId     String?
   materialLabel  String?
@@ -203,6 +207,7 @@ model Oferta {
   link          String?         @db.VarChar(255)
   activo        Boolean         @default(true)
   prioridad     Int             @default(0)
+  precioOferta  Int             @default(0) @map("precio_oferta")
   itemId        Int?            @map("item_id")
   startAt       DateTime?       @map("inicio_en")
   endAt         DateTime?       @map("fin_en")
@@ -250,6 +255,17 @@ model FileProcessingJob {
 
   @@index([status, createdAt])
   @@map("file_processing_job")
+}
+
+model InventoryLengthRemainder {
+  inventoryId Int      @id
+  remainderCm Int      @default(0) @map("remainder_cm")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  inventory InventoryItem @relation(fields: [inventoryId], references: [id])
+
+  @@map("inventory_length_remainder")
 }
 
 

@@ -3,6 +3,7 @@ import { register as registerUser } from '../auth/auth.service';
 import { validate } from '../auth/auth.validation';
 import { ZodError, z } from 'zod';
 import { prisma } from '../../lib/prisma';
+import { DEFAULT_CURRENCY } from '../common/pricing';
 
 const router = Router();
 
@@ -32,6 +33,9 @@ router.get('/dashboard/overview', async (_req, res) => {
       },
       select: {
         total: true,
+        subtotal: true,
+        taxTotal: true,
+        moneda: true,
         materialLabel: true,
         materialId: true,
         clienteNombre: true,
@@ -45,51 +49,96 @@ router.get('/dashboard/overview', async (_req, res) => {
     const monthlyPedidos = pedidos.filter(p => p.createdAt >= currentMonthStart && p.createdAt < currentMonthEnd);
     const previousMonthPedidos = pedidos.filter(p => p.createdAt >= previousMonthStart && p.createdAt < currentMonthStart);
 
-    const monthlyTotal = monthlyPedidos.reduce((acc, item) => acc + (typeof item.total === 'number' ? item.total : 0), 0);
-    const previousMonthTotal = previousMonthPedidos.reduce((acc, item) => acc + (typeof item.total === 'number' ? item.total : 0), 0);
+    const monthlyTotals = monthlyPedidos.reduce(
+      (acc, item) => {
+        const total = typeof item.total === 'number' ? item.total : 0;
+        const subtotal = typeof item.subtotal === 'number' ? item.subtotal : total;
+        const tax = typeof item.taxTotal === 'number' ? item.taxTotal : Math.max(total - subtotal, 0);
+        acc.total += total;
+        acc.subtotal += subtotal;
+        acc.tax += tax;
+        return acc;
+      },
+      { total: 0, subtotal: 0, tax: 0 }
+    );
+    const previousMonthTotals = previousMonthPedidos.reduce(
+      (acc, item) => {
+        const total = typeof item.total === 'number' ? item.total : 0;
+        const subtotal = typeof item.subtotal === 'number' ? item.subtotal : total;
+        const tax = typeof item.taxTotal === 'number' ? item.taxTotal : Math.max(total - subtotal, 0);
+        acc.total += total;
+        acc.subtotal += subtotal;
+        acc.tax += tax;
+        return acc;
+      },
+      { total: 0, subtotal: 0, tax: 0 }
+    );
+    const monthlyTotal = monthlyTotals.total;
+    const monthlySubtotal = monthlyTotals.subtotal;
+    const monthlyTax = monthlyTotals.tax;
+    const previousMonthTotal = previousMonthTotals.total;
+    const previousMonthSubtotal = previousMonthTotals.subtotal;
+    const previousMonthTax = previousMonthTotals.tax;
     const monthlyOrderCount = monthlyPedidos.length;
     const avgTicket = monthlyOrderCount ? Math.round(monthlyTotal / monthlyOrderCount) : 0;
+    const avgTicketNet = monthlyOrderCount ? Math.round(monthlySubtotal / monthlyOrderCount) : 0;
     const growthVsPrev =
       previousMonthTotal > 0 ? Number(((monthlyTotal - previousMonthTotal) / previousMonthTotal * 100).toFixed(1)) : null;
+    const growthNetVsPrev =
+      previousMonthSubtotal > 0
+        ? Number(((monthlySubtotal - previousMonthSubtotal) / previousMonthSubtotal * 100).toFixed(1))
+        : null;
 
     const distributionMap = new Map<
       string,
-      { label: string; total: number; orders: number }
+      { label: string; total: number; subtotal: number; tax: number; orders: number }
     >();
     for (const pedido of monthlyPedidos) {
       const safeTotal = typeof pedido.total === 'number' ? pedido.total : 0;
+      const safeSubtotal = typeof pedido.subtotal === 'number' ? pedido.subtotal : safeTotal;
+      const safeTax = typeof pedido.taxTotal === 'number' ? pedido.taxTotal : Math.max(safeTotal - safeSubtotal, 0);
       const label =
         (pedido.materialLabel && pedido.materialLabel.trim()) ||
         (pedido.materialId && pedido.materialId.trim()) ||
         'Sin material';
       const key = label.toLowerCase();
-      const entry = distributionMap.get(key) ?? { label, total: 0, orders: 0 };
+      const entry = distributionMap.get(key) ?? { label, total: 0, subtotal: 0, tax: 0, orders: 0 };
       entry.total += safeTotal;
+      entry.subtotal += safeSubtotal;
+      entry.tax += safeTax;
       entry.orders += 1;
       entry.label = label;
       distributionMap.set(key, entry);
     }
     const distributionTotal = Array.from(distributionMap.values()).reduce((acc, item) => acc + item.total, 0) || 0;
+    const distributionSubtotal = Array.from(distributionMap.values()).reduce((acc, item) => acc + item.subtotal, 0) || 0;
     const materialDistribution = Array.from(distributionMap.values())
       .map(item => ({
         label: item.label,
         total: item.total,
+        subtotal: item.subtotal,
+        tax: item.tax,
         orders: item.orders,
-        percentage: distributionTotal ? Number(((item.total / distributionTotal) * 100).toFixed(1)) : 0
+        percentage: distributionTotal ? Number(((item.total / distributionTotal) * 100).toFixed(1)) : 0,
+        netPercentage: distributionSubtotal ? Number(((item.subtotal / distributionSubtotal) * 100).toFixed(1)) : 0
       }))
       .sort((a, b) => b.total - a.total);
 
     const clientMap = new Map<
       string,
-      { label: string; email: string | null; total: number; orders: number }
+      { label: string; email: string | null; total: number; subtotal: number; tax: number; orders: number }
     >();
     for (const pedido of monthlyPedidos) {
       const safeTotal = typeof pedido.total === 'number' ? pedido.total : 0;
+      const safeSubtotal = typeof pedido.subtotal === 'number' ? pedido.subtotal : safeTotal;
+      const safeTax = typeof pedido.taxTotal === 'number' ? pedido.taxTotal : Math.max(safeTotal - safeSubtotal, 0);
       const email = (pedido.clienteEmail || '').toLowerCase() || null;
       const label = pedido.clienteNombre?.trim() || pedido.clienteEmail?.trim() || 'Cliente sin nombre';
       const key = email || label.toLowerCase();
-      const entry = clientMap.get(key) ?? { label, email, total: 0, orders: 0 };
+      const entry = clientMap.get(key) ?? { label, email, total: 0, subtotal: 0, tax: 0, orders: 0 };
       entry.total += safeTotal;
+      entry.subtotal += safeSubtotal;
+      entry.tax += safeTax;
       entry.orders += 1;
       entry.label = label;
       entry.email = email;
@@ -103,8 +152,11 @@ router.get('/dashboard/overview', async (_req, res) => {
         label: item.label,
         email: item.email,
         total: item.total,
+        subtotal: item.subtotal,
+        tax: item.tax,
         orders: item.orders,
-        percentage: monthlyTotal ? Number(((item.total / monthlyTotal) * 100).toFixed(1)) : 0
+        percentage: monthlyTotal ? Number(((item.total / monthlyTotal) * 100).toFixed(1)) : 0,
+        netPercentage: monthlySubtotal ? Number(((item.subtotal / monthlySubtotal) * 100).toFixed(1)) : 0
       }));
 
     const productMap = new Map<
@@ -222,19 +274,34 @@ router.get('/dashboard/overview', async (_req, res) => {
       const monthKey = `${monthDate.getFullYear()}-${monthDate.getMonth()}`;
       const nextMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1);
       const periodPedidos = pedidos.filter(p => p.createdAt >= monthDate && p.createdAt < nextMonth);
-      const total = periodPedidos.reduce((acc, item) => acc + (typeof item.total === 'number' ? item.total : 0), 0);
+      const totals = periodPedidos.reduce(
+        (acc, item) => {
+          const total = typeof item.total === 'number' ? item.total : 0;
+          const subtotal = typeof item.subtotal === 'number' ? item.subtotal : total;
+          const tax = typeof item.taxTotal === 'number' ? item.taxTotal : Math.max(total - subtotal, 0);
+          acc.total += total;
+          acc.subtotal += subtotal;
+          acc.tax += tax;
+          return acc;
+        },
+        { total: 0, subtotal: 0, tax: 0 }
+      );
       monthlyTrend.push({
         key: monthKey,
         label: `${MONTH_LABELS[monthDate.getMonth()]} ${monthDate.getFullYear()}`,
         shortLabel: MONTH_LABELS[monthDate.getMonth()],
         month: monthDate.getMonth(),
         year: monthDate.getFullYear(),
-        total,
+        total: totals.total,
+        subtotal: totals.subtotal,
+        tax: totals.tax,
         orders: periodPedidos.length
       });
     }
 
     const rollingYearTotal = monthlyTrend.reduce((acc, item) => acc + item.total, 0);
+    const rollingYearSubtotal = monthlyTrend.reduce((acc, item) => acc + (item.subtotal ?? 0), 0);
+    const rollingYearTax = monthlyTrend.reduce((acc, item) => acc + (item.tax ?? 0), 0);
 
     res.json({
       generatedAt: now.toISOString(),
@@ -246,10 +313,17 @@ router.get('/dashboard/overview', async (_req, res) => {
       },
       totals: {
         monthlySales: monthlyTotal,
+        monthlyNet: monthlySubtotal,
+        monthlyTax: monthlyTax,
         monthlyOrders: monthlyOrderCount,
         averageTicket: avgTicket,
+        averageTicketNet: avgTicketNet,
         monthlyGrowth: growthVsPrev,
-        rollingYearSales: rollingYearTotal
+        monthlyNetGrowth: growthNetVsPrev,
+        rollingYearSales: rollingYearTotal,
+        rollingYearNet: rollingYearSubtotal,
+        rollingYearTax: rollingYearTax,
+        currency: DEFAULT_CURRENCY
       },
       materialDistribution,
       topClients,
@@ -301,7 +375,8 @@ const offerCreateSchema = z.object({
   prioridad: z.coerce.number().int().min(0).optional(),
   itemId: z.coerce.number().int().optional(),
   startAt: z.coerce.date().optional(),
-  endAt: z.coerce.date().optional()
+  endAt: z.coerce.date().optional(),
+  precioOferta: z.coerce.number().int().min(0).optional()
 });
 
 const offerUpdateSchema = offerCreateSchema.partial();
@@ -628,7 +703,8 @@ router.post('/offers', async (req, res) => {
         prioridad: dto.prioridad ?? 0,
         itemId: dto.itemId ?? null,
         startAt: dto.startAt ?? null,
-        endAt: dto.endAt ?? null
+        endAt: dto.endAt ?? null,
+        precioOferta: dto.precioOferta ?? 0
       },
       include: {
         inventario: { select: { id: true, code: true, name: true } }
@@ -662,7 +738,8 @@ router.patch('/offers/:id', async (req, res) => {
         ...(dto.prioridad !== undefined ? { prioridad: dto.prioridad } : {}),
         ...(dto.itemId !== undefined ? { itemId: dto.itemId ?? null } : {}),
         ...(dto.startAt !== undefined ? { startAt: dto.startAt ?? null } : {}),
-        ...(dto.endAt !== undefined ? { endAt: dto.endAt ?? null } : {})
+        ...(dto.endAt !== undefined ? { endAt: dto.endAt ?? null } : {}),
+        ...(dto.precioOferta !== undefined ? { precioOferta: dto.precioOferta } : {})
       },
       include: {
         inventario: { select: { id: true, code: true, name: true } }

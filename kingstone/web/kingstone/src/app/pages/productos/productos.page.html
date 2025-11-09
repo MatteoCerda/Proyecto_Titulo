@@ -1,13 +1,18 @@
 <ion-content class="productos">
   <div class="catalog">
     <header class="catalog-header">
-      <h1>Catálogo para clientes</h1>
+      <h1>Cat&aacute;logo para clientes</h1>
       <p>Explora los insumos disponibles: vinilos textiles, decorativos y soportes para tus pedidos.</p>
       <ion-searchbar
         placeholder="Buscar por nombre, tipo, color o proveedor"
         [debounce]="200"
         (ionInput)="onSearch($event)">
       </ion-searchbar>
+      <div class="catalog-actions">
+        <ion-button fill="clear" size="small" (click)="refreshCatalog()" [disabled]="loading()">
+          {{ loading() ? 'Actualizando...' : 'Actualizar cat&aacute;logo' }}
+        </ion-button>
+      </div>
     </header>
 
     <section *ngIf="loading()" class="status">
@@ -43,9 +48,21 @@
         </ion-card-header>
 
         <ion-card-content>
-          <div class="price">
-            <span>Precio web</span>
-            <strong>{{ product.price | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+          <div class="price" [class.has-offer]="product.offerPrice">
+            <span class="price-label">Precio web</span>
+            <div class="price-values">
+              <strong class="current">{{ product.price | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+              <span class="before" *ngIf="product.offerPrice">
+                <del>{{ product.basePrice | currency:'CLP':'symbol-narrow':'1.0-0' }}</del>
+              </span>
+              <span class="discount-badge" *ngIf="product.discountPercent !== null">
+                -{{ product.discountPercent }}%
+              </span>
+            </div>
+            <div class="savings" *ngIf="product.discountAmount !== null">
+              Ahorra {{ product.discountAmount | currency:'CLP':'symbol-narrow':'1.0-0' }}
+              <span *ngIf="product.offerTitle">&middot; {{ product.offerTitle }}</span>
+            </div>
           </div>
           <div class="meta">
             <span>Proveedor: {{ product.provider }}</span>
@@ -67,3 +84,4 @@
     </section>
   </div>
 </ion-content>
+

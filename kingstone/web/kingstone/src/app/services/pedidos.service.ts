@@ -23,6 +23,9 @@ export interface PedidoResumen {
   estado: string;
   createdAt: string;
   total?: number;
+  subtotal?: number;
+  taxTotal?: number;
+  currency?: string;
   items?: number;
   notificado?: boolean;
   materialLabel?: string;
@@ -51,6 +54,9 @@ export interface ClientePedidosResumen {
     estado: string;
     createdAt: string;
     total: number | null;
+    subtotal: number | null;
+    taxTotal: number | null;
+    currency: string | null;
     material: string | null;
   }>;
 }

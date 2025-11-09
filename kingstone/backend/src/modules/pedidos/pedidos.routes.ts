@@ -2,6 +2,16 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import {
+  CartCreate,
+  CartProduct,
+  CartQuote,
+  CartQuoteItem,
+  DesignerCreate,
+  PedidoPayload,
+  createCartSchema,
+  createDesignerSchema
+} from './pedidos.types';
 import multer from 'multer';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { imageSize } from 'image-size';
@@ -11,6 +21,8 @@ import { promises as fsPromises } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { prisma } from '../../lib/prisma';
+import { calculateTaxBreakdown, DEFAULT_CURRENCY, TAX_RATE } from '../common/pricing';
+import { sendEmail } from '../../lib/email';
 
 const router = Router();
 type DbClient = Prisma.TransactionClient | PrismaClient;
@@ -44,7 +56,14 @@ const uploadStorage = multer.diskStorage({
 
 const upload = multer({
   storage: uploadStorage,
-  limits: { fileSize: 25 * 1024 * 1024, files: 10 }
+  limits: { fileSize: 25 * 1024 * 1024, files: 10 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'image/png' || file.mimetype === 'image/jpeg' || file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Tipo de archivo no soportado'));
+    }
+  }
 });
 const DEFAULT_IMAGE_DPI = 300;
 
@@ -80,8 +99,24 @@ type MaterialPreset = {
 };
 
 const MATERIAL_PRESET_MAP: Record<string, MaterialPreset> = {};
+const MATERIAL_UNIT_LENGTH_CM = 100;
+const CURRENCY_CODE = DEFAULT_CURRENCY;
 
 type JwtUser = { sub?: number; email?: string; role?: string };
+
+async function getOperatorContact(userId?: number | null) {
+  if (!userId) {
+    return { email: null, nombre: null };
+  }
+  const operator = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, fullName: true }
+  });
+  return {
+    email: operator?.email ?? null,
+    nombre: operator?.fullName ?? null
+  };
+}
 
 function createStockError(details: Record<string, unknown> = {}) {
   return Object.assign(new Error('INSUFFICIENT_STOCK'), { code: 'INSUFFICIENT_STOCK', details });
@@ -227,22 +262,28 @@ function canAccessPedido(user: JwtUser | undefined, pedido: { userId: number | n
   return false;
 }
 
-function parsePayload(payload: any): any {
-  if (payload && typeof payload === 'object') {
-    return payload;
+function parsePayload(payload: unknown): PedidoPayload | null {
+  if (!payload) {
+    return null;
   }
-  try {
-    return JSON.parse(payload);
-  } catch {
-    return {};
+  if (typeof payload === 'object') {
+    return payload as PedidoPayload;
   }
+  if (typeof payload === 'string') {
+    try {
+      return JSON.parse(payload) as PedidoPayload;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
-export function extractMaterialIdFromPedido(pedido: any): string | null {
+export function extractMaterialIdFromPedido(pedido: { materialId: string | null, payload: any }): string | null {
   if (typeof pedido?.materialId === 'string' && pedido.materialId.length) {
     return pedido.materialId;
   }
-  const payload = parsePayload(pedido?.payload);
+  const payload = parsePayload(pedido?.payload) as any;
   if (typeof payload?.materialId === 'string') {
     return payload.materialId;
   }
@@ -262,11 +303,11 @@ export function extractMaterialIdFromPedido(pedido: any): string | null {
   return null;
 }
 
-export function extractMaterialWidthFromPedido(pedido: any): number | null {
+export function extractMaterialWidthFromPedido(pedido: { materialWidthCm?: number | null, payload: any }): number | null {
   if (typeof pedido?.materialWidthCm === 'number') {
     return pedido.materialWidthCm;
   }
-  const payload = parsePayload(pedido?.payload);
+  const payload = parsePayload(pedido?.payload) as any;
   const widths = [
     payload?.materialWidthCm,
     payload?.materialWidth,
@@ -345,36 +386,73 @@ async function adjustMaterialStock(
   if (!deltaLengthCm || Math.abs(deltaLengthCm) < 0.01) return;
   const inventory = await findInventoryByMaterial(materialId, client);
   if (!inventory) return;
-  const meters = deltaLengthCm / 100;
-  if (meters > 0) {
-    const decrement = Math.max(1, Math.ceil(meters));
-    if (inventory.quantity < decrement) {
+  const deltaCm = Math.round(deltaLengthCm);
+  if (!deltaCm) {
+    return;
+  }
+
+  const remainderRecord = await client.inventoryLengthRemainder.findUnique({
+    where: { inventoryId: inventory.id }
+  });
+  let remainderCm = remainderRecord?.remainderCm ?? 0;
+
+  if (deltaCm > 0) {
+    const availableCm = (inventory.quantity ?? 0) * MATERIAL_UNIT_LENGTH_CM - remainderCm;
+    if (deltaCm > availableCm) {
       throw createStockError({
         materialId,
         inventoryId: inventory.id,
-        requested: decrement,
-        available: inventory.quantity ?? 0
+        requestedCentimeters: deltaCm,
+        availableCentimeters: availableCm,
+        remainderCentimeters: remainderCm
       });
     }
-    const result = await client.inventoryItem.updateMany({
-      where: { id: inventory.id, quantity: { gte: decrement } },
-      data: { quantity: { decrement } }
-    });
-    if (!result.count) {
-      throw createStockError({
-        materialId,
-        inventoryId: inventory.id,
-        requested: decrement,
-        available: inventory.quantity ?? 0
+    const totalConsumed = remainderCm + deltaCm;
+    const wholeMeters = Math.floor(totalConsumed / MATERIAL_UNIT_LENGTH_CM);
+    remainderCm = totalConsumed % MATERIAL_UNIT_LENGTH_CM;
+    if (wholeMeters > 0) {
+      const result = await client.inventoryItem.updateMany({
+        where: { id: inventory.id, quantity: { gte: wholeMeters } },
+        data: { quantity: { decrement: wholeMeters } }
       });
+      if (!result.count) {
+        throw createStockError({
+          materialId,
+          inventoryId: inventory.id,
+          requested: wholeMeters,
+          available: inventory.quantity ?? 0,
+          remainderCentimeters: remainderCm
+        });
+      }
+      inventory.quantity = (inventory.quantity ?? 0) - wholeMeters;
     }
   } else {
-    const increment = Math.max(1, Math.ceil(Math.abs(meters)));
-    await client.inventoryItem.update({
-      where: { id: inventory.id },
-      data: { quantity: { increment } }
-    });
+    let totalRemainder = remainderCm + deltaCm;
+    let metersToReturn = 0;
+    while (totalRemainder < 0) {
+      totalRemainder += MATERIAL_UNIT_LENGTH_CM;
+      metersToReturn += 1;
+    }
+    remainderCm = totalRemainder;
+    if (metersToReturn > 0) {
+      await client.inventoryItem.update({
+        where: { id: inventory.id },
+        data: { quantity: { increment: metersToReturn } }
+      });
+      inventory.quantity = (inventory.quantity ?? 0) + metersToReturn;
+    }
   }
+
+  if (remainderCm < 0) {
+    remainderCm =
+      ((remainderCm % MATERIAL_UNIT_LENGTH_CM) + MATERIAL_UNIT_LENGTH_CM) % MATERIAL_UNIT_LENGTH_CM;
+  }
+
+  await client.inventoryLengthRemainder.upsert({
+    where: { inventoryId: inventory.id },
+    create: { inventoryId: inventory.id, remainderCm },
+    update: { remainderCm }
+  });
 }
 
 async function decrementInventoryItem(
@@ -412,7 +490,7 @@ async function decrementInventoryItem(
   }
 }
 
-async function adjustCatalogStock(products: any[] | undefined | null, client: DbClient = prisma) {
+async function adjustCatalogStock(products: CartProduct[] | undefined | null, client: DbClient = prisma) {
   if (!Array.isArray(products)) return;
   for (const product of products) {
     const itemId = typeof product?.id === 'number' ? product.id : null;
@@ -423,7 +501,7 @@ async function adjustCatalogStock(products: any[] | undefined | null, client: Db
   }
 }
 
-async function adjustQuoteStock(materialId: string | null, quote: any, client: DbClient = prisma) {
+async function adjustQuoteStock(materialId: string | null, quote: CartQuote | null, client: DbClient = prisma) {
   if (!quote) return;
   const usedHeight = typeof quote?.usedHeight === 'number' ? quote.usedHeight : null;
   if (!usedHeight || usedHeight <= 0) return;
@@ -439,7 +517,7 @@ export async function recomputePedidoAggregates(pedidoId: number, client: DbClie
     return null;
   }
 
-  const payload = parsePayload(pedido.payload);
+  const payload = parsePayload(pedido.payload) as any;
   const oldLength = typeof payload?.filesTotalLengthCm === 'number' ? payload.filesTotalLengthCm : 0;
 
   const totalArea = pedido.adjuntos.reduce((acc, file) => acc + (file.areaCm2 ?? 0), 0);
@@ -488,12 +566,20 @@ export async function recomputePedidoAggregates(pedidoId: number, client: DbClie
     filesTotalPrice: totalPrice ?? undefined
   };
 
+  const updateData: any = {
+    payload: nextPayload as any
+  };
+  if ((!pedido.total || pedido.total <= 0) && typeof totalPrice === 'number' && totalPrice > 0) {
+    const breakdown = calculateTaxBreakdown(totalPrice, TAX_RATE);
+    updateData.total = totalPrice;
+    updateData.subtotal = breakdown.subtotal;
+    updateData.taxTotal = breakdown.tax;
+    updateData.moneda = pedido.moneda || CURRENCY_CODE;
+  }
+
   await client.pedido.update({
     where: { id: pedidoId },
-    data: {
-      payload: nextPayload as any,
-      total: pedido.total && pedido.total > 0 ? pedido.total : (totalPrice ?? pedido.total)
-    }
+    data: updateData
   });
 
   const deltaLength = totalLength - (oldLength || 0);
@@ -603,10 +689,14 @@ type PedidoNotifyPayload = {
   clienteEmail: string | null;
   clienteNombre: string | null;
   total: number | null;
+  subtotal?: number | null;
+  taxTotal?: number | null;
+  currency?: string | null;
   materialLabel: string | null;
   payload: any;
   createdAt: Date;
 };
+import { sendEmail } from '../../lib/email';
 
 function buildEstadoMessage(pedido: PedidoNotifyPayload) {
   const baseLabel = pedido.clienteNombre?.split(' ')?.[0] || 'Hola';
@@ -618,427 +708,387 @@ function buildEstadoMessage(pedido: PedidoNotifyPayload) {
     pagosOperador: `${panelBase}/operador/pagos/${pedido.id}`
   };
 
-  if (pedido.estado === 'EN_REVISION') {
-    return {
-      subject: `Tu pedido #${pedido.id} esta en revision`,
-      text: `${baseLabel}, tu solicitud esta siendo revisada por el equipo. Te avisaremos cuando este lista para pago.`,
-      html: `<p>${baseLabel},</p><p>Tu solicitud <strong>#${pedido.id}</strong> fue tomada por el equipo y esta en revision.</p><p>Puedes seguir el avance en tu panel: <a href="${enlaces.cliente}">${enlaces.cliente}</a>.</p>`,
-      enlaces
-    };
+  switch (pedido.estado) {
+    case 'EN_REVISION':
+      return {
+        subject: `Tu pedido #${pedido.id} esta en revision`,
+        html: `<p>${baseLabel},</p><p>Tu solicitud <strong>#${pedido.id}</strong> fue tomada por el equipo y esta en revision.</p><p>Puedes seguir el avance en tu panel: <a href="${enlaces.cliente}">${enlaces.cliente}</a>.</p>`
+      };
+    case 'POR_PAGAR':
+      return {
+        subject: `Pedido #${pedido.id} listo para pago`,
+        html: `<p>${baseLabel},</p><p>Tu pedido <strong>#${pedido.id}</strong> fue aprobado y esta listo para pago.</p><p>Puedes completar el pago desde tu panel: <a href="${enlaces.pagosCliente}">${enlaces.pagosCliente}</a>.</p>`
+      };
+    case 'EN_PRODUCCION':
+      return {
+        subject: `Tu pedido #${pedido.id} está en producción`,
+        html: `<p>${baseLabel},</p><p>Tu pedido <strong>#${pedido.id}</strong> ha entrado en producción.</p><p>Te notificaremos cuando esté listo para retiro.</p><p>Puedes seguir el avance en tu panel: <a href="${enlaces.cliente}">${enlaces.cliente}</a>.</p>`
+      };
+    case 'LISTO_RETIRO':
+      return {
+        subject: `Tu pedido #${pedido.id} está listo para retiro`,
+        html: `<p>${baseLabel},</p><p>Tu pedido <strong>#${pedido.id}</strong> está listo para ser retirado en nuestra tienda.</p><p>Gracias por tu compra!</p>`
+      };
+    case 'COMPLETADO':
+      return {
+        subject: `Tu pedido #${pedido.id} ha sido completado`,
+        html: `<p>${baseLabel},</p><p>Tu pedido <strong>#${pedido.id}</strong> ha sido marcado como completado.</p><p>¡Gracias por preferirnos!</p>`
+      };
+    default:
+      return null;
   }
-
-  if (pedido.estado === 'POR_PAGAR') {
-    return {
-      subject: `Pedido #${pedido.id} listo para pago`,
-      text: `${baseLabel}, tu pedido esta listo para pago. Ingresa a tu panel para completar el proceso.`,
-      html: `<p>${baseLabel},</p><p>Tu pedido <strong>#${pedido.id}</strong> fue aprobado y esta listo para pago.</p><p>Puedes completar el pago desde tu panel: <a href="${enlaces.pagosCliente}">${enlaces.pagosCliente}</a>.</p>`,
-      enlaces
-    };
-  }
-
-  return null;
 }
 
 async function notifyPedidoEstado(pedido: PedidoNotifyPayload) {
   if (!pedido.clienteEmail) {
     return;
   }
-  if (!['EN_REVISION', 'POR_PAGAR'].includes(pedido.estado)) {
-    return;
-  }
-  const fetchFn = (globalThis as any).fetch as typeof fetch | undefined;
-  if (!fetchFn) {
-    console.warn('[pedidos] fetch no disponible para notificar estado');
-    return;
-  }
-  const webhookUrl = process.env.N8N_PEDIDOS_WEBHOOK_URL || process.env.N8N_WEBHOOK_URL;
-  if (!webhookUrl) {
-    console.info('[pedidos] Notificacion omitida (sin webhook configurado)');
-    return;
-  }
+
   const message = buildEstadoMessage(pedido);
   if (!message) {
     return;
   }
-  const payload = {
-    tipo: 'pedido_estado',
-    pedidoId: pedido.id,
-    estado: pedido.estado,
-    destinatario: pedido.clienteEmail,
-    asunto: message.subject,
-    mensaje: message.text,
-    html: message.html,
-    enlaces: message.enlaces,
-    total: pedido.total ?? null,
-    material: pedido.materialLabel ?? null,
-    origen: typeof pedido.payload === 'object' && pedido.payload !== null ? (pedido.payload as any).source ?? null : null
-  };
 
-  try {
-    const response = await fetchFn(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      console.error('[pedidos] Webhook respondio error', response.status, text);
-    }
-  } catch (error) {
-    console.error('[pedidos] Error enviando notificacion', error);
-  }
+  await sendEmail({
+    to: pedido.clienteEmail,
+    subject: message.subject,
+    html: message.html,
+  });
 }
 
-router.post('/', async (req, res) => {
-  try {
-    const isCartSource = typeof req.body?.source === 'string' && req.body.source === 'cart';
-    const parsed = isCartSource ? cartCreateSchema.safeParse(req.body) : createSchema.safeParse(req.body);
-    if (!parsed.success) {
-      const issue = parsed.error.issues?.[0];
+async function handleCartOrder(dto: CartCreate, user: JwtUser | undefined, res: any) {
+  const userId = user?.sub ? Number(user.sub) : null;
+  let email: string | null = user?.email ?? null;
+  let nombre: string | null = null;
+  let clienteId: number | null = null;
+
+  if (userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, fullName: true }
+    });
+    if (user) {
+      email = user.email;
+      nombre = user.fullName;
+      const cliente = await (prisma as any).cliente.findUnique({
+        where: { id_usuario: userId },
+        select: { id_cliente: true }
+      });
+      if (cliente?.id_cliente) {
+        clienteId = Number(cliente.id_cliente);
+      }
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+
+  const productIds = dto.products.map(product => product.id);
+  const inventoryItems = productIds.length
+    ? await prisma.inventoryItem.findMany({
+        where: { id: { in: productIds } },
+        select: {
+          id: true,
+          name: true,
+          itemType: true,
+          color: true,
+          provider: true,
+          imageUrl: true,
+          priceWeb: true,
+          priceStore: true,
+          priceWsp: true
+        }
+      })
+    : [];
+
+  const now = new Date();
+  const offers = productIds.length
+    ? await prisma.oferta.findMany({
+        where: {
+          activo: true,
+          itemId: { in: productIds },
+          OR: [{ startAt: null }, { startAt: { lte: now } }],
+          AND: [{ OR: [{ endAt: null }, { endAt: { gte: now } }] }]
+        },
+        select: {
+          id: true,
+          itemId: true,
+          titulo: true,
+          precioOferta: true
+        }
+      })
+    : [];
+
+  const offersByItemId = new Map<number, { id: number; titulo: string | null; precioOferta: number | null }>();
+  for (const offer of offers) {
+    if (typeof offer.itemId === 'number') {
+      offersByItemId.set(offer.itemId, {
+        id: offer.id,
+        titulo: offer.titulo,
+        precioOferta: offer.precioOferta
+      });
+    }
+  }
+
+  const inventoryById = new Map(inventoryItems.map(item => [item.id, item]));
+  for (const product of dto.products) {
+    if (!inventoryById.get(product.id)) {
       return res.status(400).json({
-        message: issue?.message || 'Solicitud invalida',
-        issues: parsed.error.issues
+        message: 'Producto de catálogo inválido',
+        detalles: { productId: product.id }
       });
     }
-    const dto = parsed.data as typeof parsed.data;
-    const payloadUser = (req as any).user as { sub?: number; email?: string } | undefined;
-    const userId = payloadUser?.sub ? Number(payloadUser.sub) : null;
+  }
 
-    let email: string | null = payloadUser?.email ?? null;
-    let nombre: string | null = null;
-    let clienteId: number | null = null;
+  const sanitizedProducts = dto.products.map(product => {
+    const record = inventoryById.get(product.id)!;
+    const baseUnitPrice = resolveInventoryUnitPrice(record);
+    const offer = offersByItemId.get(record.id);
+    const offerUnitPrice = offer?.precioOferta && offer.precioOferta > 0 ? offer.precioOferta : null;
+    const unitPrice = offerUnitPrice ?? baseUnitPrice;
+    const lineTotal = unitPrice * product.quantity;
+    const originalLineTotal = baseUnitPrice * product.quantity;
+    return {
+      id: record.id,
+      name: record.name,
+      quantity: product.quantity,
+      price: unitPrice,
+      lineTotal,
+      originalPrice: baseUnitPrice,
+      originalLineTotal,
+      offerApplied: offer
+        ? {
+            id: offer.id,
+            title: offer.titulo,
+            price: offerUnitPrice
+          }
+        : null,
+      itemType: record.itemType ?? null,
+      color: record.color ?? null,
+      provider: record.provider ?? null,
+      imageUrl: record.imageUrl ?? null
+    };
+  });
 
-    if (userId) {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { email: true, fullName: true }
-      });
-      if (user) {
-        email = user.email;
-        nombre = user.fullName;
-        const cliente = await (prisma as any).cliente.findUnique({
-          where: { id_usuario: userId },
-          select: { id_cliente: true }
-        });
-        if (cliente?.id_cliente) {
-          clienteId = Number(cliente.id_cliente);
-        }
-      }
-    }
+  const catalogTotal = sanitizedProducts.reduce((acc, item) => acc + item.lineTotal, 0);
+  const catalogOriginalTotal = sanitizedProducts.reduce(
+    (acc, item) => acc + (item.originalLineTotal ?? item.lineTotal),
+    0
+  );
+  const catalogDiscount = catalogOriginalTotal - catalogTotal;
+  const clientCatalogTotal = dto.products.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
-    const nowIso = new Date().toISOString();
+  let sanitizedQuote: (CartQuote & {
+    totalPrice: number;
+    pricePerMeter?: number | null;
+    inventoryId?: number | null;
+  }) | null = null;
+  let quotePreset: MaterialPreset | null = null;
+  let quoteTotal = 0;
+  let quoteMaterialId: string | null = null;
+  let quoteMaterialLabel: string | null = null;
 
-    if (isCartSource) {
-      const cartDto = dto as z.infer<typeof cartCreateSchema>;
-      const productIds = cartDto.products.map(product => product.id);
-      const inventoryItems = productIds.length
-        ? await prisma.inventoryItem.findMany({
-            where: { id: { in: productIds } },
-            select: {
-              id: true,
-              name: true,
-              itemType: true,
-              color: true,
-              provider: true,
-              imageUrl: true,
-              priceWeb: true,
-              priceStore: true,
-              priceWsp: true
-            }
-          })
-        : [];
-
-      const inventoryById = new Map(inventoryItems.map(item => [item.id, item]));
-      for (const product of cartDto.products) {
-        if (!inventoryById.get(product.id)) {
-          return res.status(400).json({
-            message: 'Producto de catálogo inválido',
-            detalles: { productId: product.id }
-          });
-        }
-      }
-
-      const sanitizedProducts = cartDto.products.map(product => {
-        const record = inventoryById.get(product.id)!;
-        const unitPrice = resolveInventoryUnitPrice(record);
-        const lineTotal = unitPrice * product.quantity;
-        return {
-          id: record.id,
-          name: record.name,
-          quantity: product.quantity,
-          price: unitPrice,
-          lineTotal,
-          itemType: record.itemType ?? null,
-          color: record.color ?? null,
-          provider: record.provider ?? null,
-          imageUrl: record.imageUrl ?? null
-        };
-      });
-
-      const catalogTotal = sanitizedProducts.reduce((acc, item) => acc + item.lineTotal, 0);
-      const clientCatalogTotal = cartDto.products.reduce((acc, item) => acc + item.price * item.quantity, 0);
-
-      let sanitizedQuote: (z.infer<typeof cartQuoteSchema> & {
-        totalPrice: number;
-        pricePerMeter?: number | null;
-        inventoryId?: number | null;
-      }) | null = null;
-      let quotePreset: MaterialPreset | null = null;
-      let quoteTotal = 0;
-      let quoteMaterialId: string | null = null;
-      let quoteMaterialLabel: string | null = null;
-
-      if (cartDto.quote) {
-        const quoteInventory = await findInventoryByMaterial(cartDto.quote.materialId);
-        quotePreset = getMaterialPreset(cartDto.quote.materialId);
-        if (!quoteInventory && !quotePreset) {
-          return res.status(400).json({
-            message: 'Material de cotizacion invalido',
-            detalles: { materialId: cartDto.quote.materialId }
-          });
-        }
-        const pricePerMeter = quoteInventory
-          ? resolveInventoryUnitPrice(quoteInventory)
-          : quotePreset?.pricePerMeter ?? 0;
-        if (!pricePerMeter) {
-          return res.status(400).json({
-            message: 'No existe tarifa configurada para el material seleccionado',
-            detalles: { materialId: cartDto.quote.materialId }
-          });
-        }
-        quoteTotal = calculateMaterialPrice(cartDto.quote.usedHeight, pricePerMeter);
-        const effectiveLabel =
-          quoteInventory?.name ?? cartDto.quote.materialLabel ?? quotePreset?.label ?? null;
-        sanitizedQuote = {
-          ...cartDto.quote,
-          materialLabel: effectiveLabel ?? cartDto.quote.materialLabel ?? quotePreset?.label ?? null,
-          totalPrice: quoteTotal,
-          pricePerMeter,
-          inventoryId: quoteInventory?.id ?? null
-        };
-        quoteMaterialId = cartDto.quote.materialId ?? null;
-        quoteMaterialLabel =
-          sanitizedQuote.materialLabel ?? quotePreset?.label ?? quoteMaterialId;
-      }
-
-      const productsCount = sanitizedProducts.reduce((acc, item) => acc + item.quantity, 0);
-      const quoteCount = sanitizedQuote?.items?.reduce((acc, item) => acc + item.quantity, 0) ?? 0;
-      const itemsCount = productsCount + quoteCount;
-      const total = Math.round(catalogTotal + quoteTotal);
-      const clientQuoteTotal = cartDto.quote?.totalPrice ?? null;
-
-      const pedidoId = await prisma.$transaction(async tx => {
-        const pedido = await tx.pedido.create({
-          data: {
-            userId,
-            clienteId,
-            clienteEmail: email,
-            clienteNombre: nombre,
-            estado: 'PENDIENTE',
-            notificado: true,
-            total,
-            itemsCount,
-            materialId: quoteMaterialId,
-            materialLabel: quoteMaterialLabel,
-            payload: {
-              source: 'cart',
-              products: sanitizedProducts,
-              quote: sanitizedQuote,
-              note: cartDto.note ?? null,
-              pricing: {
-                catalogTotal,
-                quoteTotal,
-                computedTotal: total,
-                clientCatalogTotal,
-                clientQuoteTotal,
-                quotePricePerMeter: sanitizedQuote?.pricePerMeter ?? null,
-                quotePresetLabel: sanitizedQuote?.inventoryId ? null : (quotePreset?.label ?? null)
-              },
-              createdAt: nowIso,
-              cliente: { email, nombre }
-            }
-          },
-          select: { id: true }
-        });
-
-        await adjustCatalogStock(sanitizedProducts, tx);
-        await adjustQuoteStock(quoteMaterialId, sanitizedQuote, tx);
-
-        return pedido.id;
-      });
-
-      return res.status(201).json({ id: pedidoId });
-    }
-
-    const designerDto = dto as z.infer<typeof createSchema>;
-    const materialInventory = await findInventoryByMaterial(designerDto.materialId);
-    const materialPreset = getMaterialPreset(designerDto.materialId);
-    if (!materialInventory && !materialPreset) {
+  if (dto.quote) {
+    const quoteInventory = await findInventoryByMaterial(dto.quote.materialId);
+    quotePreset = getMaterialPreset(dto.quote.materialId);
+    if (!quoteInventory && !quotePreset) {
       return res.status(400).json({
-        message: 'Material invalido',
-        detalles: { materialId: designerDto.materialId }
+        message: 'Material de cotizacion invalido',
+        detalles: { materialId: dto.quote.materialId }
       });
     }
-    const pricePerMeter = materialInventory
-      ? resolveInventoryUnitPrice(materialInventory)
-      : materialPreset?.pricePerMeter ?? 0;
+    const pricePerMeter = quoteInventory
+      ? resolveInventoryUnitPrice(quoteInventory)
+      : quotePreset?.pricePerMeter ?? 0;
     if (!pricePerMeter) {
       return res.status(400).json({
         message: 'No existe tarifa configurada para el material seleccionado',
-        detalles: { materialId: designerDto.materialId }
+        detalles: { materialId: dto.quote.materialId }
       });
     }
-    const computedTotal = calculateMaterialPrice(designerDto.usedHeight, pricePerMeter);
-    const itemsCount = designerDto.items.reduce((acc, item) => acc + item.quantity, 0);
-    const materialLabel =
-      materialInventory?.name ?? designerDto.materialLabel ?? materialPreset?.label ?? designerDto.materialId;
-    const sanitizedDesignerPayload = {
-      ...designerDto,
-      materialLabel,
-      totalPrice: computedTotal,
+    quoteTotal = calculateMaterialPrice(dto.quote.usedHeight, pricePerMeter);
+    const effectiveLabel =
+      quoteInventory?.name ?? dto.quote.materialLabel ?? quotePreset?.label ?? null;
+    sanitizedQuote = {
+      ...dto.quote,
+      materialLabel: effectiveLabel ?? dto.quote.materialLabel ?? quotePreset?.label ?? null,
+      totalPrice: quoteTotal,
       pricePerMeter,
-      inventoryId: materialInventory?.id ?? null
+      inventoryId: quoteInventory?.id ?? null
     };
-
-    const pedidoId = await prisma.$transaction(async tx => {
-      const pedido = await tx.pedido.create({
-        data: {
-          userId,
-          clienteId,
-          clienteEmail: email,
-          clienteNombre: nombre,
-          estado: 'PENDIENTE',
-          notificado: true,
-          total: computedTotal,
-          itemsCount,
-          materialId: designerDto.materialId,
-          materialLabel,
-          payload: {
-            source: 'designer',
-            ...sanitizedDesignerPayload,
-            pricing: {
-              pricePerMeter,
-              computedTotal,
-              clientTotal: designerDto.totalPrice ?? null,
-              presetLabel: materialPreset?.label ?? null
-            },
-            createdAt: nowIso,
-            cliente: {
-              email,
-              nombre
-            }
-          }
-        },
-        select: { id: true }
-      });
-
-      await adjustMaterialStock(designerDto.materialId, designerDto.usedHeight, tx);
-
-      return pedido.id;
-    });
-
-    res.status(201).json({ id: pedidoId });
-  } catch (error: any) {
-    if (error?.code === 'INSUFFICIENT_STOCK') {
-      return res.status(409).json({
-        message: 'No hay stock suficiente para completar el pedido.',
-        detalles: error?.details || null
-      });
-    }
-    console.error('Error creando pedido', error);
-    res.status(500).json({ message: 'Error interno' });
+    quoteMaterialId = dto.quote.materialId ?? null;
+    quoteMaterialLabel =
+      sanitizedQuote.materialLabel ?? quotePreset?.label ?? quoteMaterialId;
   }
-});
 
-router.get('/', async (req, res) => {
-  try {
-    const user = (req as any).user as { role?: string; sub?: number; email?: string } | undefined;
-    const isOp = isOperator(user?.role);
-    if (!isOp) {
-      const userId = user?.sub ? Number(user.sub) : null;
-      const email = user?.email ?? null;
-      if (!userId && !email) {
-        return res.json([]);
-      }
+  const productsCount = sanitizedProducts.reduce((acc, item) => acc + item.quantity, 0);
+  const quoteCount = sanitizedQuote?.items?.reduce((acc, item) => acc + item.quantity, 0) ?? 0;
+  const itemsCount = productsCount + quoteCount;
+  const total = Math.round(catalogTotal + quoteTotal);
+  const { subtotal, tax } = calculateTaxBreakdown(total, TAX_RATE);
+  const clientQuoteTotal = dto.quote?.totalPrice ?? null;
 
-      const pedidoWhere: any = {
-        OR: [
-          userId ? { userId } : undefined,
-          email ? { clienteEmail: email } : undefined
-        ].filter(Boolean)
-      };
-
-      if (!pedidoWhere.OR || !pedidoWhere.OR.length) {
-        return res.json([]);
-      }
-
-      const statusRaw = (req.query.status as string | undefined)?.trim();
-      const status = statusRaw && statusRaw.length ? statusRaw.toUpperCase() : undefined;
-      if (status && status !== 'TODOS') {
-        pedidoWhere.estado = status;
-      }
-
-      const pedidos = await prisma.pedido.findMany({
-        where: pedidoWhere,
-        orderBy: { id: 'desc' },
-        take: 50
-      });
-
-      const respuesta = pedidos.map(p => ({
-        id: p.id,
-        cliente: p.clienteNombre || p.clienteEmail || 'Tu pedido',
-        email: p.clienteEmail || email || '',
-        estado: p.estado,
-        createdAt: p.createdAt,
-        total: p.total || undefined,
-        items: p.itemsCount || undefined,
-        materialLabel: p.materialLabel || undefined,
-        note: typeof p.payload === 'object' && p.payload !== null ? (p.payload as any).note ?? undefined : undefined,
-        payload: p.payload
-      }));
-
-      return res.json(respuesta);
-    }
-
-    const statusRaw = (req.query.status as string | undefined)?.trim();
-    const status = statusRaw && statusRaw.length ? statusRaw.toUpperCase() : 'PENDIENTE';
-    const where: any = {};
-    if (status !== 'TODOS') {
-      where.estado = status;
-    }
-
-    const pedidos = await prisma.pedido.findMany({
-      where,
-      include: {
-        ordenesTrabajo: {
-          orderBy: { createdAt: 'desc' }
+  const pedidoId = await prisma.$transaction(async tx => {
+    const pedido = await tx.pedido.create({
+      data: {
+        userId,
+        clienteId,
+        clienteEmail: email,
+        clienteNombre: nombre,
+        estado: 'PENDIENTE',
+        notificado: true,
+        total,
+        subtotal,
+        taxTotal: tax,
+        moneda: CURRENCY_CODE,
+        itemsCount,
+        materialId: quoteMaterialId,
+        materialLabel: quoteMaterialLabel,
+        payload: {
+          source: 'cart',
+          products: sanitizedProducts,
+          quote: sanitizedQuote,
+          note: dto.note ?? null,
+          pricing: {
+            catalogTotal,
+            catalogOriginalTotal,
+            catalogDiscount,
+            quoteTotal,
+            computedTotal: total,
+            subtotal,
+            taxTotal: tax,
+            taxRate: TAX_RATE,
+            currency: CURRENCY_CODE,
+            clientCatalogTotal,
+            clientQuoteTotal,
+            quotePricePerMeter: sanitizedQuote?.pricePerMeter ?? null,
+            quotePresetLabel: sanitizedQuote?.inventoryId ? null : (quotePreset?.label ?? null)
+          },
+          createdAt: nowIso,
+          cliente: { email, nombre }
         }
       },
-      orderBy: { id: 'desc' },
-      take: 100
+      select: { id: true }
     });
 
-    const respuesta = pedidos.map(p => ({
-      id: p.id,
-      cliente: p.clienteNombre || p.clienteEmail || 'Cliente',
-      email: p.clienteEmail || '',
-      estado: p.estado,
-      createdAt: p.createdAt,
-      total: p.total || undefined,
-      items: p.itemsCount || undefined,
-      notificado: p.notificado,
-      materialLabel: p.materialLabel || undefined,
-      note: typeof p.payload === 'object' && p.payload !== null ? (p.payload as any).note ?? undefined : undefined,
-      payload: p.payload,
-      workOrder: p.ordenesTrabajo?.[0]
-    }));
+    await adjustCatalogStock(sanitizedProducts, tx);
+    await adjustQuoteStock(quoteMaterialId, sanitizedQuote, tx);
 
-    res.json(respuesta);
-  } catch (error) {
-    console.error('Error listando pedidos', error);
-    res.status(500).json({ message: 'Error interno' });
+    return pedido.id;
+  });
+
+  return res.status(201).json({ id: pedidoId });
+}
+
+async function handleDesignerOrder(dto: DesignerCreate, user: JwtUser | undefined, res: any) {
+  const userId = user?.sub ? Number(user.sub) : null;
+  let email: string | null = user?.email ?? null;
+  let nombre: string | null = null;
+  let clienteId: number | null = null;
+
+  if (userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, fullName: true }
+    });
+    if (user) {
+      email = user.email;
+      nombre = user.fullName;
+      const cliente = await (prisma as any).cliente.findUnique({
+        where: { id_usuario: userId },
+        select: { id_cliente: true }
+      });
+      if (cliente?.id_cliente) {
+        clienteId = Number(cliente.id_cliente);
+      }
+    }
   }
-});
+
+  const nowIso = new Date().toISOString();
+
+  const materialInventory = await findInventoryByMaterial(dto.materialId);
+  const materialPreset = getMaterialPreset(dto.materialId);
+  if (!materialInventory && !materialPreset) {
+    return res.status(400).json({
+      message: 'Material invalido',
+      detalles: { materialId: dto.materialId }
+    });
+  }
+  const pricePerMeter = materialInventory
+    ? resolveInventoryUnitPrice(materialInventory)
+    : materialPreset?.pricePerMeter ?? 0;
+  if (!pricePerMeter) {
+    return res.status(400).json({
+      message: 'No existe tarifa configurada para el material seleccionado',
+      detalles: { materialId: dto.materialId }
+    });
+  }
+  const computedTotal = calculateMaterialPrice(dto.usedHeight, pricePerMeter);
+  const breakdown = calculateTaxBreakdown(computedTotal, TAX_RATE);
+  const itemsCount = dto.items.reduce((acc, item) => acc + item.quantity, 0);
+  const materialLabel =
+    materialInventory?.name ?? dto.materialLabel ?? materialPreset?.label ?? dto.materialId;
+  const sanitizedDesignerPayload = {
+    ...dto,
+    materialLabel,
+    totalPrice: computedTotal,
+    pricePerMeter,
+    inventoryId: materialInventory?.id ?? null
+  };
+
+  const pedidoId = await prisma.$transaction(async tx => {
+    const pedido = await tx.pedido.create({
+      data: {
+        userId,
+        clienteId,
+        clienteEmail: email,
+        clienteNombre: nombre,
+        estado: 'PENDIENTE',
+        notificado: true,
+        total: computedTotal,
+        subtotal: breakdown.subtotal,
+        taxTotal: breakdown.tax,
+        moneda: CURRENCY_CODE,
+        itemsCount,
+        materialId: dto.materialId,
+        materialLabel,
+        payload: {
+          source: 'designer',
+          ...sanitizedDesignerPayload,
+          pricing: {
+            pricePerMeter,
+            computedTotal,
+            subtotal: breakdown.subtotal,
+            taxTotal: breakdown.tax,
+            taxRate: TAX_RATE,
+            currency: CURRENCY_CODE,
+            clientTotal: dto.totalPrice ?? null,
+            presetLabel: materialPreset?.label ?? null
+          },
+          createdAt: nowIso,
+          cliente: {
+            email,
+            nombre
+          }
+        }
+      },
+      select: { id: true }
+    });
+
+    await adjustMaterialStock(dto.materialId, dto.usedHeight, tx);
+
+    return pedido.id;
+  });
+
+  res.status(201).json({ id: pedidoId });
+}
+
+router.post('/', pedidosController.createPedido);
+
+import * as pedidosController from './pedidos.controller';
+
+const router = Router();
+
+router.get('/', pedidosController.getPedidos);
 
 router.get('/admin/clientes', async (req, res) => {
   try {
@@ -1068,6 +1118,9 @@ router.get('/admin/clientes', async (req, res) => {
           estado: pedido.estado,
           createdAt: pedido.createdAt,
           total: pedido.total ?? null,
+          subtotal: pedido.subtotal ?? null,
+          taxTotal: pedido.taxTotal ?? null,
+          currency: pedido.moneda ?? null,
           material: pedido.materialLabel ?? null
         }));
         return {
@@ -1191,9 +1244,40 @@ router.patch('/work-orders/:workOrderId', async (req, res) => {
     });
 
     if (data.estado && data.estado.toUpperCase() === 'LISTO_RETIRO') {
-      await prisma.pedido.update({
+      const operatorContact = await getOperatorContact(user?.sub ? Number(user.sub) : null);
+      const updatedPedido = await prisma.pedido.update({
         where: { id: updated.pedidoId },
-        data: { estado: 'EN_PRODUCCION' }
+        data: { estado: 'LISTO_RETIRO' },
+        select: {
+          id: true,
+          estado: true,
+          notificado: true,
+          clienteEmail: true,
+          clienteNombre: true,
+          total: true,
+          subtotal: true,
+          taxTotal: true,
+          moneda: true,
+          materialLabel: true,
+          payload: true,
+          createdAt: true
+        }
+      });
+
+      await notifyPedidoEstado({
+        id: updatedPedido.id,
+        estado: updatedPedido.estado,
+        clienteEmail: updatedPedido.clienteEmail || null,
+        clienteNombre: updatedPedido.clienteNombre || null,
+        total: typeof updatedPedido.total === 'number' ? updatedPedido.total : null,
+        subtotal: typeof updatedPedido.subtotal === 'number' ? updatedPedido.subtotal : null,
+        taxTotal: typeof updatedPedido.taxTotal === 'number' ? updatedPedido.taxTotal : null,
+        currency: updatedPedido.moneda || CURRENCY_CODE,
+        materialLabel: updatedPedido.materialLabel || null,
+        payload: updatedPedido.payload,
+        createdAt: updatedPedido.createdAt,
+        operadorEmail: operatorContact.email,
+        operadorNombre: operatorContact.nombre
       });
     }
 
@@ -1341,7 +1425,7 @@ router.get('/:id/quote.pdf', async (req, res) => {
       return res.status(403).json({ message: 'No autorizado' });
     }
 
-    const payload = parsePayload(pedido.payload);
+    const payload = parsePayload(pedido.payload) as any;
     const products = Array.isArray(payload?.products) ? payload.products : [];
     const quote = payload?.quote && typeof payload.quote === 'object' ? payload.quote : null;
     const attachments = Array.isArray(payload?.attachments) ? payload.attachments : [];
@@ -1497,6 +1581,67 @@ router.get('/:id/quote.pdf', async (req, res) => {
     res.send(Buffer.from(pdfBytes));
   } catch (error) {
     console.error('Error generando PDF de cotizacion', error);
+    res.status(500).json({ message: 'Error interno' });
+  }
+});
+
+router.get('/:id/files/jobs', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: 'ID invalido' });
+    }
+    const user = (req as any).user as JwtUser | undefined;
+    if (!user) {
+      return res.status(401).json({ message: 'No autorizado' });
+    }
+
+    const pedido = await prisma.pedido.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        userId: true,
+        clienteEmail: true,
+        processingJobs: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            status: true,
+            retryCount: true,
+            lastError: true,
+            createdAt: true,
+            startedAt: true,
+            completedAt: true,
+            updatedAt: true
+          }
+        }
+      }
+    });
+
+    if (!pedido) {
+      return res.status(404).json({ message: 'Pedido no encontrado' });
+    }
+    const canOperator = isOperator(user.role);
+    const canOwner = canAccessPedido(user, { userId: pedido.userId ?? null, clienteEmail: pedido.clienteEmail ?? null });
+    if (!(canOperator || canOwner)) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    res.json({
+      pedidoId: pedido.id,
+      jobs: pedido.processingJobs.map(job => ({
+        id: job.id,
+        status: job.status,
+        retryCount: job.retryCount,
+        lastError: job.lastError,
+        createdAt: job.createdAt,
+        startedAt: job.startedAt,
+        completedAt: job.completedAt,
+        updatedAt: job.updatedAt
+      }))
+    });
+  } catch (error) {
+    console.error('Error listando trabajos de archivos de pedido', error);
     res.status(500).json({ message: 'Error interno' });
   }
 });
@@ -1713,7 +1858,7 @@ router.post('/:id/ack', async (req, res) => {
     }
 
     const estadoBody = typeof req.body?.estado === 'string' ? String(req.body.estado).trim().toUpperCase() : undefined;
-    const allowedStates = ['EN_REVISION', 'POR_PAGAR'];
+    const allowedStates = ['EN_REVISION', 'POR_PAGAR', 'EN_PRODUCCION', 'LISTO_RETIRO', 'COMPLETADO'];
     const nextEstado = estadoBody
       ? allowedStates.includes(estadoBody) ? estadoBody : null
       : (pedido.estado === 'PENDIENTE' ? 'EN_REVISION' : pedido.estado);
@@ -1737,11 +1882,16 @@ router.post('/:id/ack', async (req, res) => {
         clienteEmail: true,
         clienteNombre: true,
         total: true,
+        subtotal: true,
+        taxTotal: true,
+        moneda: true,
         materialLabel: true,
         payload: true,
         createdAt: true
       }
     });
+
+    const operatorContact = await getOperatorContact(userId);
 
     await notifyPedidoEstado({
       id: updated.id,
@@ -1749,9 +1899,14 @@ router.post('/:id/ack', async (req, res) => {
       clienteEmail: updated.clienteEmail || null,
       clienteNombre: updated.clienteNombre || null,
       total: typeof updated.total === 'number' ? updated.total : null,
+      subtotal: typeof updated.subtotal === 'number' ? updated.subtotal : null,
+      taxTotal: typeof updated.taxTotal === 'number' ? updated.taxTotal : null,
+      currency: updated.moneda || CURRENCY_CODE,
       materialLabel: updated.materialLabel || null,
       payload: updated.payload,
-      createdAt: updated.createdAt
+      createdAt: updated.createdAt,
+      operadorEmail: operatorContact.email,
+      operadorNombre: operatorContact.nombre
     });
 
     res.json(updated);

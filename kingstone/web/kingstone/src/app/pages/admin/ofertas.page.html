@@ -28,6 +28,11 @@
             </option>
           </select>
         </label>
+        <label>
+          Precio de oferta (CLP)
+          <input type="number" min="0" step="100" [(ngModel)]="form.precioOferta" name="precioOferta" placeholder="Ej: 11000">
+          <small class="help-text">Déjalo vacío para usar el precio normal del inventario.</small>
+        </label>
         <div class="date-grid">
           <label class="date-field">
             Fecha inicio
@@ -86,6 +91,7 @@
               <th>Titulo</th>
               <th>Descripcion</th>
               <th>Producto</th>
+              <th>Precio oferta</th>
               <th>Inicio</th>
               <th>Termino</th>
               <th>Enlace</th>
@@ -112,6 +118,12 @@
                   <small>{{ oferta.inventario.name }}</small>
                 </ng-container>
                 <ng-template #noItem>--</ng-template>
+              </td>
+              <td class="price-cell">
+                <ng-container *ngIf="oferta.precioOferta !== null && oferta.precioOferta !== undefined && oferta.precioOferta > 0; else noPrice">
+                  {{ oferta.precioOferta | currency:'CLP':'symbol-narrow':'1.0-0' }}
+                </ng-container>
+                <ng-template #noPrice>--</ng-template>
               </td>
               <td>{{ oferta.startAt ? (oferta.startAt | date:'short') : '--' }}</td>
               <td>{{ oferta.endAt ? (oferta.endAt | date:'short') : '--' }}</td>

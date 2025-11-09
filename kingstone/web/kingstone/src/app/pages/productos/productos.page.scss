@@ -38,6 +38,12 @@
   --box-shadow: 0 12px 22px rgba(15, 23, 42, 0.08);
 }
 
+.catalog-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
 .status {
   display: flex;
   align-items: center;
@@ -106,19 +112,55 @@ ion-card.added {
 
 .price {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 8px;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
-.price span {
+.price-label {
   color: #64748b;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
-.price strong {
-  font-size: 20px;
+.price-values {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.price-values .current {
+  font-size: 22px;
+  font-weight: 700;
   color: #0f172a;
+}
+
+.price-values .before del {
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.discount-badge {
+  background: #fb923c;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.price.has-offer .current {
+  color: #047857;
+}
+
+.savings {
+  font-size: 13px;
+  font-weight: 500;
+  color: #047857;
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 
 .meta {

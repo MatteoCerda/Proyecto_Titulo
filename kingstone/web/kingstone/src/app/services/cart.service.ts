@@ -1,4 +1,6 @@
-import { Injectable, computed, effect, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { OfferService } from './offer.service';
+import { take } from 'rxjs/operators';
 
 export interface CartProduct {
   id: number;
@@ -9,6 +11,8 @@ export interface CartProduct {
   color?: string;
   provider?: string;
   imageUrl?: string | null;
+  precioOferta?: number;
+  precioOriginal?: number;
 }
 
 export interface QuoteItemSummary {
@@ -41,6 +45,8 @@ const STORAGE_KEY = 'kingstone-cart-v1';
 export class CartService {
   private readonly stateSignal = signal<CartState>(this.loadInitialState());
 
+  private readonly offerService = inject(OfferService);
+
   readonly products = computed(() => this.stateSignal().products);
   readonly quote = computed(() => this.stateSignal().quote);
   readonly productCount = computed(() =>
@@ -48,7 +54,7 @@ export class CartService {
   );
   readonly totalItems = computed(() => this.productCount() + (this.quote() ? 1 : 0));
   readonly totalAmount = computed(() => {
-    const catalog = this.stateSignal().products.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    const catalog = this.stateSignal().products.reduce((acc, item) => acc + (item.precioOferta ?? item.price) * item.quantity, 0);
     const quote = this.stateSignal().quote?.totalPrice ?? 0;
     return catalog + quote;
   });
@@ -61,24 +67,62 @@ export class CartService {
 
   addProduct(product: Omit<CartProduct, 'quantity'>, quantity = 1) {
     if (quantity <= 0) return;
-    this.stateSignal.update(state => {
-      const existingIndex = state.products.findIndex(p => p.id === product.id);
-      if (existingIndex >= 0) {
-        const updated = [...state.products];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity: updated[existingIndex].quantity + quantity
-        };
-        return { ...state, products: updated };
+
+    const commit = (productToAdd: CartProduct) => {
+      if (
+        productToAdd.precioOferta !== undefined &&
+        productToAdd.precioOriginal === undefined
+      ) {
+        productToAdd.precioOriginal = product.price;
       }
-      return {
-        ...state,
-        products: [
-          ...state.products,
-          { ...product, quantity }
-        ]
-      };
-    });
+
+      this.stateSignal.update(state => {
+        const existingIndex = state.products.findIndex(p => p.id === product.id);
+        if (existingIndex >= 0) {
+          const updated = [...state.products];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            quantity: updated[existingIndex].quantity + quantity,
+            price: productToAdd.price,
+            precioOferta: productToAdd.precioOferta ?? updated[existingIndex].precioOferta,
+            precioOriginal:
+              productToAdd.precioOriginal ?? updated[existingIndex].precioOriginal
+          };
+          return { ...state, products: updated };
+        }
+        return {
+          ...state,
+          products: [...state.products, productToAdd]
+        };
+      });
+    };
+
+    const baseProduct: CartProduct = {
+      ...product,
+      quantity,
+      precioOferta: product.precioOferta,
+      precioOriginal: product.precioOriginal
+    };
+
+    if (baseProduct.precioOferta !== undefined) {
+      commit(baseProduct);
+      return;
+    }
+
+    this.offerService
+      .getOfferForProduct(product.id)
+      .pipe(take(1))
+      .subscribe({
+        next: offer => {
+          const productToAdd = { ...baseProduct };
+          if (offer && offer.precioOferta) {
+            productToAdd.precioOferta = offer.precioOferta;
+            productToAdd.precioOriginal = product.price;
+          }
+          commit(productToAdd);
+        },
+        error: () => commit(baseProduct)
+      });
   }
 
   updateProductQuantity(id: number, quantity: number) {

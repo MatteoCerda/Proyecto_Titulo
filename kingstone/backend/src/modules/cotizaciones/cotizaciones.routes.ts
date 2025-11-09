@@ -414,6 +414,8 @@ async function triggerWebhook(args: {
   operadorId?: number | null;
   operadorEmail?: string | null;
   operadorNombre?: string | null;
+  clienteEmail?: string | null;
+  clienteNombre?: string | null;
 }) {
   const url = process.env.N8N_WEBHOOK_URL;
   if (!url) return { skipped: true };
@@ -425,6 +427,8 @@ async function triggerWebhook(args: {
     operadorId: args.operadorId ?? null,
     operadorEmail: args.operadorEmail ?? null,
     operadorNombre: args.operadorNombre ?? null,
+    clienteEmail: args.clienteEmail ?? null,
+    clienteNombre: args.clienteNombre ?? null,
     enlace: `${panelBase.replace(/\/$/, '')}/operacion/cotizaciones/${args.cotizacionId}`,
   };
 
@@ -495,6 +499,30 @@ router.post(
 
     const metadata = buildMetadata(dto, payloadUser);
 
+    let clienteEmail =
+      typeof dto.cliente?.email === 'string' ? dto.cliente.email : null;
+    let clienteNombre =
+      typeof dto.cliente?.nombre === 'string' ? dto.cliente.nombre : null;
+
+    if (requestedClienteId && (!clienteEmail || !clienteNombre)) {
+      const clienteRecord = await prisma.cliente.findUnique({
+        where: { id_cliente: requestedClienteId },
+        select: { email: true, nombre_contacto: true },
+      });
+      if (clienteRecord) {
+        if (!clienteEmail && clienteRecord.email) {
+          clienteEmail = clienteRecord.email;
+        }
+        if (!clienteNombre && clienteRecord.nombre_contacto) {
+          clienteNombre = clienteRecord.nombre_contacto;
+        }
+      }
+    }
+
+    if (!clienteEmail && !isRequesterOperator && payloadUser?.email) {
+      clienteEmail = payloadUser.email;
+    }
+
     const result = await prisma.$transaction(async tx => {
       const cotizacion = await tx.cotizacion.create({
         data: {
@@ -551,6 +579,8 @@ router.post(
         operadorId: operator.id,
         operadorEmail: operator.email ?? null,
         operadorNombre: operator.fullName ?? null,
+        clienteEmail,
+        clienteNombre,
       });
 
       await prisma.cotizacionNotificacion.update({

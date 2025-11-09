@@ -528,6 +528,18 @@ button.ghost:hover {
   color: #f8fafc;
 }
 
+.detail-panel .items-block .item-name {
+  color: #1f2937;
+}
+
+.detail-panel .items-block .item-size {
+  color: #475569;
+}
+
+.detail-panel .items-block .item-qty {
+  color: #b45309;
+}
+
 @media (max-width: 1024px) {
   .operator-layout {
     grid-template-columns: 1fr;

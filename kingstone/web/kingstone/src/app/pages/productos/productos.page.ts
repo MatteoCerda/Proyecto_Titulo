@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonContent,
@@ -11,6 +11,7 @@ import {
   IonButton,
   IonSpinner
 } from '@ionic/angular/standalone';
+import { ViewWillEnter } from '@ionic/angular';
 import { CatalogService } from '../../services/catalog.service';
 import { CartService } from '../../services/cart.service';
 import { ActivatedRoute } from '@angular/router';
@@ -33,7 +34,7 @@ import { ActivatedRoute } from '@angular/router';
   templateUrl: './productos.page.html',
   styleUrls: ['./productos.page.scss']
 })
-export class ProductosPage implements OnInit {
+export class ProductosPage implements OnInit, OnDestroy, ViewWillEnter {
   private readonly catalog = inject(CatalogService);
   private readonly cart = inject(CartService);
   private readonly route = inject(ActivatedRoute);
@@ -56,15 +57,35 @@ export class ProductosPage implements OnInit {
   readonly error = this.catalog.error;
   readonly lastAddedId = signal<number | null>(null);
 
+  private readonly invalidateHandler = () => { void this.refreshCatalog(); };
+
   async ngOnInit() {
     const searchTerm = this.route.snapshot.queryParamMap.get('search') || '';
     this.search.set(searchTerm);
-    await this.catalog.loadCatalog();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('catalog:invalidate', this.invalidateHandler);
+    }
+    await this.refreshCatalog();
+  }
+
+  async ionViewWillEnter() {
+    await this.refreshCatalog();
+  }
+
+  ngOnDestroy() {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('catalog:invalidate', this.invalidateHandler);
+    }
   }
 
   onSearch(ev: CustomEvent) {
     const value = typeof ev.detail?.value === 'string' ? ev.detail.value : '';
     this.search.set(value);
+  }
+
+  refreshCatalog() {
+    const term = this.search().trim();
+    return this.catalog.loadCatalog(term ? { search: term } : {}, true);
   }
 
   addToCart(itemId: number) {
@@ -74,11 +95,13 @@ export class ProductosPage implements OnInit {
       {
         id: item.id,
         name: item.name,
-        price: item.price ?? item.priceWeb ?? 0,
+        price: item.price,
         itemType: item.itemType,
         color: item.color,
         provider: item.provider,
-        imageUrl: item.imageUrl
+        imageUrl: item.imageUrl,
+        precioOferta: item.offerPrice ?? undefined,
+        precioOriginal: item.offerPrice ? item.basePrice : undefined
       },
       1
     );

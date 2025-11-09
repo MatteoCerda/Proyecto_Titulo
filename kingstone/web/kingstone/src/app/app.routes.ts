@@ -11,6 +11,7 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'inicio', pathMatch: 'full' },
       { path: 'inicio', loadComponent: () => import('./pages/home/home.page').then(m => m.HomePage) },
+      { path: 'somos', loadComponent: () => import('./pages/nosotros/nosotros.page').then(m => m.NosotrosPage) },
       { path: 'productos', loadComponent: () => import('./pages/productos/productos.page').then(m => m.ProductosPage) },
       { path: 'carrito', loadComponent: () => import('./pages/carrito/carrito.page').then(m => m.CarritoPage) },
       { path: 'login', loadComponent: () => import('./pages/login/login.page').then(m => m.LoginPage) },

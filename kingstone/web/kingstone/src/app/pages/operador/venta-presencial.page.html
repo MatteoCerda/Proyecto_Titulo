@@ -182,7 +182,7 @@
 
           <span class="label">Precio presencial</span>
 
-          <strong>{{ item.priceStore ?? item.price ?? item.priceWeb | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+          <strong>{{ precioPresencial(item) | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
 
         </div>
 
@@ -190,7 +190,7 @@
 
           <span class="label">Precio WhatsApp</span>
 
-          <strong>{{ item.priceWsp ?? item.price ?? item.priceWeb | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+          <strong>{{ precioWsp(item) | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
 
         </div>
 

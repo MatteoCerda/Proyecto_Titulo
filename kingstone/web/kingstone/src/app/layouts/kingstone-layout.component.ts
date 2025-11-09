@@ -1,50 +1,51 @@
-import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterLink, RouterLinkActive } from '@angular/router';
-import {
-  IonHeader,
-  IonToolbar,
-  IonFooter,
-  IonIcon,
-  IonSearchbar,
-  IonRouterOutlet,
-} from '@ionic/angular/standalone';
-import { AuthService } from '../core/auth.service';
-import { CartService } from '../services/cart.service';
-import { addIcons } from 'ionicons';
-import { cartOutline, searchOutline, personOutline } from 'ionicons/icons';
-
-addIcons({ cartOutline, searchOutline, personOutline });
-
-@Component({
-  selector: 'app-kingstone-layout',
-  standalone: true,
-  imports: [
-    CommonModule,
-    RouterLink,
-    RouterLinkActive,
-    IonHeader,
-    IonToolbar,
-    IonRouterOutlet,
-    IonFooter,
-    IonIcon,
-    IonSearchbar,
-  ],
-  template: `
-  <!-- === HEADER === -->
-  <ion-header #appHeader class="ks-header" style="--background:#0c4a6e; --ion-background-color:#0c4a6e; color:#ffffff;">
-    <!-- Barra principal -->
-    <ion-toolbar class="ks-toolbar" style="--background:#0c4a6e; --ion-toolbar-background:#0c4a6e; color:#ffffff;">
-      <div class="ks-bar">
-        <!-- Izquierda: logo -->
-        <a class="ks-logo-wrap" routerLink="/">
-          <img src="assets/kingston-estampados.png" alt="Kingstone logo" class="ks-logo" />
-        </a>
-
-        <!-- Centro: menú -->
-        <nav class="ks-nav" style="color:#ffffff;">
-          <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
+import { Component, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import {
+  IonHeader,
+  IonToolbar,
+  IonFooter,
+  IonIcon,
+  IonSearchbar,
+  IonRouterOutlet,
+} from '@ionic/angular/standalone';
+import { AuthService } from '../core/auth.service';
+import { CartService } from '../services/cart.service';
+import { addIcons } from 'ionicons';
+import { cartOutline, searchOutline, personOutline } from 'ionicons/icons';
+
+addIcons({ cartOutline, searchOutline, personOutline });
+
+@Component({
+  selector: 'app-kingstone-layout',
+  standalone: true,
+  imports: [
+    CommonModule,
+    RouterLink,
+    RouterLinkActive,
+    IonHeader,
+    IonToolbar,
+    IonRouterOutlet,
+    IonFooter,
+    IonIcon,
+    IonSearchbar,
+  ],
+  template: `
+  <!-- === HEADER === -->
+  <ion-header #appHeader class="ks-header" style="--background:#0c4a6e; --ion-background-color:#0c4a6e; color:#ffffff;">
+    <!-- Barra principal -->
+    <ion-toolbar class="ks-toolbar" style="--background:#0c4a6e; --ion-toolbar-background:#0c4a6e; color:#ffffff;">
+      <div class="ks-bar">
+        <!-- Izquierda: logo -->
+        <a class="ks-logo-wrap" routerLink="/">
+          <img src="assets/kingston-estampados.png" alt="Kingstone logo" class="ks-logo" />
+        </a>
+
+        <!-- Centro: menú -->
+        <nav class="ks-nav" style="color:#ffffff;">
+          <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
           <a routerLink="/productos" routerLinkActive="active">Productos</a>
+          <a routerLink="/somos" routerLinkActive="active">Nosotros</a>
           <a routerLink="/crea-tu-diseno" routerLinkActive="active">Crea tu dise&ntilde;o</a>
           <a href="https://wa.me/56986412218" target="_blank" rel="noopener">Cont&aacute;ctanos</a>
         </nav>
@@ -268,4 +269,4 @@ export class KingstoneLayoutComponent {
 
 
 
-
+\r\n

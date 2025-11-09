@@ -34,18 +34,12 @@
     build:
       context: ./backend
     container_name: kingstone_api
-    environment:
-      DATABASE_URL: mysql://king:stone@db:3306/kingstone
-      SHADOW_DATABASE_URL: mysql://king:stone@db:3306/kingstone_shadow
-      JWT_SECRET: Duoc2025
-      JWT_EXPIRES_IN: 1d
-      PORT: 3000
-      NODE_ENV: production
-      PEDIDOS_UPLOAD_DIR: /app/uploads/pedidos
+    env_file: ./.env
     ports:
       - "3000:3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - uploads_data:/app/uploads/pedidos
 
@@ -53,12 +47,7 @@
     build:
       context: ./backend
     container_name: kingstone_worker
-    environment:
-      DATABASE_URL: mysql://king:stone@db:3306/kingstone
-      SHADOW_DATABASE_URL: mysql://king:stone@db:3306/kingstone_shadow
-      NODE_ENV: production
-      PEDIDOS_UPLOAD_DIR: /app/uploads/pedidos
-      FILE_JOB_POLL_INTERVAL_MS: 3000
+    env_file: ./.env
     depends_on:
       db:
         condition: service_healthy
@@ -66,8 +55,32 @@
     volumes:
       - uploads_data:/app/uploads/pedidos
 
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: kingstone_n8n
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=${N8N_PORT}
+      - N8N_PROTOCOL=${N8N_PROTOCOL}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+    volumes:
+      - n8n_data:/home/node/.n8n
+
 volumes:
   db_data:
   uploads_data:
+  n8n_data:
 
 
