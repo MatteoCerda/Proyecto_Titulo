@@ -23,6 +23,8 @@ import crypto from 'crypto';
 import { prisma } from '../../lib/prisma';
 import { calculateTaxBreakdown, DEFAULT_CURRENCY, TAX_RATE } from '../common/pricing';
 import { sendEmail } from '../../lib/email';
+import * as pedidosController from './pedidos.controller';
+import type { JwtUser } from './pedidos.service';
 
 const router = Router();
 type DbClient = Prisma.TransactionClient | PrismaClient;
@@ -101,8 +103,6 @@ type MaterialPreset = {
 const MATERIAL_PRESET_MAP: Record<string, MaterialPreset> = {};
 const MATERIAL_UNIT_LENGTH_CM = 100;
 const CURRENCY_CODE = DEFAULT_CURRENCY;
-
-type JwtUser = { sub?: number; email?: string; role?: string };
 
 async function getOperatorContact(userId?: number | null) {
   if (!userId) {
@@ -695,8 +695,9 @@ type PedidoNotifyPayload = {
   materialLabel: string | null;
   payload: any;
   createdAt: Date;
+  operadorEmail?: string | null;
+  operadorNombre?: string | null;
 };
-import { sendEmail } from '../../lib/email';
 
 function buildEstadoMessage(pedido: PedidoNotifyPayload) {
   const baseLabel = pedido.clienteNombre?.split(' ')?.[0] || 'Hola';
@@ -1083,10 +1084,6 @@ async function handleDesignerOrder(dto: DesignerCreate, user: JwtUser | undefine
 }
 
 router.post('/', pedidosController.createPedido);
-
-import * as pedidosController from './pedidos.controller';
-
-const router = Router();
 
 router.get('/', pedidosController.getPedidos);
 
@@ -1842,7 +1839,8 @@ router.post('/:id/files', upload.array('files', 10), async (req, res) => {
 
 router.post('/:id/ack', async (req, res) => {
   try {
-    const user = (req as any).user as { role?: string } | undefined;
+    const user = (req as any).user as JwtUser | undefined;
+    const userId = user?.sub ? Number(user.sub) : null;
     if (!user || !isOperator(user.role)) {
       return res.status(403).json({ message: 'Requiere rol operador' });
     }

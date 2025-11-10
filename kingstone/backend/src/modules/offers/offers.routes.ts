@@ -1,6 +1,6 @@
 
 import { Router } from 'express';
-import * as catalogoController from './catalogo.controller';
+import * as catalogoController from '../catalogo/catalogo.controller';
 
 const router = Router();
 

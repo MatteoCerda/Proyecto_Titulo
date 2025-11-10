@@ -78,7 +78,7 @@ const MATERIAL_PRESET_MAP: Record<string, MaterialPreset> = {};
 const MATERIAL_UNIT_LENGTH_CM = 100;
 const CURRENCY_CODE = DEFAULT_CURRENCY;
 
-type JwtUser = { sub?: number; email?: string; role?: string };
+export type JwtUser = { sub?: number; email?: string; role?: string };
 
 function createStockError(details: Record<string, unknown> = {}) {
   return Object.assign(new Error('INSUFFICIENT_STOCK'), { code: 'INSUFFICIENT_STOCK', details });

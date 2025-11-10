@@ -34,12 +34,14 @@
     build:
       context: ./backend
     container_name: kingstone_api
-    env_file: ./.env
+    env_file: ./.env.production
     ports:
       - "3000:3000"
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - uploads_data:/app/uploads/pedidos
 
@@ -47,10 +49,12 @@
     build:
       context: ./backend
     container_name: kingstone_worker
-    env_file: ./.env
+    env_file: ./.env.production
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     command: /bin/sh -c "npx prisma migrate deploy && node dist/workers/pedidoFileWorker.js"
     volumes:
       - uploads_data:/app/uploads/pedidos
@@ -59,7 +63,7 @@
     image: n8nio/n8n:latest
     container_name: kingstone_n8n
     restart: unless-stopped
-    env_file: ./.env
+    env_file: ./.env.production
     environment:
       - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
@@ -77,6 +81,17 @@
         condition: service_started
     volumes:
       - n8n_data:/home/node/.n8n
+
+  migrate:
+    build:
+      context: ./backend
+    container_name: kingstone_migrate
+    env_file: ./.env.production
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["/bin/sh","-c","npx prisma migrate deploy"]
+    restart: "no"
 
 volumes:
   db_data:

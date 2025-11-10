@@ -3,6 +3,15 @@ import { prisma } from '../../lib/prisma';
 import bcrypt from 'bcryptjs';
 import { normalizeRut } from '../common/rut';
 
+type ClientProfileInput = {
+  rut?: string | null;
+  nombre_contacto?: string | null;
+  telefono?: string | null;
+  direccion?: string | null;
+  comuna?: string | null;
+  ciudad?: string | null;
+};
+
 export const getUserProfile = async (id: number) => {
   const user = await prisma.user.findUnique({
     where: { id },
@@ -29,7 +38,7 @@ export const updateUserProfile = async (id: number, fullName: string) => {
   }
 };
 
-export const updateUserPassword = async (id: number, currentPassword, newPassword) => {
+export const updateUserPassword = async (id: number, currentPassword: string, newPassword: string) => {
   if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
     throw new Error('Contraseña inválida (mínimo 6 caracteres)');
   }
@@ -49,7 +58,7 @@ export const getClientProfile = async (id: number) => {
   return profile;
 };
 
-export const upsertClientProfile = async (id: number, data) => {
+export const upsertClientProfile = async (id: number, data: ClientProfileInput) => {
   const { rut, nombre_contacto, telefono, direccion, comuna, ciudad } = data;
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw new Error('Usuario no encontrado');

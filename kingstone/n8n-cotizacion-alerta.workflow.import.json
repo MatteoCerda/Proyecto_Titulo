@@ -36,8 +36,8 @@
           "resource": "email",
           "operation": "send",
           "fromEmail": "Kingstone Operaciones <rcarrasco6661@gmail.com>",
-          "toEmail": "={{$json['operadorEmail'] ?? 'operador@kingstone.local'}}",
-          "subject": "={{'Nueva cotizacion #' + ($json['cotizacionId'] ?? '?')}}",
+          "toEmail": "={{$json['operadorEmail'] ?? 'andr.gonzalezg@duocuc.cl'}}",
+          "subject": "={{'El estados de tu pedido de encuentra #' + ($json['cotizacionId'] ?? '?')}}",
           "emailFormat": "html",
           "html": "={{'<p>Hola ' + ($json['operadorNombre'] ?? 'equipo') + ',</p>' + '<p>Tienes una nueva cotizacion <strong>#' + ($json['cotizacionId'] ?? '?') + '</strong> asignada.</p>' + '<p>Cliente: ' + (($json['clienteNombre'] ?? $json['clienteEmail']) ?? 'sin datos') + '</p>' + '<p><a href=\\\"' + ($json['enlace'] ?? '') + '\\\">Abrir en panel</a></p>'}}",
           "options": {
