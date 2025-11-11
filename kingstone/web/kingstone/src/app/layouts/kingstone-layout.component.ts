@@ -114,8 +114,8 @@ addIcons({ cartOutline, searchOutline, personOutline });
           </button>
           <div class="ks-user-menu" *ngIf="showUserMenu">
             <a [routerLink]="['/perfil']" (click)="showUserMenu=false">Mi perfil</a>
-            <a [routerLink]="['/perfil']" [queryParams]="{ tab: 'pedidos' }" (click)="showUserMenu=false">Mis pedidos</a>
-            <a routerLink="/cliente/metodos-pago">Metodos de pago</a>
+            <a *ngIf="auth.getRole() === 'CLIENT'" [routerLink]="['/perfil']" [queryParams]="{ tab: 'pedidos' }" (click)="showUserMenu=false">Mis pedidos</a>
+            <a *ngIf="auth.getRole() === 'CLIENT'" routerLink="/cliente/metodos-pago" (click)="showUserMenu=false">Metodos de pago</a>
             <button type="button" (click)="logout()">Cerrar sesion</button>
           </div>
         </div>

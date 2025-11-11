@@ -3,7 +3,7 @@
     <aside class="profile-menu">
       <nav>
         <button type="button" [class.active]="tab() === 'datos'" (click)="select('datos')">Datos de la cuenta</button>
-        <button type="button" [class.active]="tab() === 'pedidos'" (click)="select('pedidos')">Mis pedidos</button>
+        <button *ngIf="isClient()" type="button" [class.active]="tab() === 'pedidos'" (click)="select('pedidos')">Mis pedidos</button>
       </nav>
     </aside>
     <main class="profile-main">
@@ -55,7 +55,7 @@
         </div>
       </ng-container>
 
-      <ng-container *ngIf="tab() === 'pedidos'">
+      <ng-container *ngIf="isClient() && tab() === 'pedidos'">
         <div class="card" id="orders-section">
           <div class="card-head-simple">
             <h3>Mis pedidos</h3>

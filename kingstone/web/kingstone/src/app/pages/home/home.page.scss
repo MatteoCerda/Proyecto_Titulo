@@ -18,6 +18,8 @@
   box-shadow: 0 24px 36px rgba(15, 23, 42, 0.08);
   border: 1px solid #e2e8f0;
   color: #0f172a;
+  position: relative;
+  z-index: 0;
 }
 
 .hero-media {
@@ -62,13 +64,15 @@
 
 .home-marquee {
   width: 100%;
-  margin: 14px 0 28px;
-  padding: 16px 0;
+  /* separa claramente del bloque hero para evitar solape visual */
+  margin: 24px 0 32px;
+  /* más padding superior para que no se corten ascendentes del texto */
+  padding: 24px 0;
   background: #f6f8fb;
   color: #0f172a;
   overflow: hidden;
   position: relative;
-  z-index: 5;
+  z-index: 1;
   mask-image: none;
   -webkit-mask-image: none;
   isolation: isolate;
@@ -83,7 +87,7 @@
 
 .home-marquee .marquee {
   position: relative;
-  z-index: 5;
+  z-index: 2;
   display: flex;
   gap: 48px;
   align-items: center;
@@ -93,7 +97,7 @@
   font-size: 20px;
   letter-spacing: 0.16em;
   color: #0f172a;
-  line-height: 1.3;
+  line-height: 1.4; /* evita recorte superior */
 }
 
 .home-marquee .marquee-track {

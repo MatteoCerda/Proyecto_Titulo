@@ -26,6 +26,8 @@ export class ProfilePage {
   loading = signal(false);
   // Navegación lateral
   tab = signal<'datos' | 'pedidos'>('datos');
+  // Solo clientes ven "Mis pedidos"
+  isClient = signal(true);
   // Estado de pedidos
   orders = signal<PedidoResumen[]>([]);
   loadingOrders = signal(false);
@@ -50,6 +52,9 @@ export class ProfilePage {
   });
 
   async ngOnInit() {
+    // Determina rol actual
+    const role = this.auth.getRole();
+    this.isClient.set((role || 'CLIENT').toUpperCase() === 'CLIENT');
     this.loading.set(true);
     try {
       const me = await this.auth.getMe();
@@ -68,12 +73,15 @@ export class ProfilePage {
     } finally {
       this.loading.set(false);
     }
-    // Cargar pedidos
-    this.refreshOrders();
+    // Cargar pedidos solo si es cliente
+    if (this.isClient()) {
+      this.refreshOrders();
+    }
     // Seleccionar pestaña por query param
     this.route.queryParamMap.subscribe(q => {
       const t = q.get('tab');
-      if (t === 'pedidos' || t === 'datos') this.tab.set(t as any);
+      if (t === 'pedidos' && this.isClient()) this.tab.set('pedidos');
+      else this.tab.set('datos');
     });
   }
 
@@ -166,6 +174,10 @@ export class ProfilePage {
   }
 
   select(tab: 'datos' | 'pedidos') {
+    if (tab === 'pedidos' && !this.isClient()) {
+      this.tab.set('datos');
+      return;
+    }
     this.tab.set(tab);
     // Mantener URL en sincronía
     this.router.navigate([], { relativeTo: this.route, queryParams: { tab }, queryParamsHandling: 'merge' });
