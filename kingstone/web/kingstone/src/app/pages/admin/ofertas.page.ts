@@ -187,7 +187,7 @@ export class AdminOfertasPage {
       endAt: endAt ? endAt.toISOString() : undefined
     };
 
-    const precioRaw = (this.form.precioOferta || '').trim();
+    const precioRaw = String(this.form.precioOferta || '');
     if (precioRaw.length) {
       const parsed = Number(precioRaw);
       if (!Number.isFinite(parsed) || parsed < 0) {

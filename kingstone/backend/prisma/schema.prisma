@@ -66,6 +66,7 @@ model InventoryItem {
   id        Int      @id @default(autoincrement())
   code      String   @unique
   name      String
+  description String? @db.Text
   itemType  String
   color     String
   provider  String
