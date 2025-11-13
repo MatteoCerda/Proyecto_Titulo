@@ -152,6 +152,17 @@ export interface OperatorClienteSearchResult {
   };
 }
 
+export interface OperatorSaleResumenItem {
+  itemId: number;
+  name: string;
+  quantity: number;
+  itemType?: string | null;
+  provider?: string | null;
+  pricePresencial?: number | null;
+  priceWsp?: number | null;
+  selectedUnitPrice?: number | null;
+}
+
 export interface OperatorSalePayload {
   canal: 'presencial' | 'wsp';
   cliente: {
@@ -171,6 +182,7 @@ export interface OperatorSalePayload {
     dtfCategoria?: 'dtf' | 'textil' | 'uv' | 'tela' | 'pvc' | 'sticker' | 'comprinter';
     comprinterMaterial?: 'pvc' | 'pu';
     adjuntoRequerido?: boolean;
+    items?: OperatorSaleResumenItem[];
   };
   agenda?: {
     fecha: string;

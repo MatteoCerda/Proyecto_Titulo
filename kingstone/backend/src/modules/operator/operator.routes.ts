@@ -31,6 +31,17 @@ const agendaSchema = z.object({
   notas: z.string().max(400).optional()
 });
 
+const resumenItemSchema = z.object({
+  itemId: z.number().int().positive(),
+  name: z.string().min(1).max(200),
+  quantity: z.number().int().positive(),
+  itemType: z.string().max(120).optional(),
+  provider: z.string().max(120).optional(),
+  pricePresencial: z.number().nonnegative().nullable().optional(),
+  priceWsp: z.number().nonnegative().nullable().optional(),
+  selectedUnitPrice: z.number().nonnegative().nullable().optional()
+});
+
 const saleSchema = z.object({
   canal: z.enum(['presencial', 'wsp']),
   cliente: clientePayloadSchema,
@@ -44,7 +55,8 @@ const saleSchema = z.object({
     dtfCentimetros: z.number().nonnegative().optional(),
     dtfCategoria: z.enum(['dtf', 'textil', 'uv', 'tela', 'pvc', 'sticker', 'comprinter']).optional(),
     comprinterMaterial: z.enum(['pvc', 'pu']).optional(),
-    adjuntoRequerido: z.boolean().optional()
+    adjuntoRequerido: z.boolean().optional(),
+    items: z.array(resumenItemSchema).max(100).optional()
   }),
   agenda: agendaSchema.optional()
 });

@@ -46,6 +46,25 @@
   transform: translateY(-1px);
 }
 
+.venta-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 24px;
+}
+
+.venta-main,
+.venta-side {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+@media (max-width: 1100px) {
+  .venta-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .panel {
   background: rgba(15, 23, 42, 0.85);
   border-radius: 20px;
@@ -226,10 +245,48 @@
 }
 
 .files {
+  list-style: none;
   margin: 0;
-  padding-left: 18px;
+  padding: 0;
   color: #e2e8f0;
   font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.files li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.files .file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.files .file-info strong {
+  font-weight: 600;
+}
+
+.files .file-info small {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.files .remove {
+  background: transparent;
+  border: none;
+  color: #f87171;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .summary {
@@ -678,6 +735,22 @@
   color: #b91c1c;
 }
 
+.resume-card .resume-total {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 16px;
+}
+
+.resume-card .resume-total strong {
+  font-size: 20px;
+}
+
 .success {
   background: #dcfce7;
   border: 1px solid #bbf7d0;
@@ -692,6 +765,19 @@
 
 .files {
   color: #475569;
+}
+
+.files li {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.files .file-info small {
+  color: #94a3b8;
+}
+
+.files .remove {
+  color: #b91c1c;
 }
 
 input[type='file'] {

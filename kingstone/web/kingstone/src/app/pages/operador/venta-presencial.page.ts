@@ -1,7 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { PedidosService, OperatorClienteSearchResult, OperatorSalePayload, OperatorSaleResponse } from '../../services/pedidos.service';
+import {
+  PedidosService,
+  OperatorClienteSearchResult,
+  OperatorSalePayload,
+  OperatorSaleResponse,
+  OperatorSaleResumenItem
+} from '../../services/pedidos.service';
 import { firstValueFrom } from 'rxjs';
 import { CatalogService, CatalogItem } from '../../services/catalog.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -59,8 +65,10 @@ export class OperatorVentaPresencialPage {
   readonly clienteEncontrado = signal<OperatorClienteSearchResult | null>(null);
   readonly ventaRegistrada = signal<OperatorSaleResponse | null>(null);
   readonly attachments = signal<File[]>([]);
+  readonly attachmentError = signal<string | null>(null);
   readonly selectedItems = signal<Array<{ item: CatalogItem; quantity: number }>>([]);
   readonly inventorySearch = signal<string>('');
+  readonly maxAttachments = 10;
 
   readonly claimCode = computed(() => this.ventaRegistrada()?.claimCode || null);
   readonly requiereCodigo = computed(() => this.clienteEncontrado()?.cliente?.estado === 'pending_claim');
@@ -87,35 +95,17 @@ export class OperatorVentaPresencialPage {
       return;
     }
     const normalized = this.normalizeRutForSearch(rut);
-    if (!normalized) {
-      this.clienteEncontrado.set({
-        found: false,
-        cliente: {
-          id: 0,
-          rut,
-          estado: 'nuevo',
-          nombre: null,
-          email: null,
-          telefono: null,
-          hasAccount: false
-        }
-      });
-      this.form.patchValue(
-        {
-          cliente: {
-            rut,
-            nombre: null,
-            email: null,
-            telefono: null
-          }
-        },
-        { emitEvent: false }
-      );
+    if (normalized === false) {
+      this.searchError.set('El RUT ingresado no es válido. Revisa el dígito verificador.');
+      return;
+    }
+    if (normalized === null) {
+      this.prepareManualCliente(rut);
       return;
     }
     this.searchLoading.set(true);
     try {
-      const result = await firstValueFrom(this.pedidos.searchClienteByRut(normalized));
+      const result = await firstValueFrom(this.pedidos.searchClienteByRut(normalized.compact));
       this.clienteEncontrado.set(result);
       if (result.found && result.cliente) {
         this.form.patchValue(
@@ -133,7 +123,7 @@ export class OperatorVentaPresencialPage {
         this.form.patchValue(
           {
             cliente: {
-              rut: this.formatRut(normalized),
+              rut: normalized.formatted,
               nombre: null,
               email: null,
               telefono: null
@@ -153,7 +143,57 @@ export class OperatorVentaPresencialPage {
   onAttachmentsSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files || []);
-    this.attachments.set(files);
+    if (!files.length) {
+      return;
+    }
+    const current = this.attachments();
+    const availableSlots = Math.max(0, this.maxAttachments - current.length);
+    const accepted = availableSlots > 0 ? files.slice(0, availableSlots) : [];
+    if (accepted.length) {
+      this.attachments.set([...current, ...accepted]);
+      this.attachmentError.set(null);
+    }
+    if (files.length > accepted.length) {
+      this.attachmentError.set(
+        `Puedes adjuntar hasta ${this.maxAttachments} archivos. Quita alguno para agregar nuevos.`
+      );
+    }
+    if (input) {
+      input.value = '';
+    }
+  }
+
+  quitarAdjunto(index: number): void {
+    this.attachments.update(list => list.filter((_, i) => i !== index));
+    if (this.attachments().length < this.maxAttachments) {
+      this.attachmentError.set(null);
+    }
+  }
+
+  private prepareManualCliente(documento: string): void {
+    this.clienteEncontrado.set({
+      found: false,
+      cliente: {
+        id: 0,
+        rut: documento,
+        estado: 'nuevo',
+        nombre: null,
+        email: null,
+        telefono: null,
+        hasAccount: false
+      }
+    });
+    this.form.patchValue(
+      {
+        cliente: {
+          rut: documento,
+          nombre: null,
+          email: null,
+          telefono: null
+        }
+      },
+      { emitEvent: false }
+    );
   }
 
   limpiar(): void {
@@ -187,11 +227,13 @@ export class OperatorVentaPresencialPage {
       }
     });
     this.attachments.set([]);
+    this.attachmentError.set(null);
     this.clienteEncontrado.set(null);
     this.ventaRegistrada.set(null);
     this.error.set(null);
     this.searchError.set(null);
     this.selectedItems.set([]);
+    this.syncSelectionSummary(true);
   }
 
   async registrar(): Promise<void> {
@@ -203,13 +245,19 @@ export class OperatorVentaPresencialPage {
       return;
     }
     const raw = this.form.getRawValue();
+    const canal = (raw.canal as CanalVenta) || 'presencial';
     const total = Number(raw.resumen?.total ?? 0);
     if (Number.isNaN(total) || total < 0) {
       this.error.set('Debes indicar un monto válido para la venta.');
       return;
     }
+    if (raw.resumen?.adjuntoRequerido && this.attachments().length === 0) {
+      this.error.set('Marca adjunto solo cuando subas al menos un archivo.');
+      return;
+    }
+    const resumenItems = this.buildResumenItems(canal);
     const payload: OperatorSalePayload = {
-      canal: raw.canal || 'presencial',
+      canal,
       cliente: {
         rut: raw.cliente?.rut || undefined,
         nombre: raw.cliente?.nombre || undefined,
@@ -226,7 +274,8 @@ export class OperatorVentaPresencialPage {
         dtfCentimetros: this.parseNumber(raw.resumen?.dtfCentimetros),
         dtfCategoria: raw.resumen?.dtfCategoria || 'dtf',
         comprinterMaterial: raw.resumen?.comprinterMaterial || undefined,
-        adjuntoRequerido: !!raw.resumen?.adjuntoRequerido
+        adjuntoRequerido: !!raw.resumen?.adjuntoRequerido,
+        items: resumenItems.length ? resumenItems : undefined
       },
       agenda: raw.agenda?.fecha
         ? {
@@ -269,14 +318,18 @@ export class OperatorVentaPresencialPage {
     return Number.isNaN(num) ? undefined : num;
   }
 
-  private normalizeRutForSearch(raw: string): string | null {
+  private normalizeRutForSearch(raw: string): { compact: string; formatted: string } | null | false {
     const cleaned = raw.replace(/[^0-9kK]/g, '').toUpperCase();
     if (!/^\d{2,8}[0-9K]$/.test(cleaned)) {
       return null;
     }
     const body = cleaned.slice(0, -1);
     const dv = cleaned.slice(-1);
-    return `${body}${dv}`;
+    if (!this.isValidRut(body, dv)) {
+      return false;
+    }
+    const compact = `${body}${dv}`;
+    return { compact, formatted: this.formatRut(compact) };
   }
 
   private formatRut(compact: string): string {
@@ -289,6 +342,21 @@ export class OperatorVentaPresencialPage {
     }
     const formattedBody = groups.reverse().join('.');
     return `${formattedBody}-${dv}`;
+  }
+
+  private isValidRut(body: string, dv: string): boolean {
+    let sum = 0;
+    let multiplier = 2;
+    for (let i = body.length - 1; i >= 0; i--) {
+      sum += parseInt(body[i], 10) * multiplier;
+      multiplier = multiplier === 7 ? 2 : multiplier + 1;
+    }
+    const expected = 11 - (sum % 11);
+    let dvCalc: string;
+    if (expected === 11) dvCalc = '0';
+    else if (expected === 10) dvCalc = 'K';
+    else dvCalc = expected.toString();
+    return dvCalc === dv.toUpperCase();
   }
 
   async buscarInventario(term: string): Promise<void> {
@@ -361,20 +429,34 @@ export class OperatorVentaPresencialPage {
 
   trackBySelectedItem = (_: number, entry: { item: CatalogItem; quantity: number }): number => entry.item.id;
 
+  private buildResumenItems(canal: CanalVenta): OperatorSaleResumenItem[] {
+    return this.selectedItems().map(entry => ({
+      itemId: entry.item.id,
+      name: entry.item.name,
+      quantity: entry.quantity,
+      itemType: entry.item.itemType,
+      provider: entry.item.provider,
+      pricePresencial: this.getPriceForItem(entry.item, 'presencial'),
+      priceWsp: this.getPriceForItem(entry.item, 'wsp'),
+      selectedUnitPrice: this.getPriceForItem(entry.item, canal)
+    }));
+  }
+
   private syncSelectionSummary(updateTotal: boolean): void {
     const items = this.selectedItems();
     const resumenGroup = this.form.get('resumen');
     if (!resumenGroup) return;
 
     if (!items.length) {
-      (resumenGroup as any).patchValue(
-        {
-          materialId: null,
-          materialLabel: null,
-          itemsCount: null
-        },
-        { emitEvent: false }
-      );
+      const resetPatch: Record<string, unknown> = {
+        materialId: null,
+        materialLabel: null,
+        itemsCount: null
+      };
+      if (updateTotal) {
+        resetPatch['total'] = null;
+      }
+      (resumenGroup as any).patchValue(resetPatch, { emitEvent: false });
       return;
     }
 

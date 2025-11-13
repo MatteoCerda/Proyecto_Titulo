@@ -11,94 +11,132 @@ import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../serv
   selector: 'app-operator-dashboard',
   imports: [CommonModule, DatePipe, RouterLink, RouterLinkActive],
   template: `
-    <section class="operator-layout">
-      <aside class="operator-sidebar">
-        <header>
-          <h2>Datos de cuenta</h2>
-          <p>{{ account()?.fullName || account()?.email }}</p>
-        </header>
-        <nav>
-          <a routerLink="/operador/inicio" routerLinkActive="active">Inicio</a>
-          <a routerLink="/operador/cotizaciones" routerLinkActive="active">
-            Cotizaciones recientes
-            <span *ngIf="pendingCount() > 0" class="warn">{{ pendingCount() }}</span>
-          </a>
-          <a routerLink="/operador/pagos" routerLinkActive="active">Pagos</a>
-          <span class="nav-divider">Gestión</span>
-          <a routerLink="/operador/clientes" routerLinkActive="active">Clientes</a>
-          <a routerLink="/operador/ventas/presencial" routerLinkActive="active">Venta presencial</a>
-          <a routerLink="/operador/calendario" routerLinkActive="active">Calendario</a>
-        </nav>
-        <footer>
-          <button type="button" (click)="refresh()">Actualizar bandeja</button>
-        </footer>
-      </aside>
-
-      <div class="operator-content">
-        <header class="content-header">
-          <div>
-            <h1>Solicitudes de clientes</h1>
-            <p>Revisa y deriva los pedidos enviados desde la seccion de cotizacion.</p>
-          </div>
-          <div class="header-meta">
-            <span class="badge">{{ orders().length }} solicitudes</span>
-            <button type="button" class="ghost" (click)="refresh()">Refrescar</button>
-          </div>
-        </header>
-
-        <div class="alerts">
-          <div class="alert" *ngIf="pendingCount() > 0">
-            <strong>{{ pendingCount() }}</strong>
-            <span>nuevas solicitudes pendientes de revision.</span>
-          </div>
-          <div class="alert" [ngClass]="actionFeedback()?.type" *ngIf="actionFeedback() as action">
-            <span>{{ action.message }}</span>
-          </div>
-          <div class="alert warn" *ngIf="error()">{{ error() }}</div>
+    <section class="dashboard-wrapper">
+      <header class="dashboard-hero">
+        <div>
+          <p>Centro de gestión</p>
+          <h1>Inicio del operador</h1>
+          <small>{{ orders().length }} solicitudes activas</small>
         </div>
+        <div class="hero-actions">
+          <button type="button" class="ghost" (click)="refresh()">Actualizar bandeja</button>
+          <a routerLink="/operador/ventas/presencial" class="primary-link">Registrar venta</a>
+        </div>
+      </header>
 
-        <section class="orders-table" *ngIf="orders().length > 0; else emptyState">
-          <div class="table-head">
-            <span>Nombre de usuario</span>
-            <span>Correo electronico</span>
-            <span>Estado</span>
-            <span>Recibido</span>
-            <span>Acciones</span>
+      <div class="totals-grid">
+        <article class="metric-card">
+          <span>Total hoy</span>
+          <strong>{{ formatCurrency(overviewTotals().day) }}</strong>
+          <small>Ingresos registrados</small>
+        </article>
+        <article class="metric-card">
+          <span>Total semanal</span>
+          <strong>{{ formatCurrency(overviewTotals().week) }}</strong>
+          <small>Pedidos desde lunes</small>
+        </article>
+        <article class="metric-card">
+          <span>Total mensual</span>
+          <strong>{{ formatCurrency(overviewTotals().month) }}</strong>
+          <small>Acumulado del mes</small>
+        </article>
+      </div>
+
+      <div class="dashboard-main">
+        <section class="orders-card">
+          <header class="orders-head">
+            <div>
+              <h2>Solicitudes de clientes</h2>
+              <p>Revisa y deriva los pedidos enviados desde la sección de cotización.</p>
+            </div>
+            <span class="badge">{{ orders().length }} solicitudes</span>
+          </header>
+
+          <div class="alerts">
+            <div class="alert" *ngIf="pendingCount() > 0">
+              <strong>{{ pendingCount() }}</strong>
+              <span>nuevas solicitudes pendientes de revisión.</span>
+            </div>
+            <div class="alert" [ngClass]="actionFeedback()?.type" *ngIf="actionFeedback() as action">
+              <span>{{ action.message }}</span>
+            </div>
+            <div class="alert warn" *ngIf="error()">{{ error() }}</div>
           </div>
 
-          <div class="table-row" *ngFor="let order of orders(); trackBy: trackById" (click)="select(order)">
-            <div class="cell user">
-              <div class="avatar">{{ initials(order.cliente) }}</div>
-              <div>
-                <strong>{{ order.cliente }}</strong>
-                <small>Cotizacion #{{ order.id }}</small>
-                <span class="chip" *ngIf="order.notificado !== false">Nuevo</span>
+          <section class="orders-table" *ngIf="orders().length > 0; else emptyState">
+            <div class="table-head">
+              <span>Nombre de usuario</span>
+              <span>Correo electrónico</span>
+              <span>Estado</span>
+              <span>Recibido</span>
+              <span>Acciones</span>
+            </div>
+
+            <div class="table-row" *ngFor="let order of orders(); trackBy: trackById" (click)="select(order)">
+              <div class="cell user">
+                <div class="avatar">{{ initials(order.cliente) }}</div>
+                <div>
+                  <strong>{{ order.cliente }}</strong>
+                  <small>Cotización #{{ order.id }}</small>
+                  <span class="chip" *ngIf="order.notificado !== false">Nuevo</span>
+                </div>
+              </div>
+              <div class="cell">
+                <span>{{ order.email }}</span>
+              </div>
+              <div class="cell">
+                <span class="status" [ngClass]="statusClass(order.estado)">{{ labelEstado(order.estado) }}</span>
+              </div>
+              <div class="cell">
+                <span>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+              <div class="cell actions">
+                <button type="button" class="ghost" (click)="markSeen(order, $event)">Marcar revisión</button>
+                <button type="button" class="ghost send-payments" (click)="sendToPayments(order, $event)">Enviar a pagos</button>
+                <button type="button" class="primary" (click)="viewDetails(order, $event)">Ver detalle</button>
               </div>
             </div>
-            <div class="cell">
-              <span>{{ order.email }}</span>
+          </section>
+
+          <ng-template #emptyState>
+            <div class="empty">
+              <h3>No hay solicitudes pendientes</h3>
+              <p>Cuando un cliente envíe una nueva cotización aparecerá automáticamente en este listado.</p>
+              <button type="button" (click)="refresh()">Actualizar ahora</button>
             </div>
-            <div class="cell">
-              <span class="status" [ngClass]="statusClass(order.estado)">{{ labelEstado(order.estado) }}</span>
-            </div>
-            <div class="cell">
-              <span>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
-            </div>
-            <div class="cell actions">
-              <button type="button" class="ghost" (click)="markSeen(order, $event)">Marcar revision</button>
-              <button type="button" class="ghost send-payments" (click)="sendToPayments(order, $event)">Enviar a pagos</button>
-              <button type="button" class="primary" (click)="viewDetails(order, $event)">Ver detalle</button>
-            </div>
-          </div>
+          </ng-template>
         </section>
 
-        <ng-template #emptyState>
-          <div class="empty">
-            <h3>No hay solicitudes pendientes</h3>
-            <p>Cuando un cliente envie una nueva cotizacion aparecera automaticamente en este listado.</p>
-            <button type="button" (click)="refresh()">Actualizar ahora</button>
-          </div>
-        </ng-template>
+        <aside class="dashboard-side">
+          <article class="card frequent-card">
+            <header>
+              <h3>Clientes frecuentes</h3>
+              <span *ngIf="frequentClients().length">{{ frequentClients().length }} perfiles</span>
+            </header>
+            <ul>
+              <li *ngFor="let client of frequentClients()">
+                <div>
+                  <strong>{{ client.name }}</strong>
+                  <small>{{ client.email || 'Correo no registrado' }}</small>
+                </div>
+                <span>{{ client.count }} pedidos · {{ formatCurrency(client.total) }}</span>
+              </li>
+              <li class="placeholder" *ngIf="!frequentClients().length">
+                <span>Aún no hay historial suficiente.</span>
+              </li>
+            </ul>
+          </article>
+
+          <article class="card quick-card">
+            <h3>Accesos rápidos</h3>
+            <p>Gestiona tu día a día desde aquí.</p>
+            <div class="quick-actions">
+              <button type="button" class="ghost" routerLink="/operador/clientes">Ver clientes</button>
+              <button type="button" class="ghost" routerLink="/operador/calendario">Calendario</button>
+              <button type="button" class="ghost" routerLink="/operador/pagos">Pagos</button>
+            </div>
+          </article>
+        </aside>
       </div>
     </section>
 
@@ -232,7 +270,50 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
   readonly error = this.inbox.error;
   readonly pendingCount = this.inbox.pendingCount;
 
-  readonly account = computed(() => this.auth.user());
+  readonly overviewTotals = computed(() => {
+    const now = new Date();
+    const orders = this.orders();
+    const startDay = this.startOfDay(now);
+    const startWeek = this.startOfWeek(now);
+    const startMonth = this.startOfMonth(now);
+
+    const totals = { day: 0, week: 0, month: 0 };
+    for (const order of orders) {
+      const created = new Date(order.createdAt);
+      if (Number.isNaN(created.getTime())) continue;
+      const amount = this.resolveTotal(order);
+      if (created >= startDay) totals.day += amount;
+      if (created >= startWeek) totals.week += amount;
+      if (created >= startMonth) totals.month += amount;
+    }
+    return totals;
+  });
+
+  readonly frequentClients = computed(() => {
+    const orders = this.orders();
+    const summary = new Map<
+      string,
+      { name: string; email: string | null; count: number; total: number }
+    >();
+    for (const order of orders) {
+      const email = this.normalizeEmail(order.email);
+      const key = email ?? `pedido-${order.id}`;
+      if (!summary.has(key)) {
+        summary.set(key, {
+          name: order.cliente || email || 'Cliente sin nombre',
+          email: order.email ?? null,
+          count: 0,
+          total: 0
+        });
+      }
+      const entry = summary.get(key)!;
+      entry.count += 1;
+      entry.total += this.resolveTotal(order);
+    }
+    return Array.from(summary.values())
+      .sort((a, b) => b.count - a.count || b.total - a.total)
+      .slice(0, 5);
+  });
 
   readonly selectedOrder = signal<PedidoResumen | null>(null);
   readonly actionFeedback = signal<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -386,6 +467,29 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
     }
 
     return items;
+  }
+
+  private resolveTotal(order: PedidoResumen): number {
+    const amount = order.total ?? order.subtotal ?? 0;
+    const parsed = Number(amount);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private startOfDay(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  private startOfWeek(date: Date): Date {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const day = start.getDay();
+    const diff = (day + 6) % 7;
+    start.setDate(start.getDate() - diff);
+    return start;
+  }
+
+  private startOfMonth(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
   }
 
   trackByItem(_: number, item: { name: string; quantity: number; size?: string }): string {

@@ -1,46 +1,69 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { IonContent, IonHeader, IonIcon, IonToolbar } from '@ionic/angular/standalone';
 import { AuthService } from '../core/auth.service';
 import { OperatorInboxStore } from '../services/operator-inbox.store';
 
 @Component({
   standalone: true,
   selector: 'app-operator-shell',
-  imports: [CommonModule, RouterLink, RouterLinkActive, RouterOutlet, IonContent, IonHeader, IonToolbar, IonIcon],
+  imports: [CommonModule, RouterLink, RouterLinkActive, RouterOutlet],
   template: `
-    <ion-header class="op-header">
-      <ion-toolbar class="op-toolbar">
-        <div class="op-bar">
-          <a class="op-brand" routerLink="/operador/inicio">
-            <img src="assets/kingston-estampados.png" alt="Kingstone logo" />
-            <span>Centro de Operaciones</span>
-          </a>
-          <nav class="op-nav">
-            <a routerLink="/operador/inicio" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-              Inicio
-              <span *ngIf="pendingCount() > 0" class="bubble">{{ pendingCount() }}</span>
-            </a>
-            <a routerLink="/operador/cotizaciones" routerLinkActive="active">Cotizaciones</a>
-            <a routerLink="/operador/pagos" routerLinkActive="active">Pagos</a>
-          </nav>
-          <div class="op-actions">
-            <span class="welcome" *ngIf="auth.isAuthenticated()">Bienvenido/a, {{ auth.displayName() }}</span>
-            <button type="button" class="icon-btn" (click)="goProfile()" aria-label="Perfil operador">
-              <ion-icon name="person-circle-outline"></ion-icon>
-            </button>
-            <button type="button" class="icon-btn" (click)="logout()" aria-label="Cerrar sesion">
-              <ion-icon name="log-out-outline"></ion-icon>
-            </button>
+    <div class="operator-shell">
+      <aside class="shell-sidebar">
+        <div class="sidebar-brand">
+          <img src="assets/kingston-estampados.png" alt="Kingstone logo" />
+          <div class="sidebar-operator">
+            <span>Nombre operador</span>
+            <strong>{{ auth.displayName() || auth.getEmail() || 'Operador' }}</strong>
           </div>
         </div>
-      </ion-toolbar>
-    </ion-header>
 
-    <ion-content class="op-content">
-      <router-outlet></router-outlet>
-    </ion-content>
+        <nav class="sidebar-nav">
+          <a routerLink="/operador/inicio" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+            <span>Inicio</span>
+            <span class="bubble" *ngIf="pendingCount() > 0">{{ pendingCount() }}</span>
+          </a>
+          <a routerLink="/operador/cotizaciones" routerLinkActive="active">
+            Cotizaciones
+          </a>
+          <a routerLink="/operador/pagos" routerLinkActive="active">
+            Pagos
+          </a>
+          <div class="nav-group">
+            <span>Gestión</span>
+            <a routerLink="/operador/clientes" routerLinkActive="active">Clientes</a>
+            <a routerLink="/operador/ventas/presencial" routerLinkActive="active">Venta presencial</a>
+            <a routerLink="/operador/calendario" routerLinkActive="active">Calendario</a>
+          </div>
+        </nav>
+
+        <div class="sidebar-actions">
+          <button type="button" class="primary" (click)="refreshInbox()">Actualizar bandeja</button>
+          <button type="button" class="ghost" (click)="goProfile()">Perfil</button>
+          <button type="button" class="ghost" (click)="logout()">Cerrar sesión</button>
+        </div>
+      </aside>
+
+      <main class="shell-main">
+        <header class="shell-head">
+          <div>
+            <p>Centro de operaciones</p>
+            <h1>Panel del operador</h1>
+          </div>
+          <div class="head-actions">
+            <span class="head-pill" *ngIf="pendingCount() > 0">
+              {{ pendingCount() }} pendientes
+            </span>
+            <button type="button" class="ghost" (click)="refreshInbox()">Actualizar</button>
+          </div>
+        </header>
+
+        <section class="shell-content">
+          <router-outlet></router-outlet>
+        </section>
+      </main>
+    </div>
   `,
   styleUrls: ['./operator-shell.component.scss']
 })
@@ -60,12 +83,15 @@ export class OperatorShellComponent implements OnInit, OnDestroy {
     this.inbox.stop();
   }
 
+  refreshInbox(): void {
+    void this.inbox.refresh();
+  }
+
   goProfile(): void {
     if (!this.auth.isAuthenticated()) {
       this.router.navigateByUrl('/login');
       return;
     }
-    // Mantener el layout de operador
     this.router.navigateByUrl('/operador/perfil');
   }
 
@@ -74,5 +100,3 @@ export class OperatorShellComponent implements OnInit, OnDestroy {
     this.router.navigateByUrl('/login');
   }
 }
-
-

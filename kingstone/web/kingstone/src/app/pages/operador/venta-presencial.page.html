@@ -14,7 +14,11 @@
 
   </header>
 
-  <section class="panel">
+  <div class="venta-grid">
+
+    <div class="venta-main">
+
+      <section class="panel">
 
     <h2>1. Búsqueda de cliente</h2>
 
@@ -203,50 +207,6 @@
       </button>
 
     </div>
-
-  </div>
-
-  <div class="selected-items" *ngIf="selectedItems().length">
-
-    <h3>Productos seleccionados</h3>
-
-    <ul>
-
-      <li *ngFor="let entry of selectedItems(); trackBy: trackBySelectedItem">
-
-        <div class="info">
-
-          <span class="item-name">{{ entry.item.name }}</span>
-
-          <small class="item-meta">{{ entry.item.itemType }} &bull; {{ entry.item.provider }}</small>
-
-        </div>
-
-        <div class="quantity">
-
-          <button type="button" (click)="ajustarCantidad(entry.item.id, -1)" aria-label="Disminuir cantidad">-</button>
-
-          <input
-
-            type="number"
-
-            [value]="entry.quantity"
-
-            min="1"
-
-            (change)="fijarCantidad(entry.item.id, $any($event.target).value)"
-
-          />
-
-          <button type="button" (click)="ajustarCantidad(entry.item.id, 1)" aria-label="Aumentar cantidad">+</button>
-
-        </div>
-
-        <button type="button" class="remove" (click)="quitarItem(entry.item.id)">Quitar</button>
-
-      </li>
-
-    </ul>
 
   </div>
 
@@ -460,7 +420,79 @@
 
 </section>
 
-<section class="panel">
+    </div>
+
+    <aside class="venta-side">
+
+      <section class="panel resume-card">
+
+        <h2>Resumen de pedido</h2>
+
+        <ng-container *ngIf="selectedItems().length; else sinSeleccion">
+
+          <div class="selected-items">
+
+            <h3>Productos seleccionados</h3>
+
+            <ul>
+
+              <li *ngFor="let entry of selectedItems(); trackBy: trackBySelectedItem">
+
+                <div class="info">
+
+                  <span class="item-name">{{ entry.item.name }}</span>
+
+                  <small class="item-meta">{{ entry.item.itemType }} &bull; {{ entry.item.provider }}</small>
+
+                </div>
+
+                <div class="quantity">
+
+                  <button type="button" (click)="ajustarCantidad(entry.item.id, -1)" aria-label="Disminuir cantidad">-</button>
+
+                  <input
+
+                    type="number"
+
+                    [value]="entry.quantity"
+
+                    min="1"
+
+                    (change)="fijarCantidad(entry.item.id, $any($event.target).value)"
+
+                  />
+
+                  <button type="button" (click)="ajustarCantidad(entry.item.id, 1)" aria-label="Aumentar cantidad">+</button>
+
+                </div>
+
+                <button type="button" class="remove" (click)="quitarItem(entry.item.id)">Quitar</button>
+
+              </li>
+
+            </ul>
+
+          </div>
+
+        </ng-container>
+
+        <ng-template #sinSeleccion>
+
+          <p class="muted">Todavía no has agregado productos desde el catálogo.</p>
+
+        </ng-template>
+
+        <div class="resume-total">
+
+          <span>Total estimado</span>
+
+          <strong>{{ form.get('resumen')?.get('total')?.value || 0 | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+
+        </div>
+
+      </section>
+
+      <section class="panel">
 
     <h2>5. Adjuntos</h2>
 
@@ -468,15 +500,31 @@
 
     <input type="file" (change)="onAttachmentsSelected($event)" multiple />
 
+    <p class="hint">Seleccionados: {{ attachments().length }}/{{ maxAttachments }}</p>
+
+    <p class="error" *ngIf="attachmentError()">{{ attachmentError() }}</p>
+
     <ul class="files" *ngIf="attachments().length">
 
-      <li *ngFor="let file of attachments()">{{ file.name }} ({{ file.size | number }} bytes)</li>
+      <li *ngFor="let file of attachments(); let i = index">
+
+        <div class="file-info">
+
+          <strong>{{ file.name }}</strong>
+
+          <small>{{ file.size | number }} bytes</small>
+
+        </div>
+
+        <button type="button" class="remove" (click)="quitarAdjunto(i)">Quitar</button>
+
+      </li>
 
     </ul>
 
   </section>
 
-  <section class="panel summary">
+      <section class="panel summary">
 
     <p class="error" *ngIf="error()">{{ error() }}</p>
 
@@ -506,7 +554,11 @@
 
     </button>
 
-  </section>
+      </section>
+
+    </aside>
+
+  </div>
 
 </div>
 
