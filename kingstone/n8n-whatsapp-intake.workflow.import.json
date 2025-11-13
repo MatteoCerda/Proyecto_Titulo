@@ -1,0 +1,498 @@
+[
+  {
+    "name": "WhatsApp intake Kingstone",
+    "active": true,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "ALL",
+          "path": "whatsapp-intake",
+          "responseMode": "onReceived",
+          "responseData": "={\"success\":true}",
+          "options": {
+            "responseHeaders": [
+              {
+                "name": "cache-control",
+                "value": "no-store"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "id": "1c8aab3b-7055-4808-8839-d72b7b950fdc",
+        "name": "Webhook WhatsApp Cloud",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          200,
+          200
+        ],
+        "webhookId": "0d1981b6-6523-44b4-8fa3-68f93a385eb5"
+      },
+      {
+        "parameters": {
+          "functionCode": "\nconst body = $json.body ?? $json;\nif (!body || !Array.isArray(body.entry)) {\n  return [];\n}\nconst change = body.entry?.[0]?.changes?.[0]?.value;\nif (!change) {\n  return [];\n}\nconst message = change.messages?.[0];\nif (!message) {\n  return [];\n}\nconst contact = change.contacts?.[0] ?? {};\nconst from = message.from ?? contact.wa_id ?? '';\nif (!from) {\n  return [];\n}\nconst customerName = contact.profile?.name ?? '';\nconst phoneNumberId = change.metadata?.phone_number_id ?? '';\nconst rawText = message.text?.body ?? message.button?.text ?? message.button?.payload ?? message.interactive?.list_reply?.description ?? message.interactive?.button_reply?.title ?? '';\nconst text = (rawText || '').trim();\nconst attachments = [];\nconst addAttachment = (payload, type) => {\n  if (!payload?.id) return;\n  attachments.push({\n    id: payload.id,\n    mimeType: payload.mime_type ?? null,\n    filename: payload.filename ?? payload.caption ?? `${type}-${payload.id}`,\n    type,\n  });\n};\naddAttachment(message.image, 'image');\naddAttachment(message.document, 'document');\naddAttachment(message.audio, 'audio');\naddAttachment(message.video, 'video');\naddAttachment(message.sticker, 'sticker');\nconst emailMatch = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,}/i);\nconst clienteEmail = emailMatch ? emailMatch[0] : null;\nconst lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);\nconst structuredItems = [];\nlet current = {};\nconst flushCurrent = () => {\n  if (Object.keys(current).length) {\n    if (!current.cantidad) current.cantidad = 1;\n    if (!current.producto) current.producto = 'Producto sin nombre';\n    structuredItems.push(current);\n    current = {};\n  }\n};\nfor (const line of lines) {\n  const lower = line.toLowerCase();\n  if (lower.startsWith('producto:')) {\n    flushCurrent();\n    current.producto = line.split(':').slice(1).join(':').trim() || 'Producto sin nombre';\n    continue;\n  }\n  if (lower.startsWith('cantidad:')) {\n    const amount = parseFloat(line.split(':').slice(1).join(':').trim());\n    if (!isNaN(amount)) current.cantidad = amount;\n    continue;\n  }\n  if (lower.startsWith('material:')) {\n    current.variantes = current.variantes ?? {};\n    current.variantes.material = line.split(':').slice(1).join(':').trim();\n    continue;\n  }\n  if (lower.startsWith('ancho:')) {\n    current.variantes = current.variantes ?? {};\n    const width = parseFloat(line.split(':').slice(1).join(':').trim());\n    if (!isNaN(width)) current.variantes.widthCm = width;\n    continue;\n  }\n  if (lower.startsWith('notas:')) {\n    current.notas = line.split(':').slice(1).join(':').trim();\n    continue;\n  }\n  const multi = line.match(/^(d+(?:[.,]d+)?)s*xs*(.+)$/i);\n  if (multi) {\n    const cantidad = parseFloat(multi[1].replace(',', '.'));\n    structuredItems.push({\n      producto: multi[2].trim() || 'Producto sin nombre',\n      cantidad: isNaN(cantidad) ? 1 : cantidad,\n      notas: `Detectado desde WhatsApp: ${line}`,\n    });\n    continue;\n  }\n}\nflushCurrent();\nif (!structuredItems.length) {\n  structuredItems.push({\n    producto: 'Solicitud WhatsApp',\n    cantidad: 1,\n    notas: text || 'Sin detalle',\n  });\n}\nconst lower = text.toLowerCase();\nlet intent = 'cotizacion';\nif (lower.includes('estado') || lower.includes('seguimiento')) {\n  intent = 'estado';\n}\nif (lower.includes('pedido directo') || lower.includes('confirmar pedido') || lower.startsWith('pedido ')) {\n  intent = 'pedido';\n}\nconst pedidoMatch = lower.match(/(?:pedido|estado)s*(?:#|n[o0.]*)?s*(d{3,})/i);\nconst pedidoId = pedidoMatch ? pedidoMatch[1] : null;\nreturn [\n  {\n    json: {\n      from,\n      phoneNumberId,\n      customerName,\n      customerEmail: clienteEmail,\n      text,\n      structuredItems,\n      intent,\n      pedidoId,\n      attachments,\n      timestamp: message.timestamp,\n      messageId: message.id,\n    },\n  },\n];\n"
+        },
+        "id": "bcfb3c12-1dcc-4798-8dbf-b233f9002bcb",
+        "name": "Parsear mensaje",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 2,
+        "position": [
+          440,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "string": [
+              {
+                "value1": "={{$json['intent']}}",
+                "operation": "equal",
+                "value2": "pedido"
+              }
+            ]
+          }
+        },
+        "id": "a3cc97ce-76bd-4ec5-86c5-4e257f2c286b",
+        "name": "Es pedido directo?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          700,
+          80
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "string": [
+              {
+                "value1": "={{$json['intent']}}",
+                "operation": "equal",
+                "value2": "estado"
+              }
+            ]
+          }
+        },
+        "id": "7f967c38-3fc5-4c76-87bf-d6c9ba86efcb",
+        "name": "Es consulta estado?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          940,
+          260
+        ]
+      },
+      {
+        "parameters": {
+          "functionCode": "\nconst payload = {\n  canal: 'whatsapp',\n  notas: $json.text || 'Pedido via WhatsApp',\n  cliente: {\n    nombre: $json.customerName || 'Cliente WhatsApp',\n    telefono: $json.from,\n    email: $json.customerEmail,\n    preferenciaCanal: 'whatsapp',\n  },\n  items: $json.structuredItems,\n  meta: {\n    source: 'whatsapp-cloud',\n    messageId: $json.messageId,\n    timestamp: $json.timestamp,\n    attachments: $json.attachments,\n  },\n};\nreturn [\n  {\n    json: {\n      payload,\n      meta: {\n        from: $json.from,\n        phoneNumberId: $json.phoneNumberId,\n        customerName: $json.customerName,\n      },\n    },\n  },\n];\n"
+        },
+        "id": "c51d37a6-c739-4a6f-ab30-d54046f9a125",
+        "name": "Generar payload cotizacion",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 2,
+        "position": [
+          1200,
+          420
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{($env.KINGSTONE_API_BASE ?? 'http://api:3000') + '/api/cotizaciones'}}",
+          "jsonParameters": true,
+          "bodyParametersJson": "={{$json['payload']}}"
+        },
+        "id": "790789e2-8691-4741-bd7e-25e543c75a70",
+        "name": "Crear cotizacion API",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [
+          1440,
+          420
+        ]
+      },
+      {
+        "parameters": {
+          "keepOnlySet": true,
+          "values": {
+            "string": [
+              {
+                "name": "replyMessage",
+                "value": "={{'Gracias! Registramos tu solicitud #' + ($json.id ?? $json.cotizacionId ?? '?') + '. Te contactaremos pronto.'}}"
+              },
+              {
+                "name": "to",
+                "value": "={{$item(0).$node[\"Generar payload cotizacion\"].json.meta.from}}"
+              },
+              {
+                "name": "phoneNumberId",
+                "value": "={{$item(0).$node[\"Generar payload cotizacion\"].json.meta.phoneNumberId}}"
+              }
+            ]
+          }
+        },
+        "id": "64a9aa8e-e735-4143-8c1e-3eef7a71863c",
+        "name": "Mensaje confirmacion cotizacion",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 2,
+        "position": [
+          1680,
+          420
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{'https://graph.facebook.com/v17.0/' + $json['phoneNumberId'] + '/messages'}}",
+          "jsonParameters": true,
+          "bodyParametersJson": "={{{ messaging_product: 'whatsapp', to: $json.to, type: 'text', text: { body: $json.replyMessage } }}}",
+          "headerParametersJson": "={{{ Authorization: 'Bearer ' + ($env.WHATSAPP_CLOUD_TOKEN ?? '') }}}"
+        },
+        "id": "712212f7-bcde-4760-afc3-d93f573d64ff",
+        "name": "Responder WhatsApp cotizacion",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [
+          1920,
+          420
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{($env.KINGSTONE_API_BASE ?? 'http://api:3000') + '/auth/login/operator'}}",
+          "jsonParameters": true,
+          "bodyParametersJson": "={{{ email: $env.KINGSTONE_OPERATOR_EMAIL ?? 'ops@kingstone.local', password: $env.KINGSTONE_OPERATOR_PASSWORD ?? 'changeme' }}}"
+        },
+        "id": "5be35b7a-0571-4e2a-9ad6-e8e59f53e4c2",
+        "name": "Login operador pedido",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [
+          980,
+          -60
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{($env.KINGSTONE_API_BASE ?? 'http://api:3000') + '/api/pedidos'}}",
+          "jsonParameters": true,
+          "bodyParametersJson": "={{{ source: 'whatsapp', canal: 'whatsapp', notas: $item(0).$node[\"Parsear mensaje\"].json.text, cliente: { nombre: $item(0).$node[\"Parsear mensaje\"].json.customerName || 'Cliente WhatsApp', telefono: $item(0).$node[\"Parsear mensaje\"].json.from, email: $item(0).$node[\"Parsear mensaje\"].json.customerEmail }, items: $item(0).$node[\"Parsear mensaje\"].json.structuredItems }}}",
+          "headerParametersJson": "={{{ Authorization: 'Bearer ' + ($json.token ?? $json.data?.token ?? '') }}}"
+        },
+        "id": "5bfb800c-be61-4b26-ab4b-0112bed76d47",
+        "name": "Crear pedido API",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [
+          1220,
+          -60
+        ]
+      },
+      {
+        "parameters": {
+          "keepOnlySet": true,
+          "values": {
+            "string": [
+              {
+                "name": "replyMessage",
+                "value": "={{'Pedido #' + ($json.id ?? $json.pedidoId ?? '?') + ' creado. Te avisaremos su avance.'}}"
+              },
+              {
+                "name": "to",
+                "value": "={{$item(0).$node[\"Parsear mensaje\"].json.from}}"
+              },
+              {
+                "name": "phoneNumberId",
+                "value": "={{$item(0).$node[\"Parsear mensaje\"].json.phoneNumberId}}"
+              }
+            ]
+          }
+        },
+        "id": "baf94dcd-bfab-4d7c-a5de-2507ad4a1096",
+        "name": "Mensaje confirmacion pedido",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 2,
+        "position": [
+          1460,
+          -60
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{'https://graph.facebook.com/v17.0/' + $json['phoneNumberId'] + '/messages'}}",
+          "jsonParameters": true,
+          "bodyParametersJson": "={{{ messaging_product: 'whatsapp', to: $json.to, type: 'text', text: { body: $json.replyMessage } }}}",
+          "headerParametersJson": "={{{ Authorization: 'Bearer ' + ($env.WHATSAPP_CLOUD_TOKEN ?? '') }}}"
+        },
+        "id": "17de1cc3-191e-49a6-815e-f644f02df50d",
+        "name": "Responder WhatsApp pedido",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [
+          1700,
+          -60
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{($env.KINGSTONE_API_BASE ?? 'http://api:3000') + '/auth/login/operator'}}",
+          "jsonParameters": true,
+          "bodyParametersJson": "={{{ email: $env.KINGSTONE_OPERATOR_EMAIL ?? 'ops@kingstone.local', password: $env.KINGSTONE_OPERATOR_PASSWORD ?? 'changeme' }}}"
+        },
+        "id": "94316dcc-d7d3-44c3-83a1-bfdf9bc01a18",
+        "name": "Login operador estado",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [
+          1180,
+          120
+        ]
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "={{($env.KINGSTONE_API_BASE ?? 'http://api:3000') + '/api/pedidos/' + ($item(0).$node[\"Parsear mensaje\"].json.pedidoId ?? '')}}",
+          "headerParametersJson": "={{{ Authorization: 'Bearer ' + ($json.token ?? $json.data?.token ?? '') }}}"
+        },
+        "id": "b7add4f0-1d14-44df-839c-2e07bd268af6",
+        "name": "Consultar pedido API",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [
+          1420,
+          120
+        ]
+      },
+      {
+        "parameters": {
+          "keepOnlySet": true,
+          "values": {
+            "string": [
+              {
+                "name": "replyMessage",
+                "value": "={{'Pedido #' + ($json.id ?? $json.data?.id ?? $item(0).$node[\\\"Parsear mensaje\\\"].json.pedidoId ?? '?') + ' esta en estado ' + ($json.estado ?? $json.status ?? 'sin datos') + '.'}}"
+              },
+              {
+                "name": "to",
+                "value": "={{$item(0).$node[\"Parsear mensaje\"].json.from}}"
+              },
+              {
+                "name": "phoneNumberId",
+                "value": "={{$item(0).$node[\"Parsear mensaje\"].json.phoneNumberId}}"
+              }
+            ]
+          }
+        },
+        "id": "663e44a3-706d-44c1-b799-82d45c1e895f",
+        "name": "Mensaje estado pedido",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 2,
+        "position": [
+          1660,
+          120
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{'https://graph.facebook.com/v17.0/' + $json['phoneNumberId'] + '/messages'}}",
+          "jsonParameters": true,
+          "bodyParametersJson": "={{{ messaging_product: 'whatsapp', to: $json.to, type: 'text', text: { body: $json.replyMessage } }}}",
+          "headerParametersJson": "={{{ Authorization: 'Bearer ' + ($env.WHATSAPP_CLOUD_TOKEN ?? '') }}}"
+        },
+        "id": "f2615357-855b-45a8-888d-d8bceee4d20d",
+        "name": "Responder WhatsApp estado",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [
+          1900,
+          120
+        ]
+      }
+    ],
+    "connections": {
+      "Webhook WhatsApp Cloud": {
+        "main": [
+          [
+            {
+              "node": "Parsear mensaje",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parsear mensaje": {
+        "main": [
+          [
+            {
+              "node": "Es pedido directo?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Es pedido directo?": {
+        "main": [
+          [
+            [
+              {
+                "node": "Login operador pedido",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "node": "Es consulta estado?",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        ]
+      },
+      "Es consulta estado?": {
+        "main": [
+          [
+            [
+              {
+                "node": "Login operador estado",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "node": "Generar payload cotizacion",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        ]
+      },
+      "Generar payload cotizacion": {
+        "main": [
+          [
+            {
+              "node": "Crear cotizacion API",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Crear cotizacion API": {
+        "main": [
+          [
+            {
+              "node": "Mensaje confirmacion cotizacion",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mensaje confirmacion cotizacion": {
+        "main": [
+          [
+            {
+              "node": "Responder WhatsApp cotizacion",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Login operador pedido": {
+        "main": [
+          [
+            {
+              "node": "Crear pedido API",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Crear pedido API": {
+        "main": [
+          [
+            {
+              "node": "Mensaje confirmacion pedido",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mensaje confirmacion pedido": {
+        "main": [
+          [
+            {
+              "node": "Responder WhatsApp pedido",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Login operador estado": {
+        "main": [
+          [
+            {
+              "node": "Consultar pedido API",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Consultar pedido API": {
+        "main": [
+          [
+            {
+              "node": "Mensaje estado pedido",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mensaje estado pedido": {
+        "main": [
+          [
+            {
+              "node": "Responder WhatsApp estado",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {},
+    "staticData": null,
+    "tags": [],
+    "meta": {},
+    "pinData": null,
+    "versionId": "7740f4b1-b1f6-4b2d-9fb5-f55be1d94932",
+    "triggerCount": 0,
+    "id": "whatsapp-intake-kingstone"
+  }
+]
