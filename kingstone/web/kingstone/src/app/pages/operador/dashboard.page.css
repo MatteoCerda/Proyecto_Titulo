@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 32px;
-  color: #f8fafc;
+  color: #0f172a;
 }
 
 .dashboard-hero {
@@ -10,10 +10,11 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(15, 23, 42, 0.9));
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 24px;
   padding: 24px 28px;
+  box-shadow: 0 15px 30px rgba(15, 23, 42, 0.08);
 }
 
 .dashboard-hero p {
@@ -30,7 +31,7 @@
 }
 
 .dashboard-hero small {
-  color: #cbd5f5;
+  color: #64748b;
 }
 
 .hero-actions {
@@ -41,11 +42,11 @@
 
 .primary-link {
   text-decoration: none;
-  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  background: linear-gradient(135deg, #4f46e5, #60a5fa);
   padding: 10px 18px;
   border-radius: 999px;
   font-weight: 600;
-  color: #0f172a;
+  color: #ffffff;
 }
 
 .totals-grid {
@@ -55,13 +56,14 @@
 }
 
 .metric-card {
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 20px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
 .metric-card span {
@@ -86,10 +88,11 @@
 }
 
 .orders-card {
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 24px;
   padding: 28px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
 }
 
 .orders-head {
@@ -117,10 +120,11 @@
 }
 
 .card {
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 24px;
   padding: 22px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
 }
 
 .card h3 {
@@ -143,8 +147,8 @@
   gap: 12px;
   padding: 12px;
   border-radius: 14px;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
 }
 
 .frequent-card li span {
@@ -159,7 +163,7 @@
 
 .quick-card p {
   margin: 0 0 12px;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .quick-actions {
@@ -181,6 +185,90 @@
     width: 100%;
     justify-content: flex-start;
   }
+}
+
+/* Light theme overrides for legacy blocks */
+.orders-table {
+  background: transparent;
+  color: #0f172a;
+}
+
+.table-head {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+}
+
+.table-row {
+  background: #ffffff;
+  border: 1px solid #e9eef5;
+  color: #0f172a;
+}
+
+.table-row .cell {
+  color: #0f172a;
+}
+
+.table-row .status.pending {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.table-row .status.review,
+.status-tag.review {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.table-row .status.por-pagar,
+.status-tag.por-pagar {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.table-row .status.in-progress,
+.status-tag.in-progress {
+  background: #fef9c3;
+  color: #92400e;
+}
+
+.table-row .status.done,
+.status-tag.done {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.detail-panel,
+.cliente-modal,
+.cliente-modal-detail,
+.cliente-modal-list li,
+.cliente-order-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.alerts .alert {
+  background: #ecfccb;
+  color: #365314;
+}
+
+.alerts .alert.warn {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.orders-card button.ghost,
+.detail-panel button.ghost {
+  color: #1f2937;
+  border-color: #cbd5f5;
+}
+
+.orders-card button.primary,
+.detail-panel button.primary {
+  background: linear-gradient(135deg, #4f46e5, #60a5fa);
+  color: #ffffff;
+  border: none;
 }
 
 .badge {

@@ -1094,41 +1094,93 @@ router.get('/admin/clientes', async (req, res) => {
       return res.status(403).json({ message: 'Requiere rol operador' });
     }
 
-    const clientes = await prisma.user.findMany({
-      orderBy: [{ createdAt: 'desc' }],
-      include: {
-        cliente: true,
-        pedidos: {
-          orderBy: { createdAt: 'desc' }
+    const pedidosSelect = {
+      select: {
+        id: true,
+        estado: true,
+        createdAt: true,
+        total: true,
+        subtotal: true,
+        taxTotal: true,
+        moneda: true,
+        materialLabel: true
+      },
+      orderBy: { createdAt: 'desc' }
+    } as const;
+
+    const [clientes, usuariosSinPerfil] = await Promise.all([
+      prisma.cliente.findMany({
+        orderBy: { creado_en: 'desc' },
+        include: {
+          user: {
+            select: {
+              email: true,
+              fullName: true
+            }
+          },
+          pedidos: pedidosSelect
         }
-      }
+      }),
+      prisma.user.findMany({
+        where: {
+          cliente: null,
+          role: { notIn: ['ADMIN', 'OPERATOR'] }
+        },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          createdAt: true,
+          pedidos: pedidosSelect
+        }
+      })
+    ]);
+
+    const normalizePedido = (pedido: {
+      id: number;
+      estado: string;
+      createdAt: Date;
+      total: number | null;
+      subtotal: number | null;
+      taxTotal: number | null;
+      moneda: string | null;
+      materialLabel: string | null;
+    }) => ({
+      id: pedido.id,
+      estado: pedido.estado,
+      createdAt: pedido.createdAt,
+      total: pedido.total ?? null,
+      subtotal: pedido.subtotal ?? null,
+      taxTotal: pedido.taxTotal ?? null,
+      currency: pedido.moneda ?? null,
+      material: pedido.materialLabel ?? null
     });
 
-    const response = clientes
-      .filter(user => {
-        const role = (user.role || '').toUpperCase();
-        return role !== 'ADMIN' && role !== 'OPERATOR';
+    const combined = [
+      ...clientes.map(cliente => ({
+        id: cliente.id_cliente,
+        email: cliente.email ?? cliente.user?.email ?? null,
+        nombre: cliente.nombre_contacto ?? cliente.user?.fullName ?? null,
+        createdAt: cliente.creado_en,
+        pedidos: (cliente.pedidos ?? []).map(normalizePedido)
+      })),
+      ...usuariosSinPerfil.map(usuario => ({
+        id: usuario.id,
+        email: usuario.email,
+        nombre: usuario.fullName,
+        createdAt: usuario.createdAt,
+        pedidos: (usuario.pedidos ?? []).map(normalizePedido)
+      }))
+    ]
+      .sort((a, b) => {
+        const left = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const right = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return right - left;
       })
-      .map(user => {
-        const pedidos = (user.pedidos ?? []).map(pedido => ({
-          id: pedido.id,
-          estado: pedido.estado,
-          createdAt: pedido.createdAt,
-          total: pedido.total ?? null,
-          subtotal: pedido.subtotal ?? null,
-          taxTotal: pedido.taxTotal ?? null,
-          currency: pedido.moneda ?? null,
-          material: pedido.materialLabel ?? null
-        }));
-        return {
-          id: user.id,
-          email: user.email,
-          nombre: user.cliente?.nombre_contacto || user.fullName || null,
-          pedidos
-        };
-      });
+      .map(({ createdAt, ...rest }) => rest);
 
-    res.json(response);
+    res.json(combined);
   } catch (error) {
     console.error('Error listando clientes con pedidos', error);
     res.status(500).json({ message: 'Error interno' });
