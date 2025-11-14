@@ -17,7 +17,7 @@
 
     <section *ngIf="loading()" class="status">
       <ion-spinner name="crescent"></ion-spinner>
-      <span>Cargando catálogo...</span>
+      <span>Cargando cat&aacute;logo...</span>
     </section>
 
     <section *ngIf="!loading() && error()" class="status error">
@@ -25,11 +25,14 @@
     </section>
 
     <section *ngIf="!loading() && !error() && items().length === 0" class="status empty">
-      No encontramos productos con ese filtro. Intenta con otro término.
+      No encontramos productos con ese filtro. Intenta con otro t&eacute;rmino.
     </section>
 
     <section *ngIf="items().length > 0" class="grid">
-      <ion-card *ngFor="let product of items()" [class.added]="lastAddedId() === product.id">
+      <ion-card
+        *ngFor="let product of items()"
+        [class.added]="lastAddedId() === product.id"
+        (click)="openProductDetail(product)">
         <div class="img-wrapper">
           <img
             *ngIf="product.imageUrl; else placeholder"
@@ -43,7 +46,7 @@
         <ion-card-header>
           <ion-card-title>{{ product.name }}</ion-card-title>
           <ion-card-subtitle>
-            {{ product.itemType }} • {{ product.color }}
+            {{ product.itemType }} &middot; {{ product.color || 'Sin color' }}
           </ion-card-subtitle>
         </ion-card-header>
 
@@ -72,16 +75,128 @@
           <ion-button
             expand="block"
             color="primary"
-            (click)="addToCart(product.id)"
+            (click)="addToCart(product.id); $event.stopPropagation();"
             [disabled]="product.quantity === 0">
-            Añadir al carrito
+            A&ntilde;adir al carrito
           </ion-button>
+          <button
+            type="button"
+            class="detail-link"
+            (click)="openProductDetail(product); $event.stopPropagation();">
+            Ver detalle
+          </button>
           <div class="added-alert" *ngIf="lastAddedId() === product.id">
             Agregado al carrito
           </div>
         </ion-card-content>
       </ion-card>
     </section>
+
+    <section *ngIf="selectedProduct() as detail" class="product-modal">
+      <div class="product-modal__overlay" (click)="closeProductDetail()"></div>
+      <div class="product-modal__panel">
+        <button type="button" class="close-btn" (click)="closeProductDetail()" aria-label="Cerrar detalle">
+          &times;
+        </button>
+        <div class="product-modal__body">
+          <div class="product-modal__media">
+            <img *ngIf="detail.imageUrl; else detailPlaceholder" [src]="detail.imageUrl" [alt]="detail.name" />
+            <ng-template #detailPlaceholder>
+              <div class="img-placeholder large">Sin imagen</div>
+            </ng-template>
+          </div>
+          <div class="product-modal__info">
+            <div class="pill-group">
+              <span>{{ detail.itemType }}</span>
+              <span *ngIf="detail.provider">{{ detail.provider }}</span>
+            </div>
+            <h2>{{ detail.name }}</h2>
+            <p class="sku">ID: {{ detail.id }} &middot; Color: {{ detail.color || 'N/A' }}</p>
+
+            <div class="modal-price" [class.has-offer]="detail.offerPrice">
+              <div>
+                <span class="price-label">Precio unitario</span>
+                <strong>{{ detail.price | currency:'CLP':'symbol-narrow':'1.0-0' }}</strong>
+                <div class="before" *ngIf="detail.offerPrice">
+                  Antes: {{ detail.basePrice | currency:'CLP':'symbol-narrow':'1.0-0' }}
+                  <span class="discount" *ngIf="detail.discountPercent">
+                    -{{ detail.discountPercent }}%
+                  </span>
+                </div>
+              </div>
+              <div class="stock">
+                <span>Stock disponible</span>
+                <strong>{{ detail.quantity }}</strong>
+              </div>
+            </div>
+
+            <div class="quantity-control">
+              <span>Cantidad</span>
+              <div class="control">
+                <button type="button" (click)="decreaseQuantity()" [disabled]="productQuantity() <= 1">-</button>
+                <input
+                  type="number"
+                  min="1"
+                  [max]="detail.quantity || 1"
+                  [value]="productQuantity()"
+                  readonly />
+                <button
+                  type="button"
+                  (click)="increaseQuantity()"
+                  [disabled]="detail.quantity !== 0 && productQuantity() >= detail.quantity">
+                  +
+                </button>
+              </div>
+              <small *ngIf="detail.quantity === 0">Sin stock disponible para agregar.</small>
+            </div>
+
+            <p class="product-description">
+              Este producto pertenece a la categor&iacute;a {{ detail.itemType }} y est&aacute; pensado para complementar tu
+              pedido. {{ detail.provider ? ('Proveedor: ' + detail.provider + '.') : '' }} Si necesitas asesor&iacute;a sobre su
+              uso, cont&aacute;ctanos y te ayudaremos a elegir la mejor combinaci&oacute;n.
+            </p>
+
+            <ion-button
+              expand="block"
+              color="primary"
+              class="primary-action"
+              (click)="addDetailProductToCart()"
+              [disabled]="detail.quantity === 0">
+              A&ntilde;adir al carrito
+            </ion-button>
+          </div>
+        </div>
+
+        <section class="product-recommended" *ngIf="recommendedProducts().length">
+          <div class="recommended-head">
+            <h3>Productos recomendados</h3>
+            <p>Art&iacute;culos similares para completar tu pedido.</p>
+          </div>
+          <div class="recommended-grid">
+            <article *ngFor="let item of recommendedProducts()">
+              <div class="thumb" (click)="openProductDetail(item)">
+                <img *ngIf="item.imageUrl; else recPlaceholder" [src]="item.imageUrl" [alt]="item.name" />
+                <ng-template #recPlaceholder>
+                  <div class="img-placeholder">Sin imagen</div>
+                </ng-template>
+              </div>
+              <div class="info">
+                <strong>{{ item.name }}</strong>
+                <span>{{ item.price | currency:'CLP':'symbol-narrow':'1.0-0' }}</span>
+              </div>
+              <div class="actions">
+                <button type="button" (click)="openProductDetail(item); $event.stopPropagation();">Ver</button>
+                <button
+                  type="button"
+                  (click)="addToCart(item.id); $event.stopPropagation();"
+                  [disabled]="item.quantity === 0">
+                  + Carrito
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
   </div>
 </ion-content>
-
