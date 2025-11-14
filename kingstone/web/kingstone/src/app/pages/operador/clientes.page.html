@@ -10,6 +10,13 @@
 
     <section class="main">
       <aside class="client-list">
+        <div class="client-search">
+          <input
+            type="text"
+            [value]="searchTerm()"
+            (input)="onSearch($any($event.target)?.value || '')"
+            placeholder="Buscar por RUT, nombre o correo" />
+        </div>
         <div class="state" *ngIf="loading()">Cargando clientes...</div>
         <div class="state error" *ngIf="error()">{{ error() }}</div>
 
@@ -18,11 +25,17 @@
             <h3>No hay clientes registrados</h3>
             <p>Cuando se creen pedidos veras la lista de clientes aqui.</p>
           </div>
-          <div class="list" *ngIf="clientes().length">
+          <div
+            class="empty"
+            *ngIf="clientes().length && !filteredClientes().length && searchTerm().length">
+            <h3>Sin coincidencias</h3>
+            <p>No encontramos clientes con ese RUT, nombre o correo.</p>
+          </div>
+          <div class="list" *ngIf="filteredClientes().length">
             <button
               type="button"
               class="client-item"
-              *ngFor="let cliente of clientes(); let i = index; trackBy: trackByEmail"
+              *ngFor="let cliente of filteredClientes(); let i = index; trackBy: trackByEmail"
               [class.active]="isSelected(cliente)"
               (click)="selectCliente(cliente)"
             >

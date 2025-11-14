@@ -26,9 +26,18 @@ export class OperatorClientesPage implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly clientes = signal<ClientePedidosResumen[]>([]);
+  readonly searchTerm = signal('');
   readonly selectedKey = signal<string | null>(null);
   readonly trackByEmail = (_: number, cliente: ClientePedidosResumen): string =>
     this.buildClienteKey(cliente);
+  readonly filteredClientes = computed(() => {
+    const term = this.searchTerm().trim().toLowerCase();
+    const normalizedRut = this.normalizeRut(term);
+    if (!term) {
+      return this.clientes();
+    }
+    return this.clientes().filter(cliente => this.matchesSearch(cliente, term, normalizedRut));
+  });
 
   private buildClienteKey(cliente: ClientePedidosResumen): string {
     const email = this.normalizeEmail(cliente.email);
@@ -55,7 +64,7 @@ export class OperatorClientesPage implements OnInit {
     if (!key) {
       return null;
     }
-    const idx = this.clientes().findIndex(cliente => this.buildClienteKey(cliente) === key);
+    const idx = this.filteredClientes().findIndex(cliente => this.buildClienteKey(cliente) === key);
     return idx >= 0 ? idx : null;
   });
 
@@ -97,6 +106,11 @@ export class OperatorClientesPage implements OnInit {
     }
     this.selectedKey.set(key);
     this.updateQueryParam(key);
+  }
+
+  onSearch(term: string): void {
+    this.searchTerm.set(term ?? '');
+    this.ensureSelection(undefined, false);
   }
 
   trackByPedido(_: number, pedido: ClientePedidosResumen['pedidos'][number]): number {
@@ -159,23 +173,27 @@ export class OperatorClientesPage implements OnInit {
     return cliente.pedidos.filter(p => p.estado === 'PENDIENTE' || p.estado === 'EN_REVISION').length;
   }
 
-  private ensureSelection(): void {
-    const list = this.clientes();
-    if (!list.length) {
+  private ensureSelection(list?: ClientePedidosResumen[], updateQueryParam = true): void {
+    const source = list ?? this.filteredClientes();
+    if (!source.length) {
       this.selectedKey.set(null);
-      this.updateQueryParam(null);
+      if (updateQueryParam) {
+        this.updateQueryParam(null);
+      }
       return;
     }
     const current = this.selectedKey();
     if (current) {
-      const exists = list.some(cliente => this.buildClienteKey(cliente) === current);
+      const exists = source.some(cliente => this.buildClienteKey(cliente) === current);
       if (exists) {
         return;
       }
     }
-    const firstKey = this.buildClienteKey(list[0]);
+    const firstKey = this.buildClienteKey(source[0]);
     this.selectedKey.set(firstKey);
-    this.updateQueryParam(firstKey);
+    if (updateQueryParam) {
+      this.updateQueryParam(firstKey);
+    }
   }
 
   private updateQueryParam(email: string | null): void {
@@ -189,5 +207,20 @@ export class OperatorClientesPage implements OnInit {
 
   private normalizeEmail(email: string | null | undefined): string | null {
     return email ? email.trim().toLowerCase() : null;
+  }
+
+  private normalizeRut(raw: string | null | undefined): string | null {
+    return raw ? raw.replace(/[^0-9kK]/g, '').toLowerCase() : null;
+  }
+
+  private matchesSearch(cliente: ClientePedidosResumen, term: string, rutTerm: string | null): boolean {
+    const name = (cliente.nombre ?? '').toLowerCase();
+    const email = this.normalizeEmail(cliente.email) ?? '';
+    const rut = this.normalizeRut(cliente.rut ?? cliente.rutNormalizado);
+    return (
+      (!!name && name.includes(term)) ||
+      (!!email && email.includes(term)) ||
+      (!!rutTerm && !!rut && rut.includes(rutTerm))
+    );
   }
 }

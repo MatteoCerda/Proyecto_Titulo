@@ -49,6 +49,8 @@ export interface ClientePedidosResumen {
   id: number;
   email: string | null;
   nombre: string | null;
+  rut?: string | null;
+  rutNormalizado?: string | null;
   pedidos: Array<{
     id: number;
     estado: string;

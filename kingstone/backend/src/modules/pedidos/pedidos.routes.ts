@@ -1165,6 +1165,8 @@ router.get('/admin/clientes', async (req, res) => {
         id: cliente.id_cliente,
         email: cliente.email ?? cliente.user?.email ?? null,
         nombre: cliente.nombre_contacto ?? cliente.user?.fullName ?? null,
+        rut: cliente.rut ?? null,
+        rutNormalizado: cliente.rutNormalizado ?? null,
         createdAt: cliente.creado_en,
         pedidos: (cliente.pedidos ?? []).map(normalizePedido)
       })),
@@ -1172,6 +1174,8 @@ router.get('/admin/clientes', async (req, res) => {
         id: usuario.id,
         email: usuario.email,
         nombre: usuario.fullName,
+        rut: null,
+        rutNormalizado: null,
         createdAt: usuario.createdAt,
         pedidos: (usuario.pedidos ?? []).map(normalizePedido)
       }))
