@@ -1105,12 +1105,14 @@ router.get('/admin/clientes', async (req, res) => {
         moneda: true,
         materialLabel: true
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      take: 30
     } as const;
 
     const [clientes, usuariosSinPerfil] = await Promise.all([
       prisma.cliente.findMany({
         orderBy: { creado_en: 'desc' },
+        take: 200,
         include: {
           user: {
             select: {
@@ -1127,6 +1129,7 @@ router.get('/admin/clientes', async (req, res) => {
           role: { notIn: ['ADMIN', 'OPERATOR'] }
         },
         orderBy: { createdAt: 'desc' },
+        take: 150,
         select: {
           id: true,
           email: true,

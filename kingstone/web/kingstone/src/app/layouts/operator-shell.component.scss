@@ -1,5 +1,5 @@
 .shell-content-wrapper {
-  --background: #f5f7fb;
+  --background: radial-gradient(circle at top, #0f172a 0%, #030712 55%);
   --padding-start: 0;
   --padding-end: 0;
   --padding-top: 0;
@@ -7,36 +7,57 @@
 }
 
 .operator-shell {
+  --operator-surface: rgba(15, 23, 42, 0.85);
+  --operator-surface-soft: rgba(15, 23, 42, 0.65);
+  --operator-border: rgba(148, 163, 184, 0.35);
+  --operator-highlight: linear-gradient(135deg, #4f46e5 0%, #38bdf8 100%);
+  --operator-text: #f4f6fb;
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
   min-height: 100vh;
-  background: #f5f7fb;
-  color: #1f2937;
+  background: radial-gradient(circle at top, #0f172a 0%, #030712 55%) fixed;
+  color: var(--operator-text);
+  gap: 0;
+  position: relative;
+  isolation: isolate;
+}
+
+.operator-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(79, 70, 229, 0.35), transparent 55%),
+    radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.35), transparent 60%);
+  filter: blur(60px);
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .shell-sidebar {
-  background: #ffffff;
-  padding: 32px 24px;
+  background: var(--operator-surface);
+  border-right: 1px solid var(--operator-border);
+  padding: clamp(20px, 3vw, 36px) clamp(18px, 3vw, 32px);
   display: flex;
   flex-direction: column;
   gap: 32px;
-  border-right: 1px solid #e2e8f0;
-  box-shadow: 6px 0 24px rgba(15, 23, 42, 0.05);
+  box-shadow: 6px 0 40px rgba(2, 6, 23, 0.55);
+  backdrop-filter: blur(14px);
 }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
 }
 
 .sidebar-brand img {
-  width: 54px;
-  height: 54px;
+  width: 56px;
+  height: 56px;
   object-fit: contain;
   border-radius: 18px;
-  background: #f0f4ff;
   padding: 6px;
+  background: rgba(15, 118, 226, 0.18);
 }
 
 .sidebar-operator span {
@@ -44,14 +65,14 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #94a3b8;
+  color: rgba(226, 232, 240, 0.78);
 }
 
 .sidebar-operator strong {
   display: block;
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 18px;
-  color: #0f172a;
+  color: #f8fafc;
 }
 
 .sidebar-nav {
@@ -65,24 +86,25 @@
   align-items: center;
   justify-content: space-between;
   text-decoration: none;
-  color: #1f2937;
+  color: var(--operator-text);
   padding: 12px 16px;
-  border-radius: 14px;
-  background: #f8fafc;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.55);
   border: 1px solid transparent;
   transition: border 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .sidebar-nav a.active,
 .sidebar-nav a:hover {
-  border-color: #cbd5f5;
-  transform: translateX(4px);
-  box-shadow: 0 10px 25px rgba(148, 163, 184, 0.25);
+  border-color: rgba(125, 211, 252, 0.6);
+  transform: translateX(6px);
+  box-shadow: 0 18px 40px rgba(14, 165, 233, 0.25);
+  background: rgba(8, 47, 73, 0.8);
 }
 
 .sidebar-nav .bubble {
-  background: #1d4ed8;
-  color: #ffffff;
+  background: rgba(14, 165, 233, 0.25);
+  color: #38bdf8;
   padding: 2px 10px;
   border-radius: 999px;
   font-size: 11px;
@@ -100,7 +122,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #64748b;
+  color: rgba(226, 232, 240, 0.45);
   padding-left: 4px;
 }
 
@@ -117,24 +139,30 @@
   font-weight: 600;
   cursor: pointer;
   border: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sidebar-actions button:active {
+  transform: translateY(1px);
 }
 
 .sidebar-actions .primary {
-  background: linear-gradient(135deg, #4f46e5, #60a5fa);
-  color: #ffffff;
+  background: var(--operator-highlight);
+  color: #fff;
+  box-shadow: 0 12px 22px rgba(79, 70, 229, 0.35);
 }
 
 .sidebar-actions .ghost {
   background: transparent;
-  border: 1px solid #cbd5f5;
-  color: #1f2937;
+  border: 1px solid rgba(125, 211, 252, 0.4);
+  color: var(--operator-text);
 }
 
 .shell-main {
   display: flex;
   flex-direction: column;
-  padding: 32px 40px;
-  background: #f5f7fb;
+  padding: clamp(20px, 4vw, 48px);
+  gap: 20px;
 }
 
 .shell-head {
@@ -142,21 +170,20 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
-  color: #0f172a;
+  color: var(--operator-text);
 }
 
 .shell-head p {
   margin: 0;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.3em;
   font-size: 11px;
-  color: #94a3b8;
+  color: rgba(226, 232, 240, 0.6);
 }
 
 .shell-head h1 {
   margin: 6px 0 0;
-  font-size: 28px;
+  font-size: clamp(24px, 3vw, 32px);
 }
 
 .head-actions {
@@ -166,8 +193,8 @@
 }
 
 .head-pill {
-  background: #e0e7ff;
-  color: #4338ca;
+  background: rgba(79, 70, 229, 0.25);
+  color: #c7d2fe;
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 13px;
@@ -176,39 +203,230 @@
 
 .head-actions .ghost {
   background: transparent;
-  border: 1px solid #cbd5f5;
-  color: #1f2937;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+  color: var(--operator-text);
   border-radius: 12px;
   padding: 8px 18px;
   cursor: pointer;
 }
 
 .shell-content {
-  background: #ffffff;
-  border-radius: 24px;
-  padding: 32px;
-  min-height: calc(100vh - 140px);
-  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.08);
-  border: 1px solid #e2e8f0;
-  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.72);
+  border-radius: 28px;
+  padding: clamp(20px, 3vw, 36px);
+  min-height: calc(100vh - 160px);
+  box-shadow: 0 35px 100px rgba(2, 6, 23, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  overflow-x: hidden;
+  backdrop-filter: blur(16px);
+  position: relative;
 }
 
-@media (max-width: 1024px) {
+.shell-content::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.shell-content > * {
+  position: relative;
+  z-index: 1;
+}
+
+.shell-content ::ng-deep .dashboard-wrapper,
+.shell-content ::ng-deep .layout,
+.shell-content ::ng-deep .operator-content,
+.shell-content ::ng-deep .status-view,
+.shell-content ::ng-deep .calendario-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.shell-content ::ng-deep .dashboard-wrapper,
+.shell-content ::ng-deep .layout,
+.shell-content ::ng-deep .status-view,
+.shell-content ::ng-deep .calendario-wrapper {
+  padding-bottom: 8px;
+}
+
+.shell-content ::ng-deep .operator-content,
+.shell-content ::ng-deep .dashboard-wrapper {
+  color: inherit;
+}
+
+.shell-content ::ng-deep ion-content {
+  --background: transparent;
+  background: transparent !important;
+}
+
+.shell-content ::ng-deep ion-content::part(scroll) {
+  padding: clamp(16px, 3vw, 32px) clamp(12px, 2vw, 24px);
+  background: transparent !important;
+}
+
+.shell-content ::ng-deep .dashboard-hero,
+.shell-content ::ng-deep .metric-card,
+.shell-content ::ng-deep .orders-card,
+.shell-content ::ng-deep .card,
+.shell-content ::ng-deep .client-list,
+.shell-content ::ng-deep .client-detail,
+.shell-content ::ng-deep .state,
+.shell-content ::ng-deep .empty,
+.shell-content ::ng-deep .highlight-cards article,
+.shell-content ::ng-deep .order-card,
+.shell-content ::ng-deep .order-meta li,
+.shell-content ::ng-deep .note-block,
+.shell-content ::ng-deep .items-block,
+.shell-content ::ng-deep .detail-panel,
+.shell-content ::ng-deep .cliente-modal-detail,
+.shell-content ::ng-deep .cliente-modal-list li {
+  background: var(--operator-surface) !important;
+  border: 1px solid var(--operator-border) !important;
+  color: var(--operator-text) !important;
+  box-shadow: 0 25px 60px rgba(2, 6, 23, 0.55) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.shell-content ::ng-deep .note-block,
+.shell-content ::ng-deep .items-block,
+.shell-content ::ng-deep .order-meta li,
+.shell-content ::ng-deep .client-item,
+.shell-content ::ng-deep .state,
+.shell-content ::ng-deep .empty {
+  background: var(--operator-surface-soft) !important;
+  box-shadow: none !important;
+}
+
+.shell-content ::ng-deep .client-item.active,
+.shell-content ::ng-deep .detail-panel header button,
+.shell-content ::ng-deep .hero-actions .ghost,
+.shell-content ::ng-deep .orders-card .ghost,
+.shell-content ::ng-deep .cliente-modal-detail header button {
+  border-color: rgba(56, 189, 248, 0.6) !important;
+  color: var(--operator-text) !important;
+}
+
+.shell-content ::ng-deep .primary,
+.shell-content ::ng-deep .primary-link {
+  background: var(--operator-highlight) !important;
+  color: #fff !important;
+  border: none !important;
+  box-shadow: 0 18px 45px rgba(79, 70, 229, 0.35) !important;
+}
+
+.shell-content ::ng-deep .badge,
+.shell-content ::ng-deep .chip,
+.shell-content ::ng-deep .status,
+.shell-content ::ng-deep .status-tag,
+.shell-content ::ng-deep .head-pill {
+  background: rgba(56, 189, 248, 0.18) !important;
+  color: #bae6fd !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+}
+
+.shell-content ::ng-deep .status.pending,
+.shell-content ::ng-deep .pending {
+  background: rgba(248, 113, 113, 0.2) !important;
+  color: #fecaca !important;
+  border-color: rgba(248, 113, 113, 0.4) !important;
+}
+
+.shell-content ::ng-deep .status.review,
+.shell-content ::ng-deep .review {
+  background: rgba(251, 191, 36, 0.18) !important;
+  color: #fde68a !important;
+}
+
+.shell-content ::ng-deep .status.por-pagar,
+.shell-content ::ng-deep .por-pagar {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: #bbf7d0 !important;
+}
+
+.shell-content ::ng-deep .status.in-progress,
+.shell-content ::ng-deep .in-progress {
+  background: rgba(251, 191, 36, 0.2) !important;
+  color: #fde68a !important;
+}
+
+.shell-content ::ng-deep .status.done,
+.shell-content ::ng-deep .done {
+  background: rgba(14, 165, 233, 0.2) !important;
+  color: #bae6fd !important;
+}
+
+.shell-content ::ng-deep .alerts .alert {
+  background: rgba(15, 118, 226, 0.15) !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  color: #e0f2fe !important;
+}
+
+.shell-content ::ng-deep .alerts .alert.warn {
+  background: rgba(248, 113, 113, 0.15) !important;
+  border-color: rgba(248, 113, 113, 0.35) !important;
+  color: #fecaca !important;
+}
+
+.shell-content ::ng-deep .orders-table {
+  overflow-x: auto;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(2, 6, 23, 0.35);
+}
+
+.shell-content ::ng-deep .orders-table .table-head,
+.shell-content ::ng-deep .orders-table .table-row {
+  min-width: 780px;
+}
+
+.shell-content ::ng-deep .orders-table .table-row {
+  border-color: rgba(148, 163, 184, 0.15);
+}
+
+.shell-content ::ng-deep .table-row .actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shell-content ::ng-deep .table-row .actions button {
+  flex: 1 1 140px;
+  min-width: 120px;
+}
+
+.shell-content ::ng-deep .cliente-modal {
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(14px);
+}
+
+@media (max-width: 1280px) {
   .operator-shell {
-    grid-template-columns: 220px 1fr;
+    grid-template-columns: 240px 1fr;
   }
 }
 
-@media (max-width: 820px) {
+@media (max-width: 960px) {
   .operator-shell {
     grid-template-columns: 1fr;
   }
 
   .shell-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    box-shadow: none;
+    border-right: none;
+    border-bottom: 1px solid var(--operator-border);
+    background: rgba(2, 6, 23, 0.9);
+    gap: 18px;
   }
 
   .sidebar-nav {
@@ -236,15 +454,27 @@
   .sidebar-actions button {
     flex: 1 1 calc(50% - 6px);
   }
-}
 
-@media (max-width: 600px) {
   .shell-main {
     padding: 24px 16px 32px;
   }
 
   .shell-content {
-    padding: 20px;
     min-height: unset;
+  }
+}
+
+@media (max-width: 640px) {
+  .shell-head {
+    flex-direction: column;
+  }
+
+  .head-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .shell-content {
+    padding: 18px 16px 28px;
   }
 }
