@@ -87,12 +87,12 @@ async function postRegister(req, res) {
 function handleLoginErrors(err, res) {
     if (tryHandleValidationError(err, res))
         return true;
-    if (err?.message === 'INVALID_CREDENTIALS') {
-        res.status(401).json({ message: 'Credenciales invalidas' });
+    if (err?.message === 'INVALID_CREDENTIALS' || err?.message === 'ROLE_NOT_ALLOWED') {
+        res.status(401).json({ message: 'Error de autenticación' });
         return true;
     }
-    if (err?.message === 'ROLE_NOT_ALLOWED') {
-        res.status(403).json({ message: 'Rol no autorizado para este acceso' });
+    if (err?.message === 'JWT_SECRET_MISSING') {
+        res.status(500).json({ message: 'Configuracion del servidor incompleta (JWT)' });
         return true;
     }
     return false;

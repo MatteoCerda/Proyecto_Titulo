@@ -14,6 +14,8 @@ import operatorRoutes from './modules/operator/operator.routes';
 import catalogoRoutes from './modules/catalogo/catalogo.routes';
 import offersRoutes from './modules/offers/offers.routes';
 import { operatorGuard } from './modules/common/middlewares/operatorGuard';
+import paymentsRoutes from './modules/payments/webpay.routes';
+import { webpayReturnBridge } from './modules/payments/webpay.controller';
 
 
 const app = express();
@@ -36,9 +38,13 @@ app.use(['/offers', '/api/offers'], offersRoutes);
 
 
 // Pedidos (clientes y operadores)
+app.post('/api/payments/webpay/return', webpayReturnBridge);
+app.get('/api/payments/webpay/return', webpayReturnBridge);
+
 app.use('/api/pedidos', authGuard, pedidosRoutes);
 app.use('/api/cotizaciones', cotizacionesRoutes);
 app.use('/api/operator', authGuard, operatorGuard, operatorRoutes);
+app.use('/api/payments', authGuard, paymentsRoutes);
 // Admin endpoints
 app.use('/api/admin', authGuard, adminGuard, adminRoutes);
 app.use('/admin', authGuard, adminGuard, adminRoutes);

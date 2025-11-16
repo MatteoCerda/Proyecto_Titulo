@@ -77,3 +77,18 @@ WhatsApp Cloud + n8n (cotización/pedido)
 5. Para usar archivos, descarga el media ID desde WhatsApp Cloud en n8n (nodo HTTP GET `/{media-id}` con el mismo token) y súbelo luego a `/api/pedidos/:id/files` si necesitas adjuntarlo al pedido.
 6. Recuerda proteger n8n con Basic Auth (`N8N_BASIC_AUTH_*`) y valida las firmas (`X-Hub-Signature-256`) en el Webhook cuando muevas esto a producción.
 
+Pagos Webpay (Integracion)
+1. En `kingstone/backend` corre `npm install` para asegurarte de tener `transbank-sdk`.
+2. Configura las variables en `.env` o `.env.production`:
+   - `WEBPAY_COMMERCE_CODE` y `WEBPAY_API_KEY` (sandbox por defecto).
+   - `WEBPAY_ENVIRONMENT` (`integration` o `production`).
+   - `WEBPAY_CALLBACK_URL` (ruta del backend que recibe el POST de Webpay, por defecto `http://localhost:3000/api/payments/webpay/return`).
+   - `WEBPAY_FRONT_RETURN_URL` o `WEBPAY_RETURN_URL` (ruta del front que mostrara el resultado, p. ej. `http://localhost:8100/pagos/webpay/retorno`).
+3. Rutas nuevas (requieren auth):
+   - `POST /api/payments/webpay/create` recibe `{ pedidoId, amount?, returnUrl? }` y devuelve `{ token, url, buyOrder, amount }`.
+   - `POST /api/payments/webpay/commit` y `POST /api/payments/webpay/status` reciben `{ token }` (tambien aceptan `token_ws` o `TBK_TOKEN`).
+4. Flujo recomendado: crear transaccion -> redirigir a `url` con `token` -> el navegador vuelve al backend (`WEBPAY_CALLBACK_URL`), este redirige al front (`WEBPAY_FRONT_RETURN_URL`) con el `token_ws` -> el front llama `commit` para cerrar y registrar la operacion.
+5. Para probar usa los datos de tarjetas de integracion publicados en https://www.transbankdevelopers.cl. En produccion reemplaza credenciales y establece `WEBPAY_ENVIRONMENT=production`.
+6. El backend registra cada pago ligado al `pedidoId`, guarda el resultado de `commit` y si recibe `AUTHORIZED` cambia automaticamente el pedido de `POR_PAGAR/EN_REVISION` a `EN_PRODUCCION`.
+7. Si necesitas reintentos, consulta `/status` y muestra al cliente el detalle (respuestas exitosas y rechazadas quedan guardadas en la tabla `webpay_transaction`).
+8. En el front (Perfil > Mis pedidos) aparecera el boton **Pagar con Webpay** cuando el pedido este `POR_PAGAR/EN_REVISION`. Al terminar, Webpay redirige al front donde se confirma el `token_ws` y se muestra el resultado.

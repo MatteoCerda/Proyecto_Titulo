@@ -5,6 +5,7 @@ const zod_1 = require("zod");
 const prisma_1 = require("../../lib/prisma");
 const rut_1 = require("../common/rut");
 const claim_1 = require("../common/claim");
+const pricing_1 = require("../common/pricing");
 const router = (0, express_1.Router)();
 const clienteQuerySchema = zod_1.z.object({
     rut: zod_1.z.string().min(4)
@@ -24,6 +25,16 @@ const agendaSchema = zod_1.z.object({
     maquina: zod_1.z.string().max(80).optional(),
     notas: zod_1.z.string().max(400).optional()
 });
+const resumenItemSchema = zod_1.z.object({
+    itemId: zod_1.z.number().int().positive(),
+    name: zod_1.z.string().min(1).max(200),
+    quantity: zod_1.z.number().int().positive(),
+    itemType: zod_1.z.string().max(120).optional(),
+    provider: zod_1.z.string().max(120).optional(),
+    pricePresencial: zod_1.z.number().nonnegative().nullable().optional(),
+    priceWsp: zod_1.z.number().nonnegative().nullable().optional(),
+    selectedUnitPrice: zod_1.z.number().nonnegative().nullable().optional()
+});
 const saleSchema = zod_1.z.object({
     canal: zod_1.z.enum(['presencial', 'wsp']),
     cliente: clientePayloadSchema,
@@ -37,7 +48,8 @@ const saleSchema = zod_1.z.object({
         dtfCentimetros: zod_1.z.number().nonnegative().optional(),
         dtfCategoria: zod_1.z.enum(['dtf', 'textil', 'uv', 'tela', 'pvc', 'sticker', 'comprinter']).optional(),
         comprinterMaterial: zod_1.z.enum(['pvc', 'pu']).optional(),
-        adjuntoRequerido: zod_1.z.boolean().optional()
+        adjuntoRequerido: zod_1.z.boolean().optional(),
+        items: zod_1.z.array(resumenItemSchema).max(100).optional()
     }),
     agenda: agendaSchema.optional()
 });
@@ -75,7 +87,12 @@ router.get('/clientes/search', async (req, res) => {
                 claimExpiresAt: true,
                 claimIssuedAt: true,
                 id_usuario: true,
-                tipoRegistro: true
+                tipoRegistro: true,
+                pedidos: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                    select: { total: true, itemsCount: true }
+                }
             }
         });
         if (!record) {
@@ -94,7 +111,13 @@ router.get('/clientes/search', async (req, res) => {
                 claimIssuedAt: record.claimIssuedAt,
                 hasAccount: !!record.id_usuario,
                 tipoRegistro: record.tipoRegistro
-            }
+            },
+            resumen: record.pedidos?.[0]
+                ? {
+                    total: record.pedidos[0].total,
+                    itemsCount: record.pedidos[0].itemsCount
+                }
+                : null
         });
     }
     catch (error) {
@@ -143,15 +166,11 @@ router.post('/ventas', async (req, res) => {
                 updates['telefono'] = dto.cliente.telefono;
             updates['tipoRegistro'] = dto.canal;
             if (clienteRecord.estado === 'pending_claim') {
-                const expired = !clienteRecord.claimExpiresAt ||
-                    new Date(clienteRecord.claimExpiresAt).getTime() < Date.now();
-                if (expired) {
-                    claimCode = (0, claim_1.generateClaimCode)();
-                    claimExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-                    updates['claimCodeHash'] = (0, claim_1.hashClaimCode)(claimCode);
-                    updates['claimExpiresAt'] = claimExpiresAt;
-                    updates['claimIssuedAt'] = now;
-                }
+                claimCode = (0, claim_1.generateClaimCode)();
+                claimExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                updates['claimCodeHash'] = (0, claim_1.hashClaimCode)(claimCode);
+                updates['claimExpiresAt'] = claimExpiresAt;
+                updates['claimIssuedAt'] = now;
             }
             if (Object.keys(updates).length) {
                 clienteRecord = await prisma_1.prisma.cliente.update({
@@ -182,6 +201,8 @@ router.post('/ventas', async (req, res) => {
         const clienteNombre = dto.cliente.nombre || clienteRecord.nombre_contacto || 'Cliente presencial';
         const clienteEmail = dto.cliente.email || clienteRecord.email || null;
         const pedidoUserId = clienteRecord.id_usuario ? Number(clienteRecord.id_usuario) : null;
+        const totalVenta = Math.round(dto.resumen.total);
+        const breakdown = (0, pricing_1.calculateTaxBreakdown)(totalVenta, pricing_1.TAX_RATE);
         const pedido = await prisma_1.prisma.pedido.create({
             data: {
                 userId: pedidoUserId,
@@ -190,7 +211,10 @@ router.post('/ventas', async (req, res) => {
                 clienteNombre,
                 estado: 'PENDIENTE',
                 notificado: false,
-                total: Math.round(dto.resumen.total),
+                total: totalVenta,
+                subtotal: breakdown.subtotal,
+                taxTotal: breakdown.tax,
+                moneda: pricing_1.DEFAULT_CURRENCY,
                 itemsCount: dto.resumen.itemsCount ?? null,
                 materialId: dto.resumen.materialId ?? null,
                 materialLabel: dto.resumen.materialLabel ?? null,
@@ -211,6 +235,13 @@ router.post('/ventas', async (req, res) => {
                         estado: clienteRecord.estado
                     },
                     resumen: dto.resumen,
+                    pricing: {
+                        total: totalVenta,
+                        subtotal: breakdown.subtotal,
+                        taxTotal: breakdown.tax,
+                        taxRate: pricing_1.TAX_RATE,
+                        currency: pricing_1.DEFAULT_CURRENCY
+                    },
                     claim: {
                         pending: clienteRecord.estado === 'pending_claim',
                         expiresAt: claimExpiresAt ? claimExpiresAt.toISOString() : clienteRecord.claimExpiresAt,

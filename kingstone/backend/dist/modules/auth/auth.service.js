@@ -138,6 +138,9 @@ async function login(dto, options) {
     const payload = { sub: user.id, email: user.email, role: user.role };
     const opts = { expiresIn: process.env.JWT_EXPIRES_IN || '1d' };
     const secret = process.env.JWT_SECRET;
+    if (!secret || secret.trim().length === 0) {
+        throw new Error('JWT_SECRET_MISSING');
+    }
     const token = jsonwebtoken_1.default.sign(payload, secret, opts);
     return { token, user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role } };
 }
@@ -153,7 +156,10 @@ async function forgotPassword(email) {
     // Enviar email: aquí integrar proveedor. Por ahora devolvemos ok.
     // Para facilitar pruebas, devolvemos el token en dev solamente
     const isDev = process.env.NODE_ENV !== 'production';
-    return isDev ? { ok: true, token } : { ok: true };
+    if (isDev) {
+        console.log(`Password reset token for ${email}: ${token}`);
+    }
+    return { ok: true };
 }
 async function resetPassword(token, newPassword) {
     const tokenHash = crypto_1.default.createHash('sha256').update(token).digest('hex');

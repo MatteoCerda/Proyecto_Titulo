@@ -1,6 +1,8 @@
 {
   "dependencies": {
+    "dotenv": "^17.2.3",
     "jspdf": "^3.0.3",
-    "swiper": "^12.0.3"
+    "swiper": "^12.0.3",
+    "transbank-sdk": "^6.1.0"
   }
 }

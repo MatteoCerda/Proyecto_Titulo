@@ -23,7 +23,8 @@ export const routes: Routes = [
       { path: 'cliente', redirectTo: 'perfil', pathMatch: 'full' },
       { path: 'cliente/perfil', canMatch: [authGuard], loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage) },
       { path: 'cliente/mis-pedidos', canMatch: [authGuard], loadComponent: () => import('./pages/cliente/mis-pedidos.page').then(m => m.MisPedidosPage) },
-      { path: 'cliente/metodos-pago', canMatch: [authGuard], loadComponent: () => import('./pages/cliente/metodos-pago.page').then(m => m.MetodosPagoPage) }
+      { path: 'cliente/metodos-pago', canMatch: [authGuard], loadComponent: () => import('./pages/cliente/metodos-pago.page').then(m => m.MetodosPagoPage) },
+      { path: 'pagos/webpay/retorno', canMatch: [authGuard], loadComponent: () => import('./pages/pagos/webpay-return.page').then(m => m.WebpayReturnPage) }
     ]
   },
   {

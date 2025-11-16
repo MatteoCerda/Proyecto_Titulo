@@ -367,6 +367,8 @@ async function triggerWebhook(args) {
         operadorId: args.operadorId ?? null,
         operadorEmail: args.operadorEmail ?? null,
         operadorNombre: args.operadorNombre ?? null,
+        clienteEmail: args.clienteEmail ?? null,
+        clienteNombre: args.clienteNombre ?? null,
         enlace: `${panelBase.replace(/\/$/, '')}/operacion/cotizaciones/${args.cotizacionId}`,
     };
     const fetchFn = globalThis.fetch;
@@ -386,7 +388,7 @@ async function triggerWebhook(args) {
     }
     return { skipped: false };
 }
-router.post('/', async (req, res) => {
+router.post('/', authGuard_1.authGuard, async (req, res) => {
     try {
         const parsed = createSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -398,8 +400,17 @@ router.post('/', async (req, res) => {
         }
         const dto = parsed.data;
         const payloadUser = req.user;
-        const clienteId = dto.cliente?.id ??
-            (payloadUser?.sub ? Number(payloadUser.sub) : undefined);
+        const requesterId = payloadUser?.sub ? Number(payloadUser.sub) : null;
+        const requestedClienteId = typeof dto.cliente?.id === 'number' ? dto.cliente.id : null;
+        const isRequesterOperator = isOperator(payloadUser?.role);
+        if (!isRequesterOperator && requestedClienteId && requesterId !== requestedClienteId) {
+            return res
+                .status(403)
+                .json({ message: 'No puedes crear cotizaciones para otro usuario.' });
+        }
+        const clienteId = isRequesterOperator
+            ? requestedClienteId ?? requesterId
+            : requesterId;
         const operator = await pickOperator(dto.operadorId);
         if (!operator) {
             return res
@@ -409,6 +420,25 @@ router.post('/', async (req, res) => {
         const slaMinutos = dto.slaMinutos ?? 10;
         const vencimiento = new Date(Date.now() + slaMinutos * 60 * 1000);
         const metadata = buildMetadata(dto, payloadUser);
+        let clienteEmail = typeof dto.cliente?.email === 'string' ? dto.cliente.email : null;
+        let clienteNombre = typeof dto.cliente?.nombre === 'string' ? dto.cliente.nombre : null;
+        if (requestedClienteId && (!clienteEmail || !clienteNombre)) {
+            const clienteRecord = await prisma_1.prisma.cliente.findUnique({
+                where: { id_cliente: requestedClienteId },
+                select: { email: true, nombre_contacto: true },
+            });
+            if (clienteRecord) {
+                if (!clienteEmail && clienteRecord.email) {
+                    clienteEmail = clienteRecord.email;
+                }
+                if (!clienteNombre && clienteRecord.nombre_contacto) {
+                    clienteNombre = clienteRecord.nombre_contacto;
+                }
+            }
+        }
+        if (!clienteEmail && !isRequesterOperator && payloadUser?.email) {
+            clienteEmail = payloadUser.email;
+        }
         const result = await prisma_1.prisma.$transaction(async (tx) => {
             const cotizacion = await tx.cotizacion.create({
                 data: {
@@ -461,6 +491,8 @@ router.post('/', async (req, res) => {
                 operadorId: operator.id,
                 operadorEmail: operator.email ?? null,
                 operadorNombre: operator.fullName ?? null,
+                clienteEmail,
+                clienteNombre,
             });
             await prisma_1.prisma.cotizacionNotificacion.update({
                 where: { id: result.notificacion.id },

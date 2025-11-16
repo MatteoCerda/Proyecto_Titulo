@@ -1,0 +1,17 @@
+<ion-content class="webpay-return">
+  <div class="return-card" [class.success]="status() === 'success'" [class.error]="status() === 'error'">
+    <h1 *ngIf="status() === 'loading'">Procesando pago</h1>
+    <h1 *ngIf="status() === 'success'">Pago confirmado</h1>
+    <h1 *ngIf="status() === 'error'">Pago no disponible</h1>
+    <p>{{ message() }}</p>
+
+    <div class="details" *ngIf="details() as info">
+      <p><strong>Orden:</strong> {{ info.buy_order || info.buyOrder }}</p>
+      <p *ngIf="info.authorization_code"><strong>Codigo de autorizacion:</strong> {{ info.authorization_code }}</p>
+      <p *ngIf="info.card_detail?.card_number"><strong>Tarjeta:</strong> **** {{ info.card_detail.card_number }}</p>
+      <p *ngIf="info.amount"><strong>Monto:</strong> {{ info.amount | currency:'CLP':'symbol':'1.0-0' }}</p>
+    </div>
+
+    <ion-button expand="block" color="primary" (click)="goToOrders()">Volver a mis pedidos</ion-button>
+  </div>
+</ion-content>

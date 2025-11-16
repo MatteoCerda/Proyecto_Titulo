@@ -36,6 +36,54 @@ function parseJobPayload(payload) {
     }
     return value;
 }
+async function notifyFileJobFailure(params) {
+    const fetchFn = globalThis.fetch;
+    if (!fetchFn)
+        return;
+    const webhookUrl = process.env.N8N_PEDIDOS_FILE_WEBHOOK_URL ||
+        process.env.N8N_PEDIDOS_WEBHOOK_URL ||
+        process.env.N8N_WEBHOOK_URL;
+    if (!webhookUrl)
+        return;
+    let clienteEmail = params.payload?.clienteEmail ?? null;
+    if (!clienteEmail && params.pedidoId) {
+        try {
+            const pedido = await prisma_1.prisma.pedido.findUnique({
+                where: { id: params.pedidoId },
+                select: { clienteEmail: true }
+            });
+            if (pedido?.clienteEmail) {
+                clienteEmail = pedido.clienteEmail;
+            }
+        }
+        catch (err) {
+            console.warn('[file-worker] No se pudo obtener email del pedido', err);
+        }
+    }
+    const files = params.payload?.files?.map(file => ({
+        originalName: file.originalName,
+        mimeType: file.mimeType,
+        sizeBytes: file.sizeBytes
+    })) ?? [];
+    const body = {
+        tipo: 'pedido_archivo_error',
+        jobId: params.jobId,
+        pedidoId: params.pedidoId,
+        clienteEmail,
+        error: params.error,
+        files,
+        timestamp: new Date().toISOString()
+    };
+    const response = await fetchFn(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Webhook respondio ${response.status}: ${text}`);
+    }
+}
 async function processJob(jobId) {
     const job = await prisma_1.prisma.fileProcessingJob.findUnique({
         where: { id: jobId }
@@ -108,6 +156,24 @@ async function handleJob(jobId) {
     }
     catch (error) {
         console.error(`[file-worker] Error procesando job ${jobId}`, error);
+        let pedidoId = null;
+        let payload = null;
+        try {
+            const jobRecord = await prisma_1.prisma.fileProcessingJob.findUnique({
+                where: { id: jobId },
+                select: {
+                    pedidoId: true,
+                    payload: true
+                }
+            });
+            if (jobRecord) {
+                pedidoId = jobRecord.pedidoId;
+                payload = parseJobPayload(jobRecord.payload);
+            }
+        }
+        catch (parseError) {
+            console.warn(`[file-worker] No se pudo obtener payload para job ${jobId}`, parseError);
+        }
         await prisma_1.prisma.fileProcessingJob.update({
             where: { id: jobId },
             data: {
@@ -117,6 +183,14 @@ async function handleJob(jobId) {
             }
         }).catch(err => {
             console.error(`[file-worker] Error guardando estado FAILED para job ${jobId}`, err);
+        });
+        await notifyFileJobFailure({
+            jobId,
+            pedidoId,
+            payload,
+            error: error?.message ?? 'Error desconocido'
+        }).catch(err => {
+            console.error(`[file-worker] Error notificando fallo de job ${jobId}`, err);
         });
     }
 }

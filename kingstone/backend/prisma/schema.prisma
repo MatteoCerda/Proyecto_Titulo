@@ -109,6 +109,7 @@ model Pedido {
   adjuntos       PedidoAdjunto[]
   ordenesTrabajo OrdenTrabajo[]
   processingJobs FileProcessingJob[]
+  webpayTransactions WebpayTransaction[]
 
   @@index([clienteId])
   @@map("pedido")
@@ -267,6 +268,34 @@ model InventoryLengthRemainder {
   inventory InventoryItem @relation(fields: [inventoryId], references: [id])
 
   @@map("inventory_length_remainder")
+}
+
+model WebpayTransaction {
+  id                 Int      @id @default(autoincrement())
+  pedidoId           Int
+  pedido             Pedido   @relation(fields: [pedidoId], references: [id])
+  buyOrder           String   @unique
+  token              String?  @unique
+  sessionId          String?
+  amount             Int
+  currency           String   @default("CLP")
+  returnUrl          String
+  status             String   @default("created")
+  lastResponse       Json?
+  authorizationCode  String?
+  paymentTypeCode    String?
+  installmentsNumber Int?
+  installmentsAmount Int?
+  cardNumber         String?
+  accountingDate     String?
+  transactionDate    DateTime?
+  balance            Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([pedidoId])
+  @@index([token])
+  @@map("webpay_transaction")
 }
 
 

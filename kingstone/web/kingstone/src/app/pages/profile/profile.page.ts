@@ -1,17 +1,18 @@
 ﻿import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { CommonModule, DatePipe } from '@angular/common';
-import { IonContent, IonItem, IonLabel, IonInput, IonButton } from '@ionic/angular/standalone';
+import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
+import { IonContent, IonItem, IonLabel, IonInput, IonButton, IonSpinner } from '@ionic/angular/standalone';
 import { AuthService } from '../../core/auth.service';
 import { ToastController } from '@ionic/angular';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/pedidos.service';
+import { PaymentsService } from '../../services/payments.service';
 
 @Component({
   standalone: true,
   selector: 'app-profile',
-  imports: [CommonModule, IonContent, IonItem, IonLabel, IonInput, IonButton, ReactiveFormsModule, DatePipe],
+  imports: [CommonModule, IonContent, IonItem, IonLabel, IonInput, IonButton, IonSpinner, ReactiveFormsModule, DatePipe, CurrencyPipe],
   templateUrl: './profile.page.html',
   styleUrls: ['./profile.page.scss']
 })
@@ -22,6 +23,7 @@ export class ProfilePage {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private pedidos = inject(PedidosService);
+  private payments = inject(PaymentsService);
 
   loading = signal(false);
   // Navegación lateral
@@ -33,6 +35,7 @@ export class ProfilePage {
   loadingOrders = signal(false);
   errorOrders = signal<string | null>(null);
   expandedId = signal<number | null>(null);
+  payingOrderId = signal<number | null>(null);
   form = this.fb.group({
     email: [{ value: '', disabled: true }, [Validators.required, Validators.email]],
     fullName: ['', [Validators.required, Validators.minLength(2)]],
@@ -171,6 +174,56 @@ export class ProfilePage {
       const payload = typeof order.payload === 'string' ? JSON.parse(order.payload) : (order.payload as any);
       return (payload?.attachments ?? []) as PedidoAttachment[];
     } catch { return []; }
+  }
+
+  canPay(order: PedidoResumen): boolean {
+    const state = (order.estado || '').toUpperCase();
+    return ['POR_PAGAR', 'EN_REVISION'].includes(state);
+  }
+
+  isPaying(order: PedidoResumen): boolean {
+    return this.payingOrderId() === order.id;
+  }
+
+  async payOrder(order: PedidoResumen) {
+    if (!order?.id) return;
+    this.payingOrderId.set(order.id);
+    try {
+      const response = await firstValueFrom(
+        this.payments.createTransaction({ pedidoId: order.id })
+      );
+      if (!response?.url || !response?.token) {
+        throw new Error('No recibimos un token o URL de Webpay.');
+      }
+      this.submitWebpayForm(response.url, response.token);
+    } catch (error: any) {
+      const msg = error?.error?.message || error?.message || 'No pudimos iniciar el pago.';
+      const t = await this.toast.create({
+        message: msg,
+        duration: 2500,
+        position: 'top',
+        color: 'danger',
+      });
+      await t.present();
+    } finally {
+      this.payingOrderId.set(null);
+    }
+  }
+
+  private submitWebpayForm(url: string, token: string) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = url;
+    form.style.display = 'none';
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'token_ws';
+    input.value = token;
+    form.appendChild(input);
+
+    document.body.appendChild(form);
+    form.submit();
   }
 
   select(tab: 'datos' | 'pedidos') {

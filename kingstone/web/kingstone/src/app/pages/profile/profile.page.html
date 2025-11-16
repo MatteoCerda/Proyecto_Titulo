@@ -81,6 +81,21 @@
                 </ion-button>
               </header>
               <div class="order-body" *ngIf="expandedId() === order.id">
+                <div class="order-meta">
+                  <span><strong>Estado:</strong> {{ order.estado }}</span>
+                  <span *ngIf="order.total !== undefined && order.total !== null">
+                    <strong>Total:</strong>
+                    {{ order.total | currency:(order.currency || 'CLP'):'symbol':'1.0-0' }}
+                  </span>
+                </div>
+                <div class="order-actions">
+                  <ion-button color="primary" (click)="payOrder(order)" *ngIf="canPay(order)" [disabled]="isPaying(order)">
+                    <ion-spinner *ngIf="isPaying(order)" name="lines-small"></ion-spinner>
+                    <span *ngIf="!isPaying(order)">Pagar con Webpay</span>
+                    <span *ngIf="isPaying(order)">Redirigiendo...</span>
+                  </ion-button>
+                  <small *ngIf="canPay(order)">Seras redirigido a Webpay para ingresar la tarjeta de prueba.</small>
+                </div>
                 <div class="attachments" *ngIf="attachmentsOf(order).length">
                   <h4>Archivos</h4>
                   <ul>
