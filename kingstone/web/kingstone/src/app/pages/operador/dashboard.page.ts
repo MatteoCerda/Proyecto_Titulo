@@ -6,6 +6,13 @@ import { OperatorInboxStore } from '../../services/operator-inbox.store';
 import { AuthService } from '../../core/auth.service';
 import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../services/pedidos.service';
 
+type FrequentClientSummary = {
+  name: string;
+  email: string | null;
+  count: number;
+  total: number;
+};
+
 @Component({
   standalone: true,
   selector: 'app-operator-dashboard',
@@ -14,7 +21,7 @@ import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../serv
     <section class="dashboard-wrapper">
       <header class="dashboard-hero">
         <div>
-          <p>Centro de gestión</p>
+          <p>Centro de gesti&oacute;n</p>
           <h1>Inicio del operador</h1>
           <small>{{ orders().length }} solicitudes activas</small>
         </div>
@@ -47,7 +54,7 @@ import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../serv
           <header class="orders-head">
             <div>
               <h2>Solicitudes de clientes</h2>
-              <p>Revisa y deriva los pedidos enviados desde la sección de cotización.</p>
+              <p>Revisa y deriva los pedidos enviados desde la secci&oacute;n de cotizaci&oacute;n.</p>
             </div>
             <span class="badge">{{ orders().length }} solicitudes</span>
           </header>
@@ -55,7 +62,7 @@ import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../serv
           <div class="alerts">
             <div class="alert" *ngIf="pendingCount() > 0">
               <strong>{{ pendingCount() }}</strong>
-              <span>nuevas solicitudes pendientes de revisión.</span>
+              <span>nuevas solicitudes pendientes de revisi&oacute;n.</span>
             </div>
             <div class="alert" [ngClass]="actionFeedback()?.type" *ngIf="actionFeedback() as action">
               <span>{{ action.message }}</span>
@@ -66,7 +73,7 @@ import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../serv
           <section class="orders-table" *ngIf="orders().length > 0; else emptyState">
             <div class="table-head">
               <span>Nombre de usuario</span>
-              <span>Correo electrónico</span>
+              <span>Correo electr&oacute;nico</span>
               <span>Estado</span>
               <span>Recibido</span>
               <span>Acciones</span>
@@ -77,7 +84,7 @@ import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../serv
                 <div class="avatar">{{ initials(order.cliente) }}</div>
                 <div>
                   <strong>{{ order.cliente }}</strong>
-                  <small>Cotización #{{ order.id }}</small>
+                  <small>Cotizaci&oacute;n #{{ order.id }}</small>
                   <span class="chip" *ngIf="order.notificado !== false">Nuevo</span>
                 </div>
               </div>
@@ -91,7 +98,7 @@ import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../serv
                 <span>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
               </div>
               <div class="cell actions">
-                <button type="button" class="ghost" (click)="markSeen(order, $event)">Marcar revisión</button>
+                <button type="button" class="ghost" (click)="markSeen(order, $event)">Marcar revisi&oacute;n</button>
                 <button type="button" class="ghost send-payments" (click)="sendToPayments(order, $event)">Enviar a pagos</button>
                 <button type="button" class="primary" (click)="viewDetails(order, $event)">Ver detalle</button>
               </div>
@@ -101,7 +108,7 @@ import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../serv
           <ng-template #emptyState>
             <div class="empty">
               <h3>No hay solicitudes pendientes</h3>
-              <p>Cuando un cliente envíe una nueva cotización aparecerá automáticamente en este listado.</p>
+              <p>Cuando un cliente env&iacute;e una nueva cotizaci&oacute;n aparecer&aacute; autom&aacute;ticamente en este listado.</p>
               <button type="button" (click)="refresh()">Actualizar ahora</button>
             </div>
           </ng-template>
@@ -111,25 +118,36 @@ import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../serv
           <article class="card frequent-card">
             <header>
               <h3>Clientes frecuentes</h3>
-              <span *ngIf="frequentClients().length">{{ frequentClients().length }} perfiles</span>
+              <span *ngIf="frequentLoading()">Cargando...</span>
+              <span *ngIf="!frequentLoading() && frequentClients().length">{{ frequentClients().length }} perfiles</span>
             </header>
-            <ul>
-              <li *ngFor="let client of frequentClients()">
-                <div>
-                  <strong>{{ client.name }}</strong>
-                  <small>{{ client.email || 'Correo no registrado' }}</small>
-                </div>
-                <span>{{ client.count }} pedidos · {{ formatCurrency(client.total) }}</span>
-              </li>
-              <li class="placeholder" *ngIf="!frequentClients().length">
-                <span>Aún no hay historial suficiente.</span>
-              </li>
+                        <ul>
+              <ng-container *ngIf="!frequentLoading() && !frequentError(); else frequentState">
+                <li *ngFor="let client of frequentClients()">
+                  <div>
+                    <strong>{{ client.name }}</strong>
+                    <small>{{ client.email || 'Correo no registrado' }}</small>
+                  </div>
+                  <span>{{ client.count }} pedidos  {{ formatCurrency(client.total) }}</span>
+                </li>
+                <li class="placeholder" *ngIf="!frequentClients().length">
+                  <span>Aun no hay historial suficiente.</span>
+                </li>
+              </ng-container>
+              <ng-template #frequentState>
+                <li class="placeholder" *ngIf="frequentLoading()">
+                  <span>Cargando historial</span>
+                </li>
+                <li class="placeholder" *ngIf="frequentError()">
+                  <span>{{ frequentError() }}</span>
+                </li>
+              </ng-template>
             </ul>
           </article>
 
           <article class="card quick-card">
-            <h3>Accesos rápidos</h3>
-            <p>Gestiona tu día a día desde aquí.</p>
+            <h3>Accesos r&aacute;pidos</h3>
+            <p>Gestiona tu d&iacute;a a d&iacute;a desde aqu&iacute;.</p>
             <div class="quick-actions">
               <button type="button" class="ghost" routerLink="/operador/clientes">Ver clientes</button>
               <button type="button" class="ghost" routerLink="/operador/calendario">Calendario</button>
@@ -149,8 +167,8 @@ import { ClientePedidosResumen, PedidosService, PedidoResumen } from '../../serv
         <button type="button" (click)="closeDetail()">Cerrar</button>
       </header>
       <div class="review-banner" *ngIf="selection.estado === 'EN_REVISION'">
-        <h3>Solicitud en revision</h3>
-        <p>Revisa cada detalle para informar al cliente el avance y tomar la siguiente accion.</p>
+        <h3>Solicitud en revisi&oacute;n</h3>
+        <p>Revisa cada detalle para informar al cliente el avance y tomar la siguiente acci&oacute;n.</p>
       </div>
       <ul>
         <li><span>ID pedido</span><strong>#{{ selection.id }}</strong></li>
@@ -270,50 +288,11 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
   readonly error = this.inbox.error;
   readonly pendingCount = this.inbox.pendingCount;
 
-  readonly overviewTotals = computed(() => {
-    const now = new Date();
-    const orders = this.orders();
-    const startDay = this.startOfDay(now);
-    const startWeek = this.startOfWeek(now);
-    const startMonth = this.startOfMonth(now);
+  readonly overviewTotals = signal({ day: 0, week: 0, month: 0 });
 
-    const totals = { day: 0, week: 0, month: 0 };
-    for (const order of orders) {
-      const created = new Date(order.createdAt);
-      if (Number.isNaN(created.getTime())) continue;
-      const amount = this.resolveTotal(order);
-      if (created >= startDay) totals.day += amount;
-      if (created >= startWeek) totals.week += amount;
-      if (created >= startMonth) totals.month += amount;
-    }
-    return totals;
-  });
-
-  readonly frequentClients = computed(() => {
-    const orders = this.orders();
-    const summary = new Map<
-      string,
-      { name: string; email: string | null; count: number; total: number }
-    >();
-    for (const order of orders) {
-      const email = this.normalizeEmail(order.email);
-      const key = email ?? `pedido-${order.id}`;
-      if (!summary.has(key)) {
-        summary.set(key, {
-          name: order.cliente || email || 'Cliente sin nombre',
-          email: order.email ?? null,
-          count: 0,
-          total: 0
-        });
-      }
-      const entry = summary.get(key)!;
-      entry.count += 1;
-      entry.total += this.resolveTotal(order);
-    }
-    return Array.from(summary.values())
-      .sort((a, b) => b.count - a.count || b.total - a.total)
-      .slice(0, 5);
-  });
+  readonly frequentClients = signal<FrequentClientSummary[]>([]);
+  readonly frequentLoading = signal(false);
+  readonly frequentError = signal<string | null>(null);
 
   readonly selectedOrder = signal<PedidoResumen | null>(null);
   readonly actionFeedback = signal<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -337,6 +316,8 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.inbox.start();
     this.inbox.refresh();
+    this.loadTotals();
+    void this.loadFrequentClients();
   }
 
   ngOnDestroy(): void {
@@ -350,6 +331,8 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
   refresh(): void {
     this.inbox.refresh();
     this.clearActionFeedback();
+    this.loadTotals();
+    void this.loadFrequentClients();
   }
 
   select(order: PedidoResumen): void {
@@ -475,23 +458,6 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  private startOfDay(date: Date): Date {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  }
-
-  private startOfWeek(date: Date): Date {
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const day = start.getDay();
-    const diff = (day + 6) % 7;
-    start.setDate(start.getDate() - diff);
-    return start;
-  }
-
-  private startOfMonth(date: Date): Date {
-    return new Date(date.getFullYear(), date.getMonth(), 1);
-  }
-
   trackByItem(_: number, item: { name: string; quantity: number; size?: string }): string {
     return `${item.name}-${item.quantity}-${item.size ?? 'no-size'}`;
   }
@@ -529,7 +495,7 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
   labelEstado(estado: string): string {
     const labels: Record<string, string> = {
       PENDIENTE: 'Pendiente',
-      EN_REVISION: 'En revision',
+      EN_REVISION: 'En revisi&oacute;n',
       POR_PAGAR: 'Por pagar',
       EN_PRODUCCION: 'En produccion',
       COMPLETADO: 'Completado'
@@ -608,12 +574,61 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
     }
   }
 
+  private async loadTotals() {
+    try {
+      const result = await firstValueFrom(this.pedidos.getDashboardTotals());
+      this.overviewTotals.set({
+        day: result?.day ?? 0,
+        week: result?.week ?? 0,
+        month: result?.month ?? 0
+      });
+    } catch (err) {
+      console.error('Error cargando totales del dashboard', err);
+    }
+  }
+
+  private async loadFrequentClients(): Promise<void> {
+    this.frequentLoading.set(true);
+    this.frequentError.set(null);
+    try {
+      const data = await firstValueFrom(this.pedidos.listClientesResumen());
+      this.clientesResumen.set(data);
+      this.frequentClients.set(this.buildFrequentSummary(data));
+      if (!this.clienteSeleccionada() && data.length) {
+        this.clienteSeleccionada.set(this.normalizeEmail(data[0].email));
+      }
+    } catch (err) {
+      console.error('Error cargando clientes frecuentes', err);
+      this.frequentError.set('No pudimos cargar el historial de clientes frecuentes.');
+    } finally {
+      this.frequentLoading.set(false);
+    }
+  }
+
+  private buildFrequentSummary(data: ClientePedidosResumen[]): FrequentClientSummary[] {
+    return data
+      .map(cliente => {
+        const pedidos = (cliente.pedidos ?? []).filter(pedido => (pedido.estado || '').toUpperCase() === 'COMPLETADO');
+        const total = pedidos.reduce((sum, pedido) => sum + (Number(pedido.total) || 0), 0);
+        return {
+          name: cliente.nombre || cliente.email || 'Cliente sin nombre',
+          email: cliente.email ?? null,
+          count: pedidos.length,
+          total
+        };
+      })
+      .filter(entry => entry.count > 0 || entry.total > 0)
+      .sort((a, b) => b.count - a.count || b.total - a.total)
+      .slice(0, 5);
+  }
+
   private async loadClientes(): Promise<void> {
     this.clientesLoading.set(true);
     this.clientesError.set(null);
     try {
       const data = await firstValueFrom(this.pedidos.listClientesResumen());
       this.clientesResumen.set(data);
+      this.frequentClients.set(this.buildFrequentSummary(data));
       if (!this.clienteSeleccionada() && data.length) {
         this.clienteSeleccionada.set(this.normalizeEmail(data[0].email));
       }
@@ -637,4 +652,5 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
     return items.reduce((acc, item) => acc + (item.quantity ?? 0), 0);
   }
 }
+
 

@@ -69,6 +69,23 @@ const upload = multer({
 });
 const DEFAULT_IMAGE_DPI = 300;
 
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function startOfWeek(date: Date): Date {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const day = start.getDay();
+  const diff = (day + 6) % 7;
+  start.setDate(start.getDate() - diff);
+  return start;
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
 const MATERIAL_WIDTH_MAP: Record<string, number> = {
   dtf: 57,
   dtf57: 57,
@@ -1087,6 +1104,48 @@ router.post('/', pedidosController.createPedido);
 
 router.get('/', pedidosController.getPedidos);
 
+router.get('/admin/dashboard/totals', async (req, res) => {
+  try {
+    const user = (req as any).user as JwtUser | undefined;
+    if (!user || !isOperator(user.role)) {
+      return res.status(403).json({ message: 'Requiere rol operador' });
+    }
+
+    const now = new Date();
+    const day = startOfDay(now);
+    const week = startOfWeek(now);
+    const month = startOfMonth(now);
+    const baseWhere: Prisma.PedidoWhereInput = {
+      estado: 'COMPLETADO',
+      total: { not: null }
+    };
+
+    const [dayAgg, weekAgg, monthAgg] = await Promise.all([
+      prisma.pedido.aggregate({
+        _sum: { total: true },
+        where: { ...baseWhere, updatedAt: { gte: day } }
+      }),
+      prisma.pedido.aggregate({
+        _sum: { total: true },
+        where: { ...baseWhere, updatedAt: { gte: week } }
+      }),
+      prisma.pedido.aggregate({
+        _sum: { total: true },
+        where: { ...baseWhere, updatedAt: { gte: month } }
+      })
+    ]);
+
+    res.json({
+      day: Number(dayAgg._sum.total) || 0,
+      week: Number(weekAgg._sum.total) || 0,
+      month: Number(monthAgg._sum.total) || 0
+    });
+  } catch (error) {
+    console.error('Error obteniendo totales de dashboard', error);
+    res.status(500).json({ message: 'Error interno' });
+  }
+});
+
 router.get('/admin/clientes', async (req, res) => {
   try {
     const user = (req as any).user as JwtUser | undefined;
@@ -1299,11 +1358,12 @@ router.patch('/work-orders/:workOrderId', async (req, res) => {
       data
     });
 
-    if (data.estado && data.estado.toUpperCase() === 'LISTO_RETIRO') {
+    const normalizedEstado = data.estado?.toUpperCase();
+    if (normalizedEstado === 'LISTO_RETIRO' || normalizedEstado === 'COMPLETADO') {
       const operatorContact = await getOperatorContact(user?.sub ? Number(user.sub) : null);
       const updatedPedido = await prisma.pedido.update({
         where: { id: updated.pedidoId },
-        data: { estado: 'LISTO_RETIRO' },
+        data: { estado: normalizedEstado },
         select: {
           id: true,
           estado: true,

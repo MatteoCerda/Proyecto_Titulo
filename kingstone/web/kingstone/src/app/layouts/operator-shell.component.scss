@@ -324,40 +324,40 @@
 .shell-content ::ng-deep .status,
 .shell-content ::ng-deep .status-tag,
 .shell-content ::ng-deep .head-pill {
-  background: rgba(56, 189, 248, 0.18) !important;
-  color: #bae6fd !important;
-  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  background: rgba(226, 232, 240, 0.8) !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(148, 163, 184, 0.6) !important;
 }
 
 .shell-content ::ng-deep .status.pending,
 .shell-content ::ng-deep .pending {
-  background: rgba(248, 113, 113, 0.2) !important;
-  color: #fecaca !important;
-  border-color: rgba(248, 113, 113, 0.4) !important;
+  background: #fee2e2 !important;
+  color: #0f172a !important;
+  border-color: #fecaca !important;
 }
 
 .shell-content ::ng-deep .status.review,
 .shell-content ::ng-deep .review {
-  background: rgba(251, 191, 36, 0.18) !important;
-  color: #fde68a !important;
+  background: #e0e7ff !important;
+  color: #0f172a !important;
 }
 
 .shell-content ::ng-deep .status.por-pagar,
 .shell-content ::ng-deep .por-pagar {
-  background: rgba(16, 185, 129, 0.2) !important;
-  color: #bbf7d0 !important;
+  background: #dcfce7 !important;
+  color: #0f172a !important;
 }
 
 .shell-content ::ng-deep .status.in-progress,
 .shell-content ::ng-deep .in-progress {
-  background: rgba(251, 191, 36, 0.2) !important;
-  color: #fde68a !important;
+  background: #fdf6b2 !important;
+  color: #0f172a !important;
 }
 
 .shell-content ::ng-deep .status.done,
 .shell-content ::ng-deep .done {
-  background: rgba(14, 165, 233, 0.2) !important;
-  color: #bae6fd !important;
+  background: #bbf7d0 !important;
+  color: #0f172a !important;
 }
 
 .shell-content ::ng-deep .alerts .alert {

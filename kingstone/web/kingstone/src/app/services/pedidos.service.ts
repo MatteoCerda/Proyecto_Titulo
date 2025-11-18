@@ -279,6 +279,12 @@ export class PedidosService {
     return this.http.get<ClientePedidosResumen[]>(`/api/pedidos/admin/clientes`);
   }
 
+  getDashboardTotals(): Observable<{ day: number; week: number; month: number }> {
+    return this.http.get<{ day: number; week: number; month: number }>(
+      `/api/pedidos/admin/dashboard/totals`
+    );
+  }
+
   createWorkOrder(
     pedidoId: number,
     payload: { tecnica: string; maquina?: string | null; programadoPara?: string | null; notas?: string | null }

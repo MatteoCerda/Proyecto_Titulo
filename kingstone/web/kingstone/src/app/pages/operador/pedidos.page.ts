@@ -244,7 +244,8 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
     { value: 'cola', label: 'En cola' },
     { value: 'produccion', label: 'En produccion' },
     { value: 'control_calidad', label: 'Control de calidad' },
-    { value: 'listo_retiro', label: 'Listo para retiro' }
+    { value: 'listo_retiro', label: 'Listo para retiro' },
+    { value: 'completado', label: 'Completado' }
   ];
 
   readonly orders = signal<PedidoResumen[]>([]);
@@ -619,7 +620,8 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
       cola: 'En cola',
       produccion: 'En produccion',
       control_calidad: 'Control de calidad',
-      listo_retiro: 'Listo para retiro'
+      listo_retiro: 'Listo para retiro',
+      completado: 'Completado'
     };
     return map[stage] || stage;
   }
@@ -690,6 +692,9 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
     }
     if (normalized === 'LISTO_RETIRO') {
       return 'EN_PRODUCCION';
+    }
+    if (normalized === 'COMPLETADO') {
+      return 'COMPLETADO';
     }
     return null;
   }

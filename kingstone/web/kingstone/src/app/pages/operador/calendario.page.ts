@@ -42,14 +42,16 @@ export class OperatorCalendarPage implements OnInit {
     cola: 'En cola',
     produccion: 'En produccion',
     control_calidad: 'Control de calidad',
-    listo_retiro: 'Listo para retiro'
+    listo_retiro: 'Listo para retiro',
+    completado: 'Completado'
   };
 
   readonly stages = [
     { value: 'cola', label: 'En cola' },
     { value: 'produccion', label: 'En produccion' },
     { value: 'control_calidad', label: 'Control de calidad' },
-    { value: 'listo_retiro', label: 'Listo para retiro' }
+    { value: 'listo_retiro', label: 'Listo para retiro' },
+    { value: 'completado', label: 'Completado' }
   ];
 
   readonly rangeStart = signal(this.startOfWeek(new Date()));
