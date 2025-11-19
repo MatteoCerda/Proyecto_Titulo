@@ -20,17 +20,54 @@
         <header>
           <div>
             <h2>#{{ order.id }}</h2>
-            <small>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</small>
+            <small>Creado el {{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</small>
           </div>
           <div class="header-meta">
             <span class="status" [ngClass]="statusClass(order.estado)">{{ labelEstado(order.estado) }}</span>
+            <ion-button *ngIf="canDownloadReceipt(order)" fill="clear" size="small" (click)="downloadReceipt(order)">
+              Boleta
+            </ion-button>
             <ion-button fill="clear" size="small" (click)="toggle(order.id)">
               {{ expandedId() === order.id ? 'Ocultar detalle' : 'Ver detalle' }}
             </ion-button>
           </div>
         </header>
 
+        <div class="order-summary">
+          <div class="summary-block total-block">
+            <span>Total</span>
+            <strong>{{ formatCurrency(totalAmountOf(order)) }}</strong>
+          </div>
+          <div class="summary-block state-block">
+            <span>Estado</span>
+            <strong>{{ labelEstado(order.estado) }}</strong>
+          </div>
+          <div class="summary-block material-block" *ngIf="materialOf(order)">
+            <span>Material</span>
+            <strong>{{ materialOf(order) }}</strong>
+          </div>
+          <div class="summary-block product-block" *ngIf="mainItemOf(order) as mainItem">
+            <span>Productos</span>
+            <strong>{{ mainItem.name }}</strong>
+            <small>{{ mainItem.detail }}</small>
+          </div>
+          <div class="summary-block ready-block" *ngIf="readyDateOf(order)">
+            <span>{{ order.estado === 'COMPLETADO' ? 'Entregado' : 'Entrega estimada' }}</span>
+            <strong>{{ readyDateOf(order) | date:'dd/MM/yyyy HH:mm' }}</strong>
+            <small *ngIf="readyStageLabel(order)">{{ readyStageLabel(order) }}</small>
+          </div>
+          <div class="summary-block pickup-block" *ngIf="readyPickupLabel(order)">
+            <span>Retiro</span>
+            <strong>{{ readyPickupLabel(order) }}</strong>
+          </div>
+        </div>
+
         <div class="card-body" *ngIf="expandedId() === order.id">
+          <section class="section" *ngIf="noteOf(order)">
+            <h3>Notas del pedido</h3>
+            <p class="note-text">{{ noteOf(order) }}</p>
+          </section>
+
           <ng-container *ngIf="productsOf(order) as products">
             <section class="section" *ngIf="products.length">
               <h3>Productos del catalogo</h3>
@@ -74,22 +111,6 @@
             </section>
           </ng-container>
 
-          <ng-container *ngIf="totalsOf(order) as totals">
-            <section class="section totals" *ngIf="totals.area || totals.price">
-              <div>
-                <span>Area total</span>
-                <strong>{{ totals.area ? (totals.area | number:'1.0-0') + ' cm2' : '-' }}</strong>
-              </div>
-              <div>
-                <span>Largo total</span>
-                <strong>{{ totals.length ? (totals.length | number:'1.0-1') + ' cm' : '-' }}</strong>
-              </div>
-              <div>
-                <span>Total estimado</span>
-                <strong>{{ formatCurrency(totals.price) }}</strong>
-              </div>
-            </section>
-          </ng-container>
         </div>
       </article>
     </section>

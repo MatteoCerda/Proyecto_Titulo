@@ -82,6 +82,30 @@ export class MisPedidosPage implements OnInit {
     return this.payloadOf(order)?.products ?? [];
   }
 
+  mainItemOf(order: PedidoResumen) {
+    const products = this.productsOf(order);
+    if (products.length) {
+      const first = products[0];
+      return {
+        name: first.name || 'Producto del catalogo',
+        detail: `${first.quantity ?? 0} unidades`
+      };
+    }
+    const quoteItems = this.quoteItemsOf(order);
+    if (quoteItems.length) {
+      const first = quoteItems[0];
+      const size =
+        first.widthCm && first.heightCm
+          ? `${first.widthCm} x ${first.heightCm} cm`
+          : null;
+      return {
+        name: first.name || 'Pedido personalizado',
+        detail: `${first.quantity ?? 1} piezas${size ? ` · ${size}` : ''}`
+      };
+    }
+    return null;
+  }
+
   quoteItemsOf(order: PedidoResumen) {
     return this.payloadOf(order)?.quote?.items ?? [];
   }
@@ -97,6 +121,82 @@ export class MisPedidosPage implements OnInit {
       length: payload?.filesTotalLengthCm ?? null,
       price: payload?.filesTotalPrice ?? null
     };
+  }
+
+  totalAmountOf(order: PedidoResumen): number | null {
+    if (typeof order.total === 'number') {
+      return order.total;
+    }
+    if (typeof order.subtotal === 'number') {
+      return order.subtotal;
+    }
+    return this.totalsOf(order).price ?? null;
+  }
+
+  materialOf(order: PedidoResumen): string | null {
+    return (
+      order.materialLabel ||
+      this.payloadOf(order)?.quote?.materialLabel ||
+      null
+    );
+  }
+
+  readyDateOf(order: PedidoResumen): string | null {
+    return order.workOrder?.programadoPara ?? order.workOrder?.terminaEn ?? null;
+  }
+
+  readyStageLabel(order: PedidoResumen): string | null {
+    const stage = order.workOrder?.estado;
+    if (!stage) {
+      return null;
+    }
+    const map: Record<string, string> = {
+      cola: 'Recibido',
+      produccion: 'En producción',
+      control_calidad: 'Control de calidad',
+      listo_retiro: 'Listo para retiro',
+      completado: 'Entregado'
+    };
+    return map[stage] || stage;
+  }
+
+  noteOf(order: PedidoResumen): string | null {
+    return order.note || this.payloadOf(order)?.note || null;
+  }
+
+  readyPickupLabel(order: PedidoResumen): string | null {
+    if ((order.estado || '').toUpperCase() !== 'LISTO_RETIRO') {
+      return null;
+    }
+    const pickupDate = this.readyDateOf(order);
+    if (!pickupDate) {
+      return 'Retiro disponible en el taller';
+    }
+    const formatted = new Intl.DateTimeFormat('es-CL', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(pickupDate));
+    return `Retiro disponible el ${formatted}`;
+  }
+  canDownloadReceipt(order: PedidoResumen): boolean {
+    return !!order.receiptAvailable;
+  }
+
+  async downloadReceipt(order: PedidoResumen): Promise<void> {
+    try {
+      const blob = await firstValueFrom(this.pedidos.downloadReceipt(order.id));
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `boleta-${order.id}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('No se pudo descargar la boleta', error);
+    }
   }
 
   async downloadAttachment(orderId: number, attachment: PedidoAttachment): Promise<void> {

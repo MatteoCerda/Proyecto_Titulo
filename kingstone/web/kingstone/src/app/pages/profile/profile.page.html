@@ -74,20 +74,51 @@
               <header>
                 <div>
                   <strong>#{{ order.id }}</strong>
-                  <small>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</small>
+                  <small>Creado el {{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</small>
                 </div>
-                <ion-button fill="clear" size="small" (click)="toggleOrder(order.id)">
-                  {{ expandedId() === order.id ? 'Ocultar' : 'Ver detalle' }}
-                </ion-button>
+                <div class="order-header-actions">
+                  <ion-button *ngIf="canDownloadReceipt(order)" fill="clear" size="small" (click)="downloadReceipt(order)">
+                    Boleta
+                  </ion-button>
+                  <ion-button fill="clear" size="small" (click)="toggleOrder(order.id)">
+                    {{ expandedId() === order.id ? 'Ocultar' : 'Ver detalle' }}
+                  </ion-button>
+                </div>
               </header>
-              <div class="order-body" *ngIf="expandedId() === order.id">
-                <div class="order-meta">
-                  <span><strong>Estado:</strong> {{ order.estado }}</span>
-                  <span *ngIf="order.total !== undefined && order.total !== null">
-                    <strong>Total:</strong>
-                    {{ order.total | currency:(order.currency || 'CLP'):'symbol':'1.0-0' }}
-                  </span>
+              <div class="order-summary">
+                <div class="summary-block total-block">
+                  <span>Total</span>
+                  <strong>{{ formatCurrency(totalAmountOf(order)) }}</strong>
                 </div>
+                <div class="summary-block state-block">
+                  <span>Estado</span>
+                  <strong>{{ labelEstado(order.estado) }}</strong>
+                  <small *ngIf="readyStageLabel(order)">{{ readyStageLabel(order) }}</small>
+                </div>
+                <div class="summary-block material-block" *ngIf="materialOf(order)">
+                  <span>Material</span>
+                  <strong>{{ materialOf(order) }}</strong>
+                </div>
+                <div class="summary-block product-block" *ngIf="mainItemOf(order) as main">
+                  <span>Productos</span>
+                  <strong>{{ main.name }}</strong>
+                  <small>{{ main.detail }}</small>
+                </div>
+                <div class="summary-block ready-block" *ngIf="readyDateOf(order)">
+                  <span>{{ order.estado === 'COMPLETADO' ? 'Entregado' : 'Entrega estimada' }}</span>
+                  <strong>{{ readyDateOf(order) | date:'dd/MM/yyyy HH:mm' }}</strong>
+                  <small *ngIf="readyStageLabel(order)">{{ readyStageLabel(order) }}</small>
+                </div>
+                <div class="summary-block pickup-block" *ngIf="readyPickupLabel(order)">
+                  <span>Retiro</span>
+                  <strong>{{ readyPickupLabel(order) }}</strong>
+                </div>
+              </div>
+              <div class="order-body" *ngIf="expandedId() === order.id">
+                <section class="order-section" *ngIf="noteOf(order)">
+                  <h4>Notas del pedido</h4>
+                  <p class="note-text">{{ noteOf(order) }}</p>
+                </section>
                 <div class="order-actions">
                   <ion-button color="primary" (click)="payOrder(order)" *ngIf="canPay(order)" [disabled]="isPaying(order)">
                     <ion-spinner *ngIf="isPaying(order)" name="lines-small"></ion-spinner>
@@ -96,14 +127,39 @@
                   </ion-button>
                   <small *ngIf="canPay(order)">Seras redirigido a Webpay para ingresar la tarjeta de prueba.</small>
                 </div>
-                <div class="attachments" *ngIf="attachmentsOf(order).length">
-                  <h4>Archivos</h4>
+                <section class="order-section" *ngIf="productsOf(order).length">
+                  <h4>Productos del catalogo</h4>
                   <ul>
-                    <li *ngFor="let file of attachmentsOf(order)">
-                      {{ file.filename }}
+                    <li *ngFor="let product of productsOf(order)">
+                      <strong>{{ product.name || 'Producto' }}</strong>
+                      <span>Cantidad: {{ product.quantity || 0 }}</span>
+                      <span *ngIf="product.price">Precio unitario: {{ product.price | currency:'CLP':'symbol-narrow':'1.0-0' }}</span>
                     </li>
                   </ul>
-                </div>
+                </section>
+                <section class="order-section" *ngIf="quoteItemsOf(order).length">
+                  <h4>Detalle de cotizacion</h4>
+                  <ul>
+                    <li *ngFor="let item of quoteItemsOf(order)">
+                      <strong>{{ item.name }}</strong>
+                      <span>Cantidad: {{ item.quantity }}</span>
+                      <span *ngIf="item.widthCm && item.heightCm">Dimensiones: {{ item.widthCm }} x {{ item.heightCm }} cm</span>
+                    </li>
+                  </ul>
+                </section>
+                <section class="order-section" *ngIf="attachmentsOf(order).length">
+                  <h4>Archivos adjuntos</h4>
+                  <ul>
+                    <li *ngFor="let file of attachmentsOf(order)">
+                      <div class="file-line">
+                        <strong>{{ file.filename }}</strong>
+                        <span *ngIf="file.areaCm2">Area: {{ file.areaCm2 | number:'1.0-0' }} cm2</span>
+                        <span *ngIf="file.lengthCm">Largo: {{ file.lengthCm | number:'1.0-1' }} cm</span>
+                        <span *ngIf="file.createdAt">{{ file.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                      </div>
+                    </li>
+                  </ul>
+                </section>
               </div>
             </article>
           </section>

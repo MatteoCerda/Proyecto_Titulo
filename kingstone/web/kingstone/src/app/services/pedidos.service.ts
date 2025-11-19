@@ -32,6 +32,7 @@ export interface PedidoResumen {
   note?: string;
   payload?: any;
   workOrder?: WorkOrderSummary | null;
+  receiptAvailable?: boolean;
 }
 
 export interface PedidoAttachment {
@@ -273,6 +274,10 @@ export class PedidosService {
 
   downloadAttachment(pedidoId: number, fileId: number) {
     return this.http.get(`/api/pedidos/${pedidoId}/files/${fileId}`, { responseType: 'blob' });
+  }
+
+  downloadReceipt(pedidoId: number) {
+    return this.http.get(`/api/pedidos/${pedidoId}/receipt.pdf`, { responseType: 'blob' });
   }
 
   listClientesResumen(): Observable<ClientePedidosResumen[]> {

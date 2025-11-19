@@ -12,6 +12,10 @@
       <p *ngIf="info.amount"><strong>Monto:</strong> {{ info.amount | currency:'CLP':'symbol':'1.0-0' }}</p>
     </div>
 
+    <ion-button *ngIf="status() === 'success' && pedidoId()" expand="block" fill="outline" color="medium" (click)="downloadReceipt()">
+      Descargar boleta
+    </ion-button>
+
     <ion-button expand="block" color="primary" (click)="goToOrders()">Volver a mis pedidos</ion-button>
   </div>
 </ion-content>

@@ -911,7 +911,32 @@ export async function getPedidosByClient(userId: number | null, email: string | 
   const pedidos = await prisma.pedido.findMany({
     where: pedidoWhere,
     orderBy: { id: 'desc' },
-    take: 50
+    take: 50,
+    include: {
+      ordenesTrabajo: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: {
+          id: true,
+          pedidoId: true,
+          tecnica: true,
+          maquina: true,
+          estado: true,
+          programadoPara: true,
+          iniciaEn: true,
+          terminaEn: true,
+          notas: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      },
+      webpayTransactions: {
+        where: { status: 'authorized' },
+        orderBy: { transactionDate: 'desc' },
+        take: 1,
+        select: { id: true }
+      }
+    }
   });
 
   const respuesta = pedidos.map(p => ({
@@ -927,7 +952,9 @@ export async function getPedidosByClient(userId: number | null, email: string | 
     items: p.itemsCount || undefined,
     materialLabel: p.materialLabel || undefined,
     note: typeof p.payload === 'object' && p.payload !== null ? (p.payload as any).note ?? undefined : undefined,
-    payload: p.payload
+    payload: p.payload,
+    workOrder: p.ordenesTrabajo?.[0] ?? null,
+    receiptAvailable: (p.webpayTransactions?.length ?? 0) > 0
   }));
 
   return respuesta;
@@ -944,6 +971,12 @@ export async function getPedidosByStatus(status: string) {
     include: {
       ordenesTrabajo: {
         orderBy: { createdAt: 'desc' }
+      },
+      webpayTransactions: {
+        where: { status: 'authorized' },
+        orderBy: { transactionDate: 'desc' },
+        take: 1,
+        select: { id: true }
       }
     },
     orderBy: { id: 'desc' },
@@ -965,7 +998,8 @@ export async function getPedidosByStatus(status: string) {
     materialLabel: p.materialLabel || undefined,
     note: typeof p.payload === 'object' && p.payload !== null ? (p.payload as any).note ?? undefined : undefined,
     payload: p.payload,
-    workOrder: p.ordenesTrabajo?.[0]
+    workOrder: p.ordenesTrabajo?.[0],
+    receiptAvailable: (p.webpayTransactions?.length ?? 0) > 0
   }));
 
   return respuesta;

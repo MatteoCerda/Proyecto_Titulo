@@ -1701,6 +1701,158 @@ router.get('/:id/quote.pdf', async (req, res) => {
   }
 });
 
+router.get('/:id/receipt.pdf', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: 'ID invalido' });
+    }
+    const user = (req as any).user as JwtUser | undefined;
+    if (!user) {
+      return res.status(401).json({ message: 'No autorizado' });
+    }
+
+    const pedido = await prisma.pedido.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        userId: true,
+        clienteNombre: true,
+        clienteEmail: true,
+        estado: true,
+        total: true,
+        subtotal: true,
+        taxTotal: true,
+        moneda: true,
+        materialLabel: true,
+        itemsCount: true,
+        payload: true,
+        createdAt: true,
+        webpayTransactions: {
+          where: { status: 'authorized' },
+          orderBy: { transactionDate: 'desc' },
+          take: 1
+        }
+      }
+    });
+
+    if (!pedido) {
+      return res.status(404).json({ message: 'Pedido no encontrado' });
+    }
+
+    const canAdmin = (user.role ?? '').toUpperCase() === 'ADMIN';
+    const canOp = isOperator(user.role);
+    const canClient = canAccessPedido(user, { userId: pedido.userId ?? null, clienteEmail: pedido.clienteEmail ?? null });
+    if (!(canAdmin || canOp || canClient)) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    const transaction = pedido.webpayTransactions?.[0] ?? null;
+    if (!transaction) {
+      return res.status(400).json({ message: 'Este pedido no registra pagos autorizados.' });
+    }
+
+    const payload = parsePayload(pedido.payload) as any;
+    const products = Array.isArray(payload?.products) ? payload.products : [];
+    const quote = payload?.quote && typeof payload.quote === 'object' ? payload.quote : null;
+    const totals = {
+      area: typeof payload?.filesTotalAreaCm2 === 'number' ? payload.filesTotalAreaCm2 : null,
+      length: typeof payload?.filesTotalLengthCm === 'number' ? payload.filesTotalLengthCm : null,
+      price: typeof payload?.filesTotalPrice === 'number' ? payload.filesTotalPrice : null
+    };
+
+    const pdfDoc = await PDFDocument.create();
+    let page = pdfDoc.addPage([595.28, 841.89]);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontSize = 11;
+    const margin = 40;
+    let y = page.getHeight() - margin;
+
+    const addLine = (text: string, options?: { bold?: boolean; size?: number }) => {
+      if (y <= margin + 20) {
+        page = pdfDoc.addPage([595.28, 841.89]);
+        y = page.getHeight() - margin;
+      }
+      const size = options?.size ?? fontSize;
+      const usedFont = options?.bold ? fontBold : font;
+      page.drawText(text, { x: margin, y, size, font: usedFont });
+      y -= size + 6;
+    };
+
+    const emissionDate = transaction.transactionDate ? new Date(transaction.transactionDate) : new Date();
+
+    addLine('Boleta de pago', { bold: true, size: 18 });
+    addLine(`Pedido #${pedido.id}`, { bold: true });
+    addLine(`Fecha de emision: ${emissionDate.toLocaleString('es-CL')}`);
+    addLine(`Cliente: ${pedido.clienteNombre || 'No indicado'}`);
+    addLine(`Correo: ${pedido.clienteEmail || 'No indicado'}`);
+    addLine('');
+
+    const totalPago = typeof pedido.total === 'number' ? pedido.total : totals.price ?? quote?.totalPrice ?? null;
+    const breakdown =
+      typeof pedido.subtotal === 'number' && typeof pedido.taxTotal === 'number'
+        ? { subtotal: pedido.subtotal, tax: pedido.taxTotal }
+        : totalPago !== null
+          ? calculateTaxBreakdown(totalPago, TAX_RATE)
+          : { subtotal: null, tax: null };
+
+    addLine('Resumen del pedido', { bold: true, size: 14 });
+    addLine(`Estado actual: ${pedido.estado}`);
+    addLine(`Material: ${pedido.materialLabel || quote?.materialLabel || 'No definido'}`);
+    addLine(`Total items: ${pedido.itemsCount ?? products.reduce((acc: number, item: any) => acc + (Number(item?.quantity) || 0), 0)}`);
+    addLine('');
+
+    addLine('Detalle de montos', { bold: true, size: 14 });
+    addLine(`Precio: ${formatCurrencyCLP(breakdown.subtotal ?? null)}`);
+    addLine(`IVA (${Math.round(TAX_RATE * 100)}%): ${formatCurrencyCLP(breakdown.tax ?? null)}`);
+    addLine(`Total: ${formatCurrencyCLP(totalPago)}`);
+    addLine('');
+
+    if (products.length) {
+      addLine('Productos del catalogo', { bold: true, size: 14 });
+      products.forEach((item: any, index: number) => {
+        const qty = Number(item?.quantity) || 0;
+        const price = Number(item?.price) || 0;
+        addLine(`${index + 1}. ${item?.name || 'Producto'} · Cantidad: ${qty} · Precio: ${formatCurrencyCLP(price)} · Subtotal: ${formatCurrencyCLP(price * qty)}`);
+      });
+      addLine('');
+    }
+
+    if (quote?.items?.length) {
+      addLine('Detalle personalizado', { bold: true, size: 14 });
+      quote.items.forEach((item: any, index: number) => {
+        const qty = Number(item?.quantity) || 0;
+        const width = Number(item?.widthCm) || 0;
+        const height = Number(item?.heightCm) || 0;
+        addLine(`${index + 1}. ${item?.name || 'Item'} · Cantidad: ${qty} · ${width.toFixed(1)} cm x ${height.toFixed(1)} cm`);
+      });
+      addLine('');
+    }
+
+    addLine('Pago Webpay', { bold: true, size: 14 });
+    addLine(`Orden comercio: ${transaction.buyOrder}`);
+    addLine(`Token: ${transaction.token ?? '-'}`);
+    addLine(`Fecha de transaccion: ${emissionDate.toLocaleString('es-CL')}`);
+    addLine(`Codigo de autorizacion: ${transaction.authorizationCode ?? '-'}`);
+    addLine(`Tipo de pago: ${transaction.paymentTypeCode ?? '-'}`);
+    addLine(`Ultimos digitos tarjeta: ${transaction.cardNumber ?? '-'}`);
+    addLine(`Cuotas: ${transaction.installmentsNumber ?? 0}`);
+    addLine('');
+
+    addLine('---', { bold: true });
+    addLine('Documento generado automaticamente desde el panel de clientes de Kingstone.', { size: 10 });
+
+    const pdfBytes = await pdfDoc.save();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="boleta-${pedido.id}.pdf"`);
+    res.send(Buffer.from(pdfBytes));
+  } catch (error) {
+    console.error('Error generando boleta PDF', error);
+    res.status(500).json({ message: 'Error interno' });
+  }
+});
+
 router.get('/:id/files/jobs', async (req, res) => {
   try {
     const id = Number(req.params.id);

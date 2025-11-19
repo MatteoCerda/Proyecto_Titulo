@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonContent, IonButton } from '@ionic/angular/standalone';
 import { PaymentsService } from '../../services/payments.service';
+import { PedidosService } from '../../services/pedidos.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
@@ -14,12 +15,14 @@ import { firstValueFrom } from 'rxjs';
 })
 export class WebpayReturnPage implements OnInit {
   private payments = inject(PaymentsService);
+  private pedidos = inject(PedidosService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
   status = signal<'loading' | 'success' | 'error'>('loading');
   message = signal('Confirmando tu pago, por favor espera...');
   details = signal<any | null>(null);
+  pedidoId = signal<number | null>(null);
 
   async ngOnInit() {
     const params = await firstValueFrom(this.route.queryParamMap);
@@ -43,6 +46,7 @@ export class WebpayReturnPage implements OnInit {
         this.payments.commitTransaction(payload)
       );
       this.details.set(result.response || null);
+      this.pedidoId.set(result.pedidoId ?? null);
       if (result.authorized) {
         this.status.set('success');
         this.message.set('Pago confirmado. Gracias por tu compra.');
@@ -59,5 +63,23 @@ export class WebpayReturnPage implements OnInit {
 
   goToOrders() {
     this.router.navigate(['/perfil'], { queryParams: { tab: 'pedidos' } });
+  }
+
+  async downloadReceipt() {
+    const id = this.pedidoId();
+    if (!id) {
+      return;
+    }
+    try {
+      const blob = await firstValueFrom(this.pedidos.downloadReceipt(id));
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `boleta-${id}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('No se pudo descargar la boleta', error);
+    }
   }
 }

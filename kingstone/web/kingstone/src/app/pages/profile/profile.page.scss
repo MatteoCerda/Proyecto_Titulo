@@ -16,9 +16,68 @@
 .orders { display: grid; gap: 12px; }
 .order { border: 1px solid var(--card-border); border-radius: 10px; padding: 10px; }
 .order > header { display:flex; align-items:center; justify-content:space-between; }
-.order-body { padding: 8px 4px 0; }
-.order-meta { display:flex; flex-wrap:wrap; gap: 16px; font-size: 14px; margin: 8px 0; }
-.order-meta span { display:flex; align-items:center; gap:6px; color:#0f172a; }
+.order-header-actions { display:flex; align-items:center; gap:8px; }
+.order-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: rgba(241, 245, 249, 0.7);
+  border-radius: 12px;
+  padding: 12px;
+}
+.summary-block {
+  background: rgba(248, 250, 252, 0.85);
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.summary-block span {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
+}
+.summary-block strong {
+  color: #0f172a;
+}
+.summary-block small {
+  color: #475569;
+  font-size: 12px;
+}
+.summary-block.total-block {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(99, 102, 241, 0.15));
+  border-color: rgba(79, 70, 229, 0.3);
+}
+.summary-block.state-block {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(34, 197, 94, 0.15));
+  border-color: rgba(16, 185, 129, 0.3);
+}
+.summary-block.material-block {
+  background: rgba(148, 163, 184, 0.12);
+}
+.summary-block.product-block {
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.3);
+}
+.summary-block.ready-block {
+  background: rgba(249, 115, 22, 0.12);
+  border-color: rgba(249, 115, 22, 0.3);
+}
+.summary-block.pickup-block {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+.order-body { padding: 8px 4px 0; display: flex; flex-direction: column; gap: 16px; }
+.order-section h4 { margin: 0 0 6px; font-size: 15px; color: #0f172a; }
+.order-section ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.order-section li { background: rgba(241, 245, 249, 0.6); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+.file-line { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.note-text { margin: 0; color: #1e293b; }
+#orders-section .totals-grid { display: none; }
 .order-actions { margin-top: 8px; display:flex; flex-wrap:wrap; gap: 10px; align-items:center; }
 .order-actions ion-button { margin: 0; }
 .order-actions small { color: var(--muted); }
