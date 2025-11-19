@@ -87,12 +87,20 @@
   gap: 24px;
 }
 
+.orders-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
 .orders-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 24px;
-  padding: 28px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+  background: #0e2234;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.35);
+  width: 100%;
+  color: #f1f5f9;
 }
 
 .orders-head {
@@ -219,24 +227,56 @@
 
 /* Light theme overrides for legacy blocks */
 .orders-table {
-  background: transparent;
-  color: #0f172a;
+  background: transparent !important;
+  color: #f4f7ff;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0;
+  width: 100%;
+  margin: 0;
+  box-shadow: none !important;
+}
+
+.orders-card .orders-table {
+  margin: 0 -24px;
+}
+
+.orders-card .table-head,
+.orders-card .table-row {
+  border-radius: 0;
+}
+
+.orders-card .table-head:first-child {
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+}
+
+.orders-card .table-row:last-child {
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
 }
 
 .table-head {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  color: #0f172a;
+  background: rgba(11, 27, 40, 0.9);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 20px;
+  padding: 12px 24px;
+  color: rgba(226, 232, 240, 0.75);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .table-row {
-  background: #ffffff;
-  border: 1px solid #e9eef5;
-  color: #0f172a;
+  background: rgba(11, 27, 40, 0.85);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 22px;
+  color: #f4f7ff;
+  padding: 20px 24px;
 }
 
 .table-row .cell {
-  color: #0f172a;
+  color: inherit;
 }
 
 .table-row .status.pending {
@@ -360,7 +400,7 @@ button.ghost:hover {
 
 .orders-table {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 .table-head,
@@ -372,29 +412,30 @@ button.ghost:hover {
 }
 
 .table-head {
-  color: #94a3b8;
+  color: rgba(226, 232, 240, 0.75);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .table-row {
-  background: rgba(11, 27, 40, 0.8);
-  border-radius: 16px;
-  padding: 16px;
-  border: 1px solid transparent;
+  background: rgba(11, 27, 40, 0.85);
+  border-radius: 22px;
+  padding: 20px 24px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
   cursor: pointer;
   transition: border 0.2s ease, transform 0.2s ease;
+  color: #f4f7ff;
 }
 
-/* Ensure pending/orders views in light theme keep dark text */
+/* Ensure pending/orders views inherit the correct palette */
 .orders-card,
 .orders-card .table-row,
 .orders-card .table-row .cell,
 .orders-card .table-row .cell span,
 .orders-card .table-row .cell strong,
 .orders-card .table-row .cell small {
-  color: #0f172a;
+  color: inherit;
 }
 
 .table-row:hover {
@@ -525,7 +566,7 @@ button.ghost:hover {
 }
 
 .detail-panel {
-  margin-top: 24px;
+  margin-top: 0;
   background: #0e2234;
   border-radius: 18px;
   padding: 24px;
@@ -534,6 +575,7 @@ button.ghost:hover {
   flex-direction: column;
   gap: 16px;
   color: #f1f5f9;
+  width: 100%;
 }
 
 .detail-panel header {
@@ -776,6 +818,56 @@ button.ghost:hover {
 
 .status-view {
   margin-bottom: 24px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.45);
+  backdrop-filter: blur(10px);
+  color: #edf2ff;
+}
+
+.status-view .orders-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.status-view .orders-card .table-row {
+  background: rgba(11, 27, 40, 0.85);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.status-view .content-header h1,
+.status-view .content-header p,
+.status-view .table-head span,
+.status-view .table-row .cell,
+.status-view .empty h3,
+.status-view .empty p {
+  color: inherit;
+}
+
+.status-view .orders-table {
+  background: transparent;
+}
+
+.status-view .table-head {
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.status-view .table-row {
+  background: rgba(15, 23, 42, 0.35);
+  border-color: rgba(59, 130, 246, 0.2);
+  color: #edf2ff;
+}
+
+.status-view .empty {
+  background: rgba(15, 23, 42, 0.45);
+  border-color: rgba(59, 130, 246, 0.2);
+  color: #f8fafc;
 }
 
 .payments-banner {
@@ -1157,58 +1249,60 @@ button.ghost:hover {
   box-shadow: 0 6px 18px rgba(29, 78, 216, 0.18);
 }
 
-.operator-content {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  color: #1f2937;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
-}
+ .operator-content {
+   background: transparent;
+   border: none;
+   color: #e2e8f0;
+   box-shadow: none;
+ }
 
-.content-header h1 {
-  color: #0f172a;
-}
+ .content-header h1 {
+   color: #f8fafc;
+ }
 
-.content-header p {
-  color: #64748b;
-}
+ .content-header p {
+   color: rgba(226, 232, 240, 0.7);
+ }
 
 .header-meta button.ghost {
-  border: 1px solid #cbd5f5;
-  color: #1d4ed8;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #cfe0ff;
 }
 
 .badge {
-  background: #e0e7ff;
-  color: #0f172a;
+  background: rgba(30, 64, 175, 0.3);
+  color: #e0ecff;
 }
 
 .orders-table .table-head {
-  color: #94a3b8;
+  color: rgba(226, 232, 240, 0.75);
 }
 
 .orders-table .table-row {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  color: #1f2937;
+  background: rgba(11, 27, 40, 0.85);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: #f4f7ff;
+  padding: 20px 24px;
+  border-radius: 22px;
 }
 
 .orders-table .table-row:hover {
-  border-color: #94a3b8;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+  border-color: rgba(148, 163, 184, 0.45);
+  box-shadow: 0 10px 24px rgba(8, 47, 73, 0.35);
 }
 
 .orders-table .avatar {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.18);
+  color: #cfe0ff;
 }
 
 .orders-table .chip {
-  background: #eef2ff;
-  color: #3730a3;
+  background: rgba(79, 70, 229, 0.18);
+  color: #dbeafe;
 }
 
 .orders-table .cell span.status {
-  color: #475569;
+  color: #e2e8f0;
 }
 
 .alerts .alert {

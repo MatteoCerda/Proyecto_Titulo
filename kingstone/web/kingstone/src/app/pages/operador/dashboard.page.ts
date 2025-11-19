@@ -50,69 +50,130 @@ type FrequentClientSummary = {
       </div>
 
       <div class="dashboard-main">
-        <section class="orders-card">
-          <header class="orders-head">
-            <div>
-              <h2>Solicitudes de clientes</h2>
-              <p>Revisa y deriva los pedidos enviados desde la secci&oacute;n de cotizaci&oacute;n.</p>
-            </div>
-            <span class="badge">{{ orders().length }} solicitudes</span>
-          </header>
+        <div class="orders-column">
+          <section class="orders-card">
+            <header class="orders-head">
+              <div>
+                <h2>Solicitudes de clientes</h2>
+                <p>Revisa y deriva los pedidos enviados desde la secci&oacute;n de cotizaci&oacute;n.</p>
+              </div>
+              <span class="badge">{{ orders().length }} solicitudes</span>
+            </header>
 
-          <div class="alerts">
-            <div class="alert" *ngIf="pendingCount() > 0">
-              <strong>{{ pendingCount() }}</strong>
-              <span>nuevas solicitudes pendientes de revisi&oacute;n.</span>
-            </div>
-            <div class="alert" [ngClass]="actionFeedback()?.type" *ngIf="actionFeedback() as action">
-              <span>{{ action.message }}</span>
-            </div>
-            <div class="alert warn" *ngIf="error()">{{ error() }}</div>
-          </div>
-
-          <section class="orders-table" *ngIf="orders().length > 0; else emptyState">
-            <div class="table-head">
-              <span>Nombre de usuario</span>
-              <span>Correo electr&oacute;nico</span>
-              <span>Estado</span>
-              <span>Recibido</span>
-              <span>Acciones</span>
+            <div class="alerts">
+              <div class="alert" *ngIf="pendingCount() > 0">
+                <strong>{{ pendingCount() }}</strong>
+                <span>nuevas solicitudes pendientes de revisi&oacute;n.</span>
+              </div>
+              <div class="alert" [ngClass]="actionFeedback()?.type" *ngIf="actionFeedback() as action">
+                <span>{{ action.message }}</span>
+              </div>
+              <div class="alert warn" *ngIf="error()">{{ error() }}</div>
             </div>
 
-            <div class="table-row" *ngFor="let order of orders(); trackBy: trackById" (click)="select(order)">
-              <div class="cell user">
-                <div class="avatar">{{ initials(order.cliente) }}</div>
-                <div>
-                  <strong>{{ order.cliente }}</strong>
-                  <small>Cotizaci&oacute;n #{{ order.id }}</small>
-                  <span class="chip" *ngIf="order.notificado !== false">Nuevo</span>
+            <section class="orders-table" *ngIf="orders().length > 0; else emptyState">
+              <div class="table-head">
+                <span>Nombre de usuario</span>
+                <span>Correo electr&oacute;nico</span>
+                <span>Estado</span>
+                <span>Recibido</span>
+                <span>Acciones</span>
+              </div>
+
+              <div class="table-row" *ngFor="let order of orders(); trackBy: trackById" (click)="select(order)">
+                <div class="cell user">
+                  <div class="avatar">{{ initials(order.cliente) }}</div>
+                  <div>
+                    <strong>{{ order.cliente }}</strong>
+                    <small>Cotizaci&oacute;n #{{ order.id }}</small>
+                    <span class="chip" *ngIf="order.notificado !== false">Nuevo</span>
+                  </div>
+                </div>
+                <div class="cell">
+                  <span>{{ order.email }}</span>
+                </div>
+                <div class="cell">
+                  <span class="status" [ngClass]="statusClass(order.estado)">{{ labelEstado(order.estado) }}</span>
+                </div>
+                <div class="cell">
+                  <span>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+                <div class="cell actions">
+                  <button type="button" class="ghost" (click)="markSeen(order, $event)">Marcar revisi&oacute;n</button>
+                  <button type="button" class="ghost send-payments" (click)="sendToPayments(order, $event)">Enviar a pagos</button>
+                  <button type="button" class="primary" (click)="viewDetails(order, $event)">Ver detalle</button>
                 </div>
               </div>
-              <div class="cell">
-                <span>{{ order.email }}</span>
+            </section>
+
+            <ng-template #emptyState>
+              <div class="empty">
+                <h3>No hay solicitudes pendientes</h3>
+                <p>Cuando un cliente env&iacute;e una nueva cotizaci&oacute;n aparecer&aacute; autom&aacute;ticamente en este listado.</p>
+                <button type="button" (click)="refresh()">Actualizar ahora</button>
               </div>
-              <div class="cell">
-                <span class="status" [ngClass]="statusClass(order.estado)">{{ labelEstado(order.estado) }}</span>
-              </div>
-              <div class="cell">
-                <span>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
-              </div>
-              <div class="cell actions">
-                <button type="button" class="ghost" (click)="markSeen(order, $event)">Marcar revisi&oacute;n</button>
-                <button type="button" class="ghost send-payments" (click)="sendToPayments(order, $event)">Enviar a pagos</button>
-                <button type="button" class="primary" (click)="viewDetails(order, $event)">Ver detalle</button>
-              </div>
-            </div>
+            </ng-template>
           </section>
 
-          <ng-template #emptyState>
-            <div class="empty">
-              <h3>No hay solicitudes pendientes</h3>
-              <p>Cuando un cliente env&iacute;e una nueva cotizaci&oacute;n aparecer&aacute; autom&aacute;ticamente en este listado.</p>
-              <button type="button" (click)="refresh()">Actualizar ahora</button>
+          <section class="detail-panel" *ngIf="selectedOrder() as selection">
+            <header>
+              <div class="title-wrap">
+                <h2>Resumen de la solicitud</h2>
+                <span class="status-tag" [ngClass]="statusClass(selection.estado)">{{ labelEstado(selection.estado) }}</span>
+              </div>
+              <button type="button" (click)="closeDetail()">Cerrar</button>
+            </header>
+            <div class="review-banner" *ngIf="selection.estado === 'EN_REVISION'">
+              <h3>Solicitud en revisi&oacute;n</h3>
+              <p>Revisa cada detalle para informar al cliente el avance y tomar la siguiente acci&oacute;n.</p>
             </div>
-          </ng-template>
-        </section>
+            <ul>
+              <li><span>ID pedido</span><strong>#{{ selection.id }}</strong></li>
+              <li><span>Cliente</span><strong>{{ selection.cliente }}</strong></li>
+              <li><span>Correo</span><strong>{{ selection.email }}</strong></li>
+              <li><span>Estado</span><strong>{{ labelEstado(selection.estado) }}</strong></li>
+              <li><span>Recibido</span><strong>{{ selection.createdAt | date:'medium' }}</strong></li>
+              <li>
+                <span>Total estimado</span>
+                <strong>{{ selection.total !== null && selection.total !== undefined ? formatCurrency(selection.total) : 'Por definir' }}</strong>
+              </li>
+              <li><span>Nro de items</span><strong>{{ selection.items || '-' }}</strong></li>
+              <li><span>Material</span><strong>{{ selection.materialLabel || 'Por definir' }}</strong></li>
+            </ul>
+            <div class="note-block" *ngIf="selection.note">
+              <h3>Indicaciones del cliente</h3>
+              <p>{{ selection.note }}</p>
+            </div>
+            <ng-container *ngIf="orderPayload(selection) as payload">
+              <div class="note-block" *ngIf="!selection.note && payload?.note">
+                <h3>Indicaciones del cliente</h3>
+                <p>{{ payload.note }}</p>
+              </div>
+              <ng-container *ngIf="payloadItems(payload) as items">
+                <div class="items-block" *ngIf="items.length">
+                  <h3>Items solicitados</h3>
+                  <ul>
+                    <li *ngFor="let item of items; trackBy: trackByItem">
+                      <span class="item-name">{{ item.name }}</span>
+                      <span class="item-size" *ngIf="item.size">{{ item.size }}</span>
+                      <span class="item-qty">{{ item.quantity }} m</span>
+                    </li>
+                  </ul>
+                  <div class="items-summary">
+                    <span>Total metros solicitados</span>
+                    <strong>{{ totalItemsQuantity(items) }} m</strong>
+                  </div>
+                </div>
+              </ng-container>
+            </ng-container>
+            <footer class="detail-actions">
+              <button type="button" class="ghost" (click)="openClienteModal(selection)">Historial del cliente</button>
+              <button type="button" class="ghost" (click)="goToClienteInfo(selection)">Ver ficha del cliente</button>
+              <button type="button" class="ghost" (click)="markSeen(selection)">Derivar a cotizaciones</button>
+              <button type="button" class="primary" (click)="sendToPayments(selection)">Enviar a pagos</button>
+            </footer>
+          </section>
+        </div>
 
         <aside class="dashboard-side">
           <article class="card frequent-card">
@@ -156,62 +217,6 @@ type FrequentClientSummary = {
           </article>
         </aside>
       </div>
-    </section>
-
-    <section class="detail-panel" *ngIf="selectedOrder() as selection">
-      <header>
-        <div class="title-wrap">
-          <h2>Resumen de la solicitud</h2>
-          <span class="status-tag" [ngClass]="statusClass(selection.estado)">{{ labelEstado(selection.estado) }}</span>
-        </div>
-        <button type="button" (click)="closeDetail()">Cerrar</button>
-      </header>
-      <div class="review-banner" *ngIf="selection.estado === 'EN_REVISION'">
-        <h3>Solicitud en revisi&oacute;n</h3>
-        <p>Revisa cada detalle para informar al cliente el avance y tomar la siguiente acci&oacute;n.</p>
-      </div>
-      <ul>
-        <li><span>ID pedido</span><strong>#{{ selection.id }}</strong></li>
-        <li><span>Cliente</span><strong>{{ selection.cliente }}</strong></li>
-        <li><span>Correo</span><strong>{{ selection.email }}</strong></li>
-        <li><span>Estado</span><strong>{{ labelEstado(selection.estado) }}</strong></li>
-        <li><span>Recibido</span><strong>{{ selection.createdAt | date:'medium' }}</strong></li>
-        <li><span>Total estimado</span><strong>{{ selection.total !== null && selection.total !== undefined ? formatCurrency(selection.total) : 'Por definir' }}</strong></li>
-        <li><span>Nro de items</span><strong>{{ selection.items || '-' }}</strong></li>
-        <li><span>Material</span><strong>{{ selection.materialLabel || 'Por definir' }}</strong></li>
-      </ul>
-      <div class="note-block" *ngIf="selection.note">
-        <h3>Indicaciones del cliente</h3>
-        <p>{{ selection.note }}</p>
-      </div>
-      <ng-container *ngIf="orderPayload(selection) as payload">
-        <div class="note-block" *ngIf="!selection.note && payload?.note">
-          <h3>Indicaciones del cliente</h3>
-          <p>{{ payload.note }}</p>
-        </div>
-        <ng-container *ngIf="payloadItems(payload) as items">
-          <div class="items-block" *ngIf="items.length">
-            <h3>Items solicitados</h3>
-            <ul>
-              <li *ngFor="let item of items; trackBy: trackByItem">
-                <span class="item-name">{{ item.name }}</span>
-                <span class="item-size" *ngIf="item.size">{{ item.size }}</span>
-                <span class="item-qty">{{ item.quantity }} m</span>
-              </li>
-            </ul>
-            <div class="items-summary">
-              <span>Total metros solicitados</span>
-              <strong>{{ totalItemsQuantity(items) }} m</strong>
-            </div>
-          </div>
-        </ng-container>
-      </ng-container>
-      <footer class="detail-actions">
-        <button type="button" class="ghost" (click)="openClienteModal(selection)">Historial del cliente</button>
-        <button type="button" class="ghost" (click)="goToClienteInfo(selection)">Ver ficha del cliente</button>
-        <button type="button" class="ghost" (click)="markSeen(selection)">Derivar a cotizaciones</button>
-        <button type="button" class="primary" (click)="sendToPayments(selection)">Enviar a pagos</button>
-      </footer>
     </section>
 
     <div class="cliente-modal-backdrop" *ngIf="clienteModalOpen()" (click)="closeClienteModal()">

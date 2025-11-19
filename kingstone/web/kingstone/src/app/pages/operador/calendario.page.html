@@ -6,9 +6,27 @@
         <p>Organiza las ordenes de trabajo y actualiza su avance.</p>
       </div>
       <div class="actions">
-        <ion-button fill="clear" color="medium" (click)="previousWeek()">Semana anterior</ion-button>
-        <ion-button fill="clear" color="medium" (click)="resetToday()">Semana actual</ion-button>
-        <ion-button fill="outline" color="primary" (click)="nextWeek()">Semana siguiente</ion-button>
+        <ion-button
+          [fill]="selectedView() === 'previous' ? 'solid' : 'clear'"
+          [color]="selectedView() === 'previous' ? 'primary' : 'medium'"
+          (click)="previousWeek()"
+        >
+          Semana anterior
+        </ion-button>
+        <ion-button
+          [fill]="selectedView() === 'current' ? 'solid' : 'clear'"
+          [color]="selectedView() === 'current' ? 'primary' : 'medium'"
+          (click)="resetToday()"
+        >
+          Semana actual
+        </ion-button>
+        <ion-button
+          [fill]="selectedView() === 'next' ? 'solid' : 'clear'"
+          [color]="selectedView() === 'next' ? 'primary' : 'medium'"
+          (click)="nextWeek()"
+        >
+          Semana siguiente
+        </ion-button>
       </div>
     </header>
 

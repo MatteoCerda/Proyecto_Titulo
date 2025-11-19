@@ -37,6 +37,7 @@ export class OperatorCalendarPage implements OnInit {
   readonly error = signal<string | null>(null);
   readonly workOrders = signal<CalendarWorkOrder[]>([]);
   readonly updatingId = signal<number | null>(null);
+  readonly selectedView = signal<'previous' | 'current' | 'next'>('current');
 
   private readonly stageLabels: Record<string, string> = {
     cola: 'En cola',
@@ -118,17 +119,20 @@ export class OperatorCalendarPage implements OnInit {
   async previousWeek(): Promise<void> {
     const start = this.addDays(this.rangeStart(), -7);
     this.rangeStart.set(this.startOfWeek(start));
+    this.selectedView.set('previous');
     await this.load();
   }
 
   async nextWeek(): Promise<void> {
     const start = this.addDays(this.rangeStart(), 7);
     this.rangeStart.set(this.startOfWeek(start));
+    this.selectedView.set('next');
     await this.load();
   }
 
   async resetToday(): Promise<void> {
     this.rangeStart.set(this.startOfWeek(new Date()));
+    this.selectedView.set('current');
     await this.load();
   }
 

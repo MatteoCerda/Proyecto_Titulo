@@ -98,9 +98,10 @@ export class MisPedidosPage implements OnInit {
         first.widthCm && first.heightCm
           ? `${first.widthCm} x ${first.heightCm} cm`
           : null;
+      const detailSize = size ? ` · ${size}` : '';
       return {
         name: first.name || 'Pedido personalizado',
-        detail: `${first.quantity ?? 1} piezas${size ? ` · ${size}` : ''}`
+        detail: `${first.quantity ?? 1} piezas${detailSize}`
       };
     }
     return null;
@@ -250,3 +251,4 @@ export class MisPedidosPage implements OnInit {
     return labels[estado] || estado;
   }
 }
+

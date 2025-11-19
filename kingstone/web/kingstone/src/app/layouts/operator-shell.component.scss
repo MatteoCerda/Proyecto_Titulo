@@ -384,6 +384,19 @@
   min-width: 780px;
 }
 
+.shell-content ::ng-deep .orders-card .orders-table {
+  overflow: visible !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  margin: 0 !important;
+}
+
+.shell-content ::ng-deep .orders-card .orders-table .table-head,
+.shell-content ::ng-deep .orders-card .orders-table .table-row {
+  min-width: 0 !important;
+}
+
 .shell-content ::ng-deep .orders-table .table-row {
   border-color: rgba(148, 163, 184, 0.15);
 }
