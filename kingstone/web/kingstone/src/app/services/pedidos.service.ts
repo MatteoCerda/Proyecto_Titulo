@@ -83,6 +83,7 @@ export interface CreatePedidoRequest {
     pixelArea?: number;
     trimmedWidthPx?: number;
     trimmedHeightPx?: number;
+    copyrightBrand?: string | null;
   }>;
   placements?: Array<{
     x: number;
@@ -98,6 +99,10 @@ export interface CreatePedidoRequest {
     clipPath?: string | null;
     rotation?: number;
   }>;
+  copyrightAlert?: {
+    hasFlag: boolean;
+    brands: string[];
+  };
 }
 
 export interface CartPedidoProduct {
@@ -295,6 +300,12 @@ export class PedidosService {
     payload: { tecnica: string; maquina?: string | null; programadoPara?: string | null; notas?: string | null }
   ): Observable<WorkOrderSummary> {
     return this.http.post<WorkOrderSummary>(`/api/pedidos/${pedidoId}/work-orders`, payload);
+  }
+
+  detectCopyright(file: File): Observable<{ brands: string[] }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ brands: string[] }>(`/api/pedidos/detect-copyright`, formData);
   }
 
   updateWorkOrder(

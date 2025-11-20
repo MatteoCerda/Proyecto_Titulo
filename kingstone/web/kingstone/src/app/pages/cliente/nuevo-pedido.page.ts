@@ -37,6 +37,7 @@ interface DesignItem {
   trimmedHeightPx?: number;
   pixelArea?: number;
   polygon: Float32Array | null;
+  copyrightBrand?: string | null;
 }
 
 interface PackingMeta {
@@ -106,12 +107,22 @@ export class NuevoPedidoPage implements OnDestroy {
   private packDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private latestPackRequest = 0;
   private readonly packResultState = signal<PackResult>({ placements: [], usedHeight: 0 });
+  private readonly brandKeywords: Record<string, string> = {
+    adidas: 'Adidas',
+    nike: 'Nike',
+    puma: 'Puma',
+    gucci: 'Gucci',
+    'north face': 'The North Face',
+    'the north face': 'The North Face'
+  };
 
   orderNote = '';
   submitting = false;
   submitFeedback: { type: 'success' | 'error'; message: string } | null = null;
   cartFeedback: { type: 'success' | 'error'; message: string } | null = null;
   private cartFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+  termsAccepted = false;
+  termsFeedback: string | null = null;
 
   materials: MaterialPreset[] = [
     { id: 'dtf-57', label: 'DTF 57 cm', description: 'Impresion a todo color para prendas claras y oscuras.', rollWidthCm: 57, pricePerMeter: 13000 },
@@ -132,6 +143,15 @@ export class NuevoPedidoPage implements OnDestroy {
   materialDescription = computed(() => this.currentMaterial()?.description ?? '');
   packing = signal(false);
   packResult = computed(() => this.packResultState());
+  copyrightDetections = computed(() => {
+    const found = new Set<string>();
+    this.items().forEach(item => {
+      if (item.copyrightBrand) {
+        found.add(item.copyrightBrand);
+      }
+    });
+    return Array.from(found);
+  });
 
   constructor() {
     this.packWorker = new Worker(new URL('../../workers/packer.worker', import.meta.url), { type: 'module' });
@@ -316,6 +336,10 @@ export class NuevoPedidoPage implements OnDestroy {
     event.preventDefault();
   }
 
+  hasCopyrightFlags(): boolean {
+    return this.copyrightDetections().length > 0;
+  }
+
   saveQuoteToCart() {
     if (this.items().length === 0) {
       this.setCartFeedback('error', 'Agrega al menos un diseño antes de guardar la cotización.');
@@ -368,6 +392,11 @@ export class NuevoPedidoPage implements OnDestroy {
   }
 
   private async appendFiles(fileList: FileList | null | undefined) {
+    if (!this.termsAccepted) {
+      this.termsFeedback = 'Debes aceptar los términos y condiciones sobre uso de logotipos antes de subir archivos.';
+      return;
+    }
+    this.termsFeedback = null;
     if (!fileList || fileList.length === 0) return;
     const available = Math.max(0, 20 - this.items().length);
     if (available === 0) return;
@@ -417,6 +446,7 @@ export class NuevoPedidoPage implements OnDestroy {
     if (file.type.startsWith('image/')) {
       const processed = await this.makeTransparentPreview(file);
       const aspect = processed?.aspectRatio ?? 1;
+      const detectedBrand = await this.detectBrand(file);
       const base: DesignItem = {
         id: this.nextId++,
         file,
@@ -434,11 +464,13 @@ export class NuevoPedidoPage implements OnDestroy {
         trimmedWidthPx: processed?.trimmedWidth ?? undefined,
         trimmedHeightPx: processed?.trimmedHeight ?? undefined,
         pixelArea: processed?.pixelArea ?? undefined,
-        polygon: processed?.polygon ?? this.defaultPolygon
+        polygon: processed?.polygon ?? this.defaultPolygon,
+        copyrightBrand: detectedBrand
       };
       return this.withWidth(base, base.sizeCm);
     }
 
+    const detectedBrand = await this.detectBrand(file);
     const fallback: DesignItem = {
       id: this.nextId++,
       file,
@@ -456,7 +488,8 @@ export class NuevoPedidoPage implements OnDestroy {
       trimmedWidthPx: undefined,
       trimmedHeightPx: undefined,
       pixelArea: undefined,
-      polygon: this.defaultPolygon
+      polygon: this.defaultPolygon,
+      copyrightBrand: detectedBrand
     };
     return this.withWidth(fallback, fallback.sizeCm);
   }
@@ -802,13 +835,20 @@ export class NuevoPedidoPage implements OnDestroy {
     try {
       const pack = this.packResult();
       const designItems = this.items();
+      const flaggedBrands = this.copyrightDetections();
+      const manualNote = this.orderNote.trim() ? this.orderNote.trim() : null;
+      const autoNote = flaggedBrands.length
+        ? `AUTO: Detectamos posibles marcas registradas (${flaggedBrands.join(', ')}). El operador debe confirmar permisos antes de producir.`
+        : null;
+      const finalNoteParts = [manualNote, autoNote].filter((part): part is string => !!part);
+      const finalNote = finalNoteParts.length ? finalNoteParts.join('\n\n') : null;
       const payload: CreatePedidoRequest = {
         materialId: material.id,
         materialLabel: material.label,
         materialWidthCm: material.rollWidthCm,
         usedHeight: pack.usedHeight,
         totalPrice: this.totalPrice(),
-        note: this.orderNote.trim() ? this.orderNote.trim() : undefined,
+        note: finalNote ?? undefined,
         items: designItems.map(item => {
           const dims = this.getEffectiveDimensions(item);
           return {
@@ -822,7 +862,8 @@ export class NuevoPedidoPage implements OnDestroy {
             outlinePath: item.outlinePath ?? undefined,
             pixelArea: typeof item.pixelArea === 'number' ? Math.round(item.pixelArea) : undefined,
             trimmedWidthPx: item.trimmedWidthPx ?? undefined,
-            trimmedHeightPx: item.trimmedHeightPx ?? undefined
+            trimmedHeightPx: item.trimmedHeightPx ?? undefined,
+            copyrightBrand: item.copyrightBrand ?? undefined
           };
         }),
         placements: pack.placements.map(cell => ({
@@ -837,7 +878,8 @@ export class NuevoPedidoPage implements OnDestroy {
           copyIndex: cell.copyIndex,
           clipPath: cell.clipPath ?? undefined,
           rotation: cell.rotation
-        }))
+        })),
+        copyrightAlert: flaggedBrands.length ? { hasFlag: true, brands: flaggedBrands } : undefined
       };
 
       const created = await firstValueFrom(this.pedidos.createPedido(payload));
@@ -897,6 +939,8 @@ export class NuevoPedidoPage implements OnDestroy {
     this.previewImage.set(null);
     this.orderNote = '';
     this.nextId = 1;
+    this.termsAccepted = false;
+    this.termsFeedback = null;
   }
 
   removeItem(id: number) {
@@ -1283,6 +1327,49 @@ export class NuevoPedidoPage implements OnDestroy {
     this.cartFeedbackTimer = setTimeout(() => {
       this.cartFeedback = null;
     }, 4000);
+  }
+
+  private async detectBrand(file: File): Promise<string | null> {
+    try {
+      const response = await firstValueFrom(this.pedidos.detectCopyright(file));
+      const match = response?.brands?.[0];
+      if (match) {
+        return match;
+      }
+    } catch (error) {
+      console.warn('Fallo analizando copyright en backend', error);
+    }
+    return this.detectBrandLocally(file);
+  }
+
+  private async detectBrandLocally(file: File): Promise<string | null> {
+    const byName = this.matchBrand((file.name || '').toLowerCase());
+    if (byName) {
+      return byName;
+    }
+    const mime = file.type?.toLowerCase() ?? '';
+    if (mime.includes('svg') || mime.includes('text') || mime.includes('pdf')) {
+      try {
+        const textContent = (await file.text()).toLowerCase();
+        const byText = this.matchBrand(textContent);
+        if (byText) {
+          return byText;
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+    return null;
+  }
+
+  private matchBrand(content: string): string | null {
+    if (!content) return null;
+    for (const keyword of Object.keys(this.brandKeywords)) {
+      if (content.includes(keyword)) {
+        return this.brandKeywords[keyword];
+      }
+    }
+    return null;
   }
 }
 

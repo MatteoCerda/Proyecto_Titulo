@@ -79,6 +79,32 @@ nav { display:flex; flex-direction:column; gap:10px; }
 .upload-box strong { font-size:22px; color:#ffe082; }
 .upload-box input { display:none; }
 .upload-box small { font-size:14px; color:#94a3b8; }
+.terms-box {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  background:rgba(15,29,44,0.4);
+  border:1px solid rgba(148,163,184,0.25);
+  border-radius:14px;
+  padding:14px;
+}
+.terms-control {
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  font-size:14px;
+  color:#dbeafe;
+}
+.terms-control input[type="checkbox"] {
+  width:18px;
+  height:18px;
+  margin-top:2px;
+  accent-color:#ffe082;
+}
+.terms-error {
+  color:#fca5a5;
+  font-size:13px;
+}
 
 .item-list { display:flex; flex-direction:column; gap:14px; }
 .item-card {
@@ -131,6 +157,18 @@ nav { display:flex; flex-direction:column; gap:10px; }
 .placeholder { color:#e2e8f0; font-size:12px; text-align:center; padding:8px; }
 .info { flex:1; display:flex; flex-direction:column; gap:12px; }
 .info .name { font-weight:600; font-size:16px; }
+.copyright-pill {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  background:rgba(250,204,21,0.15);
+  border:1px solid rgba(250,204,21,0.6);
+  color:#facc15;
+  border-radius:999px;
+  padding:4px 10px;
+  font-size:13px;
+  font-weight:600;
+}
 .controls { display:flex; flex-wrap:wrap; gap:22px; align-items:flex-start; }
 .size-section { display:flex; flex-direction:column; gap:12px; flex:1 1 260px; }
 .size-section-title { font-size:15px; font-weight:600; color:#ffe082; }
@@ -466,6 +504,17 @@ nav { display:flex; flex-direction:column; gap:10px; }
 .tips { background:#0e1d2c; border-radius:18px; padding:20px 24px; border:1px solid rgba(148,163,184,0.2); }
 .tips h3 { margin:0 0 10px; font-size:20px; }
 .tips ul { margin:0; padding-left:20px; color:#cbd5f5; font-size:16px; }
+.copyright-alert {
+  background:#1c2e44;
+  border:1px solid rgba(250,204,21,0.4);
+  border-radius:18px;
+  padding:18px 22px;
+  color:#fef3c7;
+}
+.copyright-alert strong { display:block; font-size:18px; margin-bottom:6px; }
+.copyright-alert p { margin:0 0 6px; }
+.copyright-alert span { font-weight:700; }
+.copyright-alert small { color:#fcd34d; }
 
 .preview-modal {
   position:fixed;

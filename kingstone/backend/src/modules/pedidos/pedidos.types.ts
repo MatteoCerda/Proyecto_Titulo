@@ -11,7 +11,8 @@ const itemSchema = z.object({
   outlinePath: z.string().max(20000).optional().or(z.null()).optional(),
   pixelArea: z.number().nonnegative().optional(),
   trimmedWidthPx: z.number().nonnegative().optional(),
-  trimmedHeightPx: z.number().nonnegative().optional()
+  trimmedHeightPx: z.number().nonnegative().optional(),
+  copyrightBrand: z.string().max(120).optional().or(z.null()).optional()
 });
 
 const placementSchema = z.object({
@@ -29,6 +30,11 @@ const placementSchema = z.object({
   copyIndex: z.number().int().optional()
 });
 
+const copyrightAlertSchema = z.object({
+  hasFlag: z.boolean().optional(),
+  brands: z.array(z.string()).optional()
+}).optional();
+
 export const createDesignerSchema = z.object({
   materialId: z.string().min(1),
   materialLabel: z.string().min(1),
@@ -37,7 +43,8 @@ export const createDesignerSchema = z.object({
   totalPrice: z.number().nonnegative(),
   note: z.string().max(600).optional(),
   items: z.array(itemSchema).min(1),
-  placements: z.array(placementSchema).optional()
+  placements: z.array(placementSchema).optional(),
+  copyrightAlert: copyrightAlertSchema
 });
 
 export const cartProductSchema = z.object({

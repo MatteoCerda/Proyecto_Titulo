@@ -25,6 +25,7 @@ import { calculateTaxBreakdown, DEFAULT_CURRENCY, TAX_RATE } from '../common/pri
 import { sendEmail } from '../../lib/email';
 import * as pedidosController from './pedidos.controller';
 import type { JwtUser } from './pedidos.service';
+import { detectBrandsFromFile, appendCopyrightBrandsToPedido } from './copyright.service';
 
 const router = Router();
 type DbClient = Prisma.TransactionClient | PrismaClient;
@@ -1988,6 +1989,25 @@ router.get('/:id/files/:fileId', async (req, res) => {
   } catch (error) {
     console.error('Error descargando archivo de pedido', error);
     res.status(500).json({ message: 'Error interno' });
+  }
+});
+
+router.post('/detect-copyright', upload.single('file'), async (req, res) => {
+  const file = req.file;
+  if (!file || !file.path) {
+    return res.status(400).json({ message: 'Debes adjuntar un archivo' });
+  }
+  try {
+    const brands = await detectBrandsFromFile({
+      filePath: file.path,
+      originalName: file.originalname || file.filename
+    });
+    res.json({ brands });
+  } catch (error) {
+    console.error('Error detectando marcas registradas', error);
+    res.status(500).json({ message: 'No se pudo analizar el archivo' });
+  } finally {
+    await fsPromises.unlink(file.path).catch(() => undefined);
   }
 });
 

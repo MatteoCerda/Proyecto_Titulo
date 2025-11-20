@@ -7,6 +7,10 @@ import {
   extractMaterialWidthFromPedido,
   recomputePedidoAggregates
 } from '../modules/pedidos/pedidos.routes';
+import {
+  detectBrandsFromFile,
+  appendCopyrightBrandsToPedido
+} from '../modules/pedidos/copyright.service';
 
 type FileJobPayload = {
   files: Array<{
@@ -150,6 +154,7 @@ async function processJob(jobId: number) {
     file: FileJobPayload['files'][number];
     buffer: Buffer;
     metrics: { widthCm: number; heightCm: number; areaCm2: number; lengthCm: number };
+    brands: string[];
   }> = [];
 
   for (const file of payload.files) {
@@ -166,8 +171,17 @@ async function processJob(jobId: number) {
       effectiveMaterialId,
       effectiveFallbackWidth
     );
-    prepared.push({ file, buffer, metrics });
+    const brands = await detectBrandsFromFile({
+      filePath: file.path,
+      originalName: file.originalName
+    });
+    prepared.push({ file, buffer, metrics, brands });
   }
+
+  const aggregatedBrands = new Set<string>();
+  prepared.forEach(entry => {
+    entry.brands.forEach(brand => aggregatedBrands.add(brand));
+  });
 
   await prisma.$transaction(async tx => {
     for (const entry of prepared) {
@@ -187,6 +201,10 @@ async function processJob(jobId: number) {
     }
 
     await recomputePedidoAggregates(job.pedidoId, tx);
+
+    if (aggregatedBrands.size) {
+      await appendCopyrightBrandsToPedido(job.pedidoId, Array.from(aggregatedBrands), tx);
+    }
   });
 
   for (const entry of prepared) {

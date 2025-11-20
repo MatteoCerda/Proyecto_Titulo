@@ -37,6 +37,15 @@
           <span>o presiona para buscar en tu equipo</span>
           <small>Formatos: PNG, JPG, SVG o PDF. Maximo 20 archivos.</small>
         </label>
+        <div class="terms-box">
+          <label class="terms-control">
+            <input type="checkbox" [(ngModel)]="termsAccepted" (ngModelChange)="termsFeedback = null">
+            <span>
+              Declaro que cuento con la autorizaci&oacute;n para usar logos o marcas registradas y eximo a Kingstone Estampados de cualquier responsabilidad por su uso.
+            </span>
+          </label>
+          <small *ngIf="termsFeedback" class="terms-error">{{ termsFeedback }}</small>
+        </div>
 
         <div *ngIf="items().length > 0" class="item-list">
           <article *ngFor="let item of items(); index as idx" class="item-card">
@@ -55,6 +64,9 @@
             </div>
             <div class="info">
               <div class="name">{{ item.displayName }}</div>
+              <div class="copyright-pill" *ngIf="item.copyrightBrand">
+                Posible marca detectada: {{ item.copyrightBrand | titlecase }}
+              </div>
               <div class="controls">
                 <div class="size-section">
                   <span class="size-section-title">Control de tamano</span>
@@ -189,6 +201,15 @@
         <p class="panel-empty" *ngIf="panelCells().length === 0">
           Agrega imagenes o reduce su tamano para visualizar como quedaran en el material.
         </p>
+      </section>
+
+      <section class="copyright-alert" *ngIf="hasCopyrightFlags()">
+        <strong>Advertencia de copyright</strong>
+        <p>
+          Detectamos posibles marcas registradas en tus archivos:
+          <span>{{ copyrightDetections().join(', ') }}</span>.
+        </p>
+        <small>El operador revisar&aacute; esta solicitud y podr&iacute;a rechazarla si no cuentas con los permisos.</small>
       </section>
 
       <section class="summary">
