@@ -85,7 +85,7 @@ type FrequentClientSummary = {
                   <div class="avatar">{{ initials(order.cliente) }}</div>
                   <div>
                     <strong>{{ order.cliente }}</strong>
-                    <small>Cotizaci&oacute;n #{{ order.id }}</small>
+                    <small>Ingresado el {{ order.createdAt | date:'dd/MM/yyyy' }}</small>
                     <span class="chip" *ngIf="order.notificado !== false">Nuevo</span>
                   </div>
                 </div>

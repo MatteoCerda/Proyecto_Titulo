@@ -73,7 +73,7 @@
             <article class="order" *ngFor="let order of orders()">
               <header>
                 <div>
-                  <strong>#{{ order.id }}</strong>
+                  <strong>{{ mainItemOf(order)?.name || 'Pedido personalizado' }}</strong>
                   <small>Creado el {{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</small>
                 </div>
                 <div class="order-header-actions">
@@ -172,4 +172,7 @@
     </main>
   </div>
 </ion-content>
+
+
+
 

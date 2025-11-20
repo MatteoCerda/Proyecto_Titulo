@@ -86,7 +86,20 @@ addIcons({ cartOutline, searchOutline, personOutline });
 
         <!-- Centro: menú -->
 
-        <nav class="ks-nav" style="color:#ffffff;">
+        <button
+          type="button"
+          class="ks-hamburger"
+          [class.open]="mobileMenuOpen"
+          (click)="toggleMobileMenu()"
+          aria-label="Abrir o cerrar el menú principal"
+          [attr.aria-expanded]="mobileMenuOpen"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="ks-nav desktop-nav" style="color:#ffffff;">
 
           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
 
@@ -134,6 +147,27 @@ addIcons({ cartOutline, searchOutline, personOutline });
       >
       </ion-searchbar>
     </ion-toolbar>
+
+      <div class="ks-mobile-menu" *ngIf="mobileMenuOpen">
+        <div class="ks-mobile-panel">
+          <button type="button" class="ks-close-menu" (click)="closeMobileMenu()" aria-label="Cerrar menú">
+            <span></span>
+            <span></span>
+          </button>
+          <div class="ks-mobile-panel-links">
+            <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="handleNavLink()">Inicio</a>
+            <a routerLink="/productos" routerLinkActive="active" (click)="handleNavLink()">Productos</a>
+            <a routerLink="/somos" routerLinkActive="active" (click)="handleNavLink()">Nosotros</a>
+            <a routerLink="/crea-tu-diseno" routerLinkActive="active" (click)="handleNavLink()">Crea tu dise&ntilde;o</a>
+            <a href="https://wa.me/56986412218" target="_blank" rel="noopener" (click)="handleNavLink()">Cont&aacute;ctanos</a>
+        </div>
+      </div>
+      <div
+        class="ks-nav-backdrop"
+        (click)="closeMobileMenu()"
+        aria-hidden="true"
+      ></div>
+    </div>
   </ion-header>
 
   <!-- === CONTENIDO (sin ion-content para evitar doble scroll) === -->
@@ -208,8 +242,15 @@ export class KingstoneLayoutComponent {
   showSearch = false;
   showUserMenu = false;
   cartCount = this.cart.totalItems;
+  mobileMenuOpen = false;
+  private previousBodyOverflow: string | null = null;
   private footerHidden = false;
   private lastTouchY: number | null = null;
+  private handleWindowResize = () => {
+    if (window.innerWidth > 1024 && this.mobileMenuOpen) {
+      this.updateMobileMenu(false);
+    }
+  };
   // Template refs to measure header/footer and set content offsets
   // Note: ViewChild is typed at runtime via Angular; keep as any to avoid SSR issues
   // Using non-strict here deliberately
@@ -220,6 +261,7 @@ export class KingstoneLayoutComponent {
     window.addEventListener('wheel', this.onWheel as any, { passive: true } as any);
     window.addEventListener('touchstart', this.onTouchStart as any, { passive: true } as any);
     window.addEventListener('touchmove', this.onTouchMove as any, { passive: true } as any);
+    window.addEventListener('resize', this.handleWindowResize as any);
     const applyOffsets = () => {
       const h = document.querySelector('ion-header.ks-header') as HTMLElement | null;
       const f = document.querySelector('ion-footer.ks-footer') as HTMLElement | null;
@@ -236,6 +278,8 @@ export class KingstoneLayoutComponent {
     window.removeEventListener('wheel', this.onWheel as any);
     window.removeEventListener('touchstart', this.onTouchStart as any);
     window.removeEventListener('touchmove', this.onTouchMove as any);
+    window.removeEventListener('resize', this.handleWindowResize as any);
+    this.updateMobileMenu(false);
     document.body.classList.remove('footer-hidden');
   }
 
@@ -269,6 +313,51 @@ export class KingstoneLayoutComponent {
 
   toggleSearch() {
     this.showSearch = !this.showSearch;
+  }
+
+  openSearchFromMenu() {
+    this.closeMobileMenu();
+    this.showSearch = true;
+  }
+
+  toggleMobileMenu() {
+    this.updateMobileMenu(!this.mobileMenuOpen);
+  }
+
+  closeMobileMenu() {
+    this.updateMobileMenu(false);
+  }
+
+  handleNavLink() {
+    this.closeMobileMenu();
+  }
+
+  goToAccount() {
+    this.closeMobileMenu();
+    this.onProfileClick();
+  }
+
+  private updateMobileMenu(open: boolean) {
+    if (this.mobileMenuOpen === open) {
+      return;
+    }
+    this.mobileMenuOpen = open;
+    this.lockBodyScroll(open);
+  }
+
+  private lockBodyScroll(lock: boolean) {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    if (lock) {
+      if (this.previousBodyOverflow === null) {
+        this.previousBodyOverflow = document.body.style.overflow || '';
+      }
+      document.body.style.overflow = 'hidden';
+    } else if (this.previousBodyOverflow !== null) {
+      document.body.style.overflow = this.previousBodyOverflow;
+      this.previousBodyOverflow = null;
+    }
   }
 
   onSearch(ev: any) {

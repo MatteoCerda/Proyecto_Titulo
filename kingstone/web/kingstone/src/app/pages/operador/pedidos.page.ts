@@ -47,7 +47,7 @@ import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/
             <div class="avatar">{{ initials(order.cliente) }}</div>
             <div>
               <strong>{{ order.cliente }}</strong>
-              <small>Pedido #{{ order.id }}</small>
+              <small>Creado el {{ order.createdAt | date:'dd/MM/yyyy' }}</small>
             </div>
           </div>
           <div class="cell">
@@ -327,7 +327,17 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
       } else {
-        data = await firstValueFrom(this.pedidos.listByStatus('EN_REVISION'));
+        const [pendientes, enRevision] = await Promise.all([
+          firstValueFrom(this.pedidos.listByStatus('PENDIENTE')),
+          firstValueFrom(this.pedidos.listByStatus('EN_REVISION'))
+        ]);
+        const merged = new Map<number, PedidoResumen>();
+        for (const list of [pendientes, enRevision]) {
+          list?.forEach(item => merged.set(item.id, item));
+        }
+        data = Array.from(merged.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       }
       this.orders.set(data);
       this.error.set(null);
