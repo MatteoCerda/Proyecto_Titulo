@@ -90,7 +90,7 @@
                   <span>Total</span>
                   <strong>{{ formatCurrency(totalAmountOf(order)) }}</strong>
                 </div>
-                <div class="summary-block state-block">
+                <div class="summary-block state-block" [class.rejected]="order.estado === 'RECHAZADO'">
                   <span>Estado</span>
                   <strong>{{ labelEstado(order.estado) }}</strong>
                   <small *ngIf="readyStageLabel(order)">{{ readyStageLabel(order) }}</small>
@@ -120,6 +120,9 @@
                   <p class="note-text">{{ noteOf(order) }}</p>
                 </section>
                 <div class="order-actions">
+                  <ion-button fill="outline" color="medium" (click)="openTransferModal(order)" *ngIf="canPay(order)">
+                    Transferencia
+                  </ion-button>
                   <ion-button color="primary" (click)="payOrder(order)" *ngIf="canPay(order)" [disabled]="isPaying(order)">
                     <ion-spinner *ngIf="isPaying(order)" name="lines-small"></ion-spinner>
                     <span *ngIf="!isPaying(order)">Pagar con Webpay</span>
@@ -127,6 +130,27 @@
                   </ion-button>
                   <small *ngIf="canPay(order)">Seras redirigido a Webpay para ingresar la tarjeta de prueba.</small>
                 </div>
+                <section class="order-section transfer-section" *ngIf="transferPaymentOf(order) as transfer">
+                  <h4>Pago por transferencia</h4>
+                  <div class="transfer-status" [class.pending]="transfer.status === 'pending'" [class.approved]="transfer.status === 'approved'" [class.rejected]="transfer.status === 'rejected'">
+                    {{ transferStatusLabel(transfer.status) }}
+                  </div>
+                  <p class="note-text" *ngIf="transfer.notes">{{ transfer.notes }}</p>
+                  <p class="note-text operator-note" *ngIf="transfer.operator?.note">
+                    Operador: {{ transfer.operator.note }}
+                  </p>
+                  <small *ngIf="transferSubmittedAt(transfer) as submitted; else pendingTransfer">
+                    Enviado el {{ submitted | date:'dd/MM/yyyy HH:mm' }}
+                  </small>
+                  <ng-template #pendingTransfer>
+                    <small>Registro recibido.</small>
+                  </ng-template>
+                </section>
+                <section class="order-section" *ngIf="operatorDecisionOf(order) as decision">
+                  <h4>Resoluci&oacute;n del operador</h4>
+                  <p class="note-text">{{ decision.reason }}</p>
+                  <small *ngIf="decision.decidedAt">Registrado el {{ decision.decidedAt | date:'dd/MM/yyyy HH:mm' }}</small>
+                </section>
                 <section class="order-section" *ngIf="productsOf(order).length">
                   <h4>Productos del catalogo</h4>
                   <ul>
@@ -170,6 +194,51 @@
         </div>
       </ng-container>
     </main>
+  </div>
+
+  <div class="transfer-modal-backdrop" *ngIf="transferModalOpen()" (click)="closeTransferModal()">
+    <div class="transfer-modal" (click)="$event.stopPropagation()">
+      <header>
+        <div>
+          <h3>Datos para transferencia</h3>
+          <p>Sube el comprobante para que validemos tu pago.</p>
+        </div>
+        <button type="button" class="ghost" (click)="closeTransferModal()">Cerrar</button>
+      </header>
+      <section class="bank-info" *ngIf="transferInfo() as info; else bankFallback">
+        <ul>
+          <li><span>Banco</span><strong>{{ info.bankName }}</strong></li>
+          <li><span>Nombre</span><strong>{{ info.accountName }}</strong></li>
+          <li><span>RUT</span><strong>{{ info.accountRut }}</strong></li>
+          <li><span>Tipo</span><strong>{{ info.accountType }}</strong></li>
+          <li><span>Número</span><strong>{{ info.accountNumber }}</strong></li>
+        </ul>
+        <p class="muted" *ngIf="info.instructions">{{ info.instructions }}</p>
+      </section>
+      <ng-template #bankFallback>
+        <p class="muted">No pudimos cargar los datos bancarios. Intenta nuevamente en unos segundos.</p>
+      </ng-template>
+      <form [formGroup]="transferForm" (ngSubmit)="submitTransferNotification()" class="transfer-form">
+        <label>Monto transferido</label>
+        <input type="number" formControlName="amount" placeholder="$" />
+        <label>N&uacute;mero de operaci&oacute;n</label>
+        <input type="text" formControlName="operationNumber" placeholder="Identificador del banco" />
+        <label>Fecha y hora</label>
+        <input type="datetime-local" formControlName="transferDate" />
+        <label>Comentarios para el operador (opcional)</label>
+        <textarea rows="2" formControlName="notes" placeholder="Ej: Comprobante adjunto desde mi banco"></textarea>
+        <label>Comprobante (PDF o imagen)</label>
+        <input type="file" (change)="onTransferFileChange($event)" accept=".pdf,image/png,image/jpeg" />
+        <div class="form-error" *ngIf="transferError()">{{ transferError() }}</div>
+        <div class="transfer-actions">
+          <button type="button" class="ghost" (click)="closeTransferModal()" [disabled]="transferSubmitting()">Cancelar</button>
+          <button type="submit" class="primary" [disabled]="transferSubmitting()">
+            <ion-spinner *ngIf="transferSubmitting()" name="lines-small"></ion-spinner>
+            <span *ngIf="!transferSubmitting()">Enviar comprobante</span>
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </ion-content>
 

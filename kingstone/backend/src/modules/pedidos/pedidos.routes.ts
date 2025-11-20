@@ -69,6 +69,15 @@ const upload = multer({
   }
 });
 const DEFAULT_IMAGE_DPI = 300;
+const rejectPedidoSchema = z.object({
+  reason: z
+    .string({
+      required_error: 'Debes indicar el motivo'
+    })
+    .trim()
+    .min(5, 'Describe por que se rechaza')
+    .max(600, 'El motivo no puede superar 600 caracteres')
+});
 
 function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -2125,6 +2134,54 @@ router.post('/:id/files', upload.array('files', 10), async (req, res) => {
     }
     console.error('Error subiendo archivos de pedido', error);
     res.status(500).json({ message: 'Error interno' });
+  }
+});
+
+router.post('/:id/reject', async (req, res) => {
+  try {
+    const user = (req as any).user as JwtUser | undefined;
+    if (!isOperator(user?.role)) {
+      return res.status(403).json({ message: 'Requiere rol operador' });
+    }
+    const userId = user?.sub ? Number(user.sub) : null;
+    const id = Number(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: 'ID invalido' });
+    }
+    const parsed = rejectPedidoSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues?.[0]?.message || 'Motivo invalido' });
+    }
+    const pedido = await prisma.pedido.findUnique({ where: { id } });
+    if (!pedido) {
+      return res.status(404).json({ message: 'Pedido no encontrado' });
+    }
+    if (pedido.estado === 'RECHAZADO') {
+      return res.status(400).json({ message: 'El pedido ya esta rechazado' });
+    }
+    const payloadObj: Record<string, any> = (parsePayload(pedido.payload) as Record<string, any> | null) ?? {};
+    payloadObj.operatorDecision = {
+      type: 'copyright',
+      reason: parsed.data.reason,
+      decidedAt: new Date().toISOString(),
+      decidedBy: userId
+    };
+    const updated = await prisma.pedido.update({
+      where: { id },
+      data: {
+        estado: 'RECHAZADO',
+        notificado: true,
+        payload: payloadObj
+      },
+      select: {
+        id: true,
+        estado: true
+      }
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error('Error rechazando pedido', error);
+    res.status(500).json({ message: 'No se pudo rechazar el pedido' });
   }
 });
 

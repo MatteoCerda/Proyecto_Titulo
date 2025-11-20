@@ -14,7 +14,7 @@ import operatorRoutes from './modules/operator/operator.routes';
 import catalogoRoutes from './modules/catalogo/catalogo.routes';
 import offersRoutes from './modules/offers/offers.routes';
 import { operatorGuard } from './modules/common/middlewares/operatorGuard';
-import paymentsRoutes from './modules/payments/webpay.routes';
+import paymentsRoutes from './modules/payments/payments.routes';
 import { webpayReturnBridge } from './modules/payments/webpay.controller';
 
 

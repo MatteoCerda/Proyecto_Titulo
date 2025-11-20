@@ -1,10 +1,11 @@
 
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, effect, inject, signal, EffectRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/pedidos.service';
+import { PaymentsService } from '../../services/payments.service';
 
 @Component({
   standalone: true,
@@ -33,7 +34,7 @@ import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/
         </div>
       </div>
 
-      <section class="orders-table" *ngIf="orders().length > 0; else emptyState">
+      <section class="orders-table" *ngIf="displayedOrders().length > 0; else emptyState">
         <div class="table-head">
           <span>Nombre de usuario</span>
           <span>Correo electronico</span>
@@ -42,7 +43,7 @@ import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/
           <span>Acciones</span>
         </div>
 
-        <div class="table-row" *ngFor="let order of orders(); trackBy: trackById" (click)="select(order)">
+      <div class="table-row" *ngFor="let order of displayedOrders(); trackBy: trackById" (click)="select(order)">
           <div class="cell user">
             <div class="avatar">{{ initials(order.cliente) }}</div>
             <div>
@@ -65,11 +66,16 @@ import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/
               Enviar a pagos
             </button>
           </div>
-        </div>
-      </section>
+      </div>
+    </section>
+    <div class="pagination" *ngIf="view === 'pagos' && pageCount() > 1 && orders().length">
+      <button type="button" class="ghost" [disabled]="currentPage() === 1" (click)="prevPage()">Anterior</button>
+      <span>Pagina {{ currentPage() }} de {{ pageCount() }}</span>
+      <button type="button" class="ghost" [disabled]="currentPage() === pageCount()" (click)="nextPage()">Siguiente</button>
+    </div>
 
-      <ng-template #emptyState>
-        <div class="empty">
+    <ng-template #emptyState>
+      <div class="empty">
           <h3>No hay pedidos en esta bandeja</h3>
           <p>{{ emptyMessage() }}</p>
           <button type="button" (click)="refresh()">Actualizar ahora</button>
@@ -153,6 +159,42 @@ import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/
         <p class="muted" *ngIf="!loadingAttachments() && !attachments().length && !attachmentsError()">No encontramos archivos adjuntos. Si el cliente los subio hace poco, actualiza en unos segundos.</p>
       </section>
 
+      <section class="transfer-review" *ngIf="view === 'pagos' && transferPaymentOf(selection) as transfer">
+        <header class="transfer-header">
+          <h3>Transferencia reportada</h3>
+          <span class="status-tag" [ngClass]="transfer.status">{{ transferStatusLabel(transfer.status) }}</span>
+        </header>
+        <div class="transfer-meta">
+          <p><strong>Monto:</strong> {{ formatCurrency(transfer.amount || 0) }}</p>
+          <p *ngIf="transfer.operationNumber"><strong>Operaci&oacute;n:</strong> {{ transfer.operationNumber }}</p>
+          <p *ngIf="transfer.submittedAt || transfer.submitted_at">
+            <strong>Recibido:</strong> {{ (transfer.submittedAt || transfer.submitted_at) | date:'dd/MM/yyyy HH:mm' }}
+          </p>
+        </div>
+        <p class="muted" *ngIf="transfer.notes">{{ transfer.notes }}</p>
+        <p class="muted" *ngIf="transfer.operator?.note">
+          Operador: {{ transfer.operator.note }}
+        </p>
+        <div class="transfer-buttons">
+          <button type="button" class="ghost" (click)="downloadTransferReceipt(selection, $event)" [disabled]="downloadingReceipt() || !transfer.receipt">
+            {{ downloadingReceipt() ? 'Descargando...' : 'Descargar comprobante' }}
+          </button>
+        </div>
+        <div class="alert error" *ngIf="transferActionError()">{{ transferActionError() }}</div>
+        <form class="transfer-decision" *ngIf="transfer.status === 'pending'" [formGroup]="transferDecisionForm">
+          <label for="transfer-note">Mensaje al cliente</label>
+          <textarea id="transfer-note" rows="2" formControlName="note" placeholder="Notas para el cliente al validar el pago"></textarea>
+          <div class="transfer-action-buttons">
+            <button type="button" class="ghost" (click)="rejectTransfer(selection, $event)" [disabled]="transferActionLoading() === 'approve'">
+              {{ transferActionLoading() === 'reject' ? 'Rechazando...' : 'Rechazar comprobante' }}
+            </button>
+            <button type="button" class="primary" (click)="approveTransfer(selection, $event)" [disabled]="transferActionLoading() === 'reject'">
+              {{ transferActionLoading() === 'approve' ? 'Aprobando...' : 'Confirmar pago' }}
+            </button>
+          </div>
+        </form>
+      </section>
+
       <section class="work-order-section" *ngIf="view === 'pagos'">
         <ng-container *ngIf="selection.workOrder as workOrder; else createWorkOrderTpl">
           <header class="work-order-header">
@@ -223,6 +265,14 @@ import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/
 
       <div class="detail-actions" *ngIf="view === 'cotizaciones'">
         <button type="button" class="primary" (click)="sendToPayments(selection, $event)">Enviar a pagos</button>
+        <button
+          type="button"
+          class="ghost danger"
+          *ngIf="canRejectForCopyright(selection)"
+          (click)="rejectForCopyright(selection, $event)"
+        >
+          Rechazar por copyright
+        </button>
       </div>
     </section>
   `,
@@ -230,6 +280,7 @@ import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/
 })
 export class OperatorOrdersPage implements OnInit, OnDestroy {
   private readonly pedidos = inject(PedidosService);
+  private readonly payments = inject(PaymentsService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
@@ -257,6 +308,24 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
   readonly loadingAttachments = signal(false);
   readonly attachmentsError = signal<string | null>(null);
   readonly downloadingAttachmentId = signal<number | null>(null);
+  readonly pageSize = 5;
+  readonly currentPage = signal(1);
+  readonly pageCount = computed(() => {
+    if (this.view !== 'pagos') {
+      return 1;
+    }
+    const total = this.orders().length;
+    return Math.max(1, Math.ceil(total / this.pageSize));
+  });
+  readonly displayedOrders = computed(() => {
+    const ordered = this.orders();
+    if (this.view !== 'pagos') {
+      return ordered;
+    }
+    const page = this.currentPage();
+    const start = (page - 1) * this.pageSize;
+    return ordered.slice(start, start + this.pageSize);
+  });
 
   readonly createWorkOrderForm = this.fb.group({
     tecnica: ['', Validators.required],
@@ -271,10 +340,16 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
     programadoPara: [''],
     notas: ['']
   });
+  readonly transferDecisionForm = this.fb.group({
+    note: ['']
+  });
 
   readonly creatingWorkOrder = signal(false);
   readonly updatingWorkOrder = signal(false);
   readonly workOrderError = signal<string | null>(null);
+  readonly transferActionLoading = signal<'approve' | 'reject' | null>(null);
+  readonly transferActionError = signal<string | null>(null);
+  readonly downloadingReceipt = signal(false);
 
   private paramsSub?: Subscription;
   private attachmentsRequestToken = 0;
@@ -291,6 +366,16 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
       ? 'Gestiona los pedidos listos para pago y coordina la produccion.'
       : 'Revisa las solicitudes tomadas por el equipo antes de enviarlas a pago.'
   );
+  private readonly paginationEffect: EffectRef = effect(() => {
+    if (this.view !== 'pagos') {
+      this.currentPage.set(1);
+      return;
+    }
+    const max = this.pageCount();
+    if (this.currentPage() > max) {
+      this.currentPage.set(max);
+    }
+  });
 
   ngOnInit(): void {
     this.refresh();
@@ -299,6 +384,7 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.paramsSub?.unsubscribe();
+    this.paginationEffect.destroy();
   }
 
   refresh(): void {
@@ -306,6 +392,9 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
     this.workOrderError.set(null);
     this.creatingWorkOrder.set(false);
     this.updatingWorkOrder.set(false);
+    if (this.view === 'pagos') {
+      this.currentPage.set(1);
+    }
     this.load();
   }
 
@@ -354,6 +443,9 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
     event?.stopPropagation();
     this.selectedOrder.set(order);
     this.prepareWorkOrderForms(order);
+    this.transferDecisionForm.reset({ note: '' });
+    this.transferActionError.set(null);
+    this.transferActionLoading.set(null);
     void this.loadAttachments(order.id);
     this.router.navigate([], {
       relativeTo: this.route,
@@ -366,6 +458,9 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
   closeDetail(): void {
     this.selectedOrder.set(null);
     this.prepareWorkOrderForms(null);
+    this.transferDecisionForm.reset({ note: '' });
+    this.transferActionError.set(null);
+    this.transferActionLoading.set(null);
     this.resetAttachmentsState();
     this.router.navigate([], {
       relativeTo: this.route,
@@ -389,6 +484,42 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
     } catch (err) {
       console.error('No se pudo enviar a pagos', err);
       this.actionFeedback.set({ type: 'error', message: 'No logramos mover el pedido a pagos.' });
+    }
+  }
+
+  canRejectForCopyright(order: PedidoResumen | null): boolean {
+    if (!order || order.estado === 'RECHAZADO') {
+      return false;
+    }
+    const payload = this.orderPayload(order);
+    return !!payload?.copyright?.hasFlag;
+  }
+
+  async rejectForCopyright(order: PedidoResumen, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const reason = prompt('Describe el motivo del rechazo por copyright (minimo 5 caracteres)');
+    if (reason === null) {
+      return;
+    }
+    const trimmed = reason.trim();
+    if (trimmed.length < 5) {
+      alert('Debes escribir un motivo de al menos 5 caracteres.');
+      return;
+    }
+    try {
+      await firstValueFrom(this.pedidos.rejectPedido(order.id, trimmed));
+      this.actionFeedback.set({
+        type: 'success',
+        message: `Pedido #${order.id} rechazado por copyright.`
+      });
+      this.orders.update(items => items.filter(item => item.id !== order.id));
+      this.closeDetail();
+    } catch (err) {
+      console.error('No se pudo rechazar el pedido', err);
+      this.actionFeedback.set({
+        type: 'error',
+        message: 'No logramos rechazar el pedido. Intenta nuevamente.'
+      });
     }
   }
 
@@ -547,6 +678,20 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
       }
     }
     return raw;
+  }
+
+  transferPaymentOf(order: PedidoResumen | null): any {
+    const payload = this.orderPayload(order);
+    return payload?.transferPayment ?? null;
+  }
+
+  transferStatusLabel(status: string): string {
+    const map: Record<string, string> = {
+      pending: 'Pendiente',
+      approved: 'Confirmado',
+      rejected: 'Rechazado'
+    };
+    return map[status] || status;
   }
 
   payloadItems(payload: any): Array<{ name: string; quantity: number; size?: string }> {
@@ -711,6 +856,81 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
 
   private formatDimension(value: number): string {
     return Number(value).toFixed(1).replace(/\.0$/, '');
+  }
+
+  async downloadTransferReceipt(order: PedidoResumen, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    this.downloadingReceipt.set(true);
+    try {
+      const blob = await firstValueFrom(this.payments.downloadTransferReceipt(order.id));
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `transferencia-${order.id}`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('No se pudo descargar comprobante de transferencia', err);
+      this.actionFeedback.set({ type: 'error', message: 'No pudimos descargar el comprobante.' });
+    } finally {
+      this.downloadingReceipt.set(false);
+    }
+  }
+
+  approveTransfer(order: PedidoResumen, event?: Event): void {
+    event?.stopPropagation();
+    void this.handleTransferDecision(order, 'approve');
+  }
+
+  rejectTransfer(order: PedidoResumen, event?: Event): void {
+    event?.stopPropagation();
+    void this.handleTransferDecision(order, 'reject');
+  }
+
+  private async handleTransferDecision(order: PedidoResumen, action: 'approve' | 'reject'): Promise<void> {
+    this.transferActionLoading.set(action);
+    this.transferActionError.set(null);
+    try {
+      const note = this.transferDecisionForm.value.note?.trim() || undefined;
+      const updated = await firstValueFrom(
+        this.payments.reviewTransfer(order.id, action, note)
+      );
+      const refreshed: PedidoResumen = {
+        ...order,
+        estado: (updated as any)?.estado ?? order.estado,
+        payload: (updated as any)?.payload ?? order.payload
+      };
+      this.orders.update(items => items.map(item => (item.id === order.id ? refreshed : item)));
+      this.selectedOrder.set(refreshed);
+      this.transferDecisionForm.reset({ note: '' });
+      const message =
+        action === 'approve'
+          ? `Pedido #${order.id} confirmado por transferencia.`
+          : `Comprobante del pedido #${order.id} rechazado.`;
+      this.actionFeedback.set({ type: 'success', message });
+    } catch (err: any) {
+      console.error('No se pudo actualizar la transferencia', err);
+      const message = err?.error?.message || 'No pudimos actualizar la transferencia.';
+      this.transferActionError.set(message);
+    } finally {
+      this.transferActionLoading.set(null);
+    }
+  }
+
+  private setPage(page: number): void {
+    if (this.view !== 'pagos') {
+      return;
+    }
+    const target = Math.min(Math.max(page, 1), this.pageCount());
+    this.currentPage.set(target);
+  }
+
+  nextPage(): void {
+    this.setPage(this.currentPage() + 1);
+  }
+
+  prevPage(): void {
+    this.setPage(this.currentPage() - 1);
   }
 
   initials(name: string): string {

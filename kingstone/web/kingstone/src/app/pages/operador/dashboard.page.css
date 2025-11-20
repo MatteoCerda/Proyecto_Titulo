@@ -365,6 +365,16 @@ button.ghost:hover {
   transform: translateY(-1px);
 }
 
+button.ghost.danger {
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+button.ghost.danger:hover {
+  border-color: rgba(248, 113, 113, 0.9);
+  color: #fecaca;
+}
+
 .alerts {
   display: flex;
   flex-wrap: wrap;
@@ -565,6 +575,24 @@ button.ghost:hover {
   color: #0b1320;
 }
 
+.pagination {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #cbd5f5;
+}
+
+.pagination button {
+  min-width: 120px;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .detail-panel {
   margin-top: 0;
   background: #0e2234;
@@ -702,6 +730,53 @@ button.ghost:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.transfer-review {
+  background: rgba(10, 18, 29, 0.72);
+  border-radius: 14px;
+  padding: 16px;
+  border: 1px solid rgba(248, 250, 252, 0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.transfer-review .transfer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.transfer-review .transfer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: #cbd5f5;
+}
+.transfer-review .transfer-meta p {
+  margin: 0;
+}
+.transfer-buttons {
+  display: flex;
+  gap: 10px;
+}
+.transfer-decision textarea {
+  background: rgba(10, 18, 29, 0.9);
+  border: 1px solid rgba(248, 250, 252, 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  color: #e2e8f0;
+  resize: vertical;
+}
+.transfer-action-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.transfer-action-buttons .primary,
+.transfer-action-buttons .ghost {
+  border-radius: 12px;
+  padding: 8px 16px;
 }
 
 .note-block h3,
@@ -1324,20 +1399,20 @@ button.ghost:hover {
 }
 
 .detail-panel {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  color: #1f2937;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+  background: rgba(5, 10, 20, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.4);
 }
 
 .detail-panel header h2 {
-  color: #0f172a;
+  color: #f8fafc;
 }
 
 .detail-panel header button {
   border: 1px solid #cbd5f5;
-  color: #1d4ed8;
-  background: #e0e7ff;
+  color: #e2e8f0;
+  background: transparent;
 }
 
 .status-tag,
@@ -1351,16 +1426,16 @@ button.ghost:hover {
 }
 
 .detail-panel li {
-  background: #f9fafb;
-  color: #1f2937;
+  background: rgba(9, 14, 27, 0.85);
+  color: #f8fafc;
 }
 
 .detail-panel span {
-  color: #94a3b8;
+  color: #cbd5f5;
 }
 
 .detail-panel strong {
-  color: #1f2937;
+  color: #f8fafc;
 }
 
 .note-block,

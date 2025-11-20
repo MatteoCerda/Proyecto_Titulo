@@ -18,6 +18,25 @@ export interface WebpayCommitResponse {
   pedidoId?: number;
 }
 
+export interface TransferBankInfo {
+  bankName: string;
+  accountName: string;
+  accountRut: string;
+  accountNumber: string;
+  accountType: string;
+  instructions?: string;
+}
+
+export interface TransferPaymentRecord {
+  id: number;
+  clienteNombre: string | null;
+  clienteEmail: string | null;
+  estado: string;
+  createdAt: string;
+  total?: number | null;
+  payload?: any;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PaymentsService {
   private http = inject(HttpClient);
@@ -44,5 +63,32 @@ export class PaymentsService {
     TBK_TOKEN?: string | null;
   }) {
     return this.http.post('/api/payments/webpay/status', payload);
+  }
+
+  getTransferInfo(): Observable<TransferBankInfo> {
+    return this.http.get<TransferBankInfo>('/api/payments/transfer/info');
+  }
+
+  notifyTransfer(payload: FormData) {
+    return this.http.post('/api/payments/transfer/notify', payload);
+  }
+
+  listTransferRequests(): Observable<TransferPaymentRecord[]> {
+    return this.http.get<TransferPaymentRecord[]>('/api/payments/transfer/requests');
+  }
+
+  reviewTransfer(
+    pedidoId: number,
+    action: 'approve' | 'reject',
+    note?: string | null
+  ) {
+    return this.http.post(
+      `/api/payments/transfer/${pedidoId}/${action}`,
+      note ? { note } : {}
+    );
+  }
+
+  downloadTransferReceipt(pedidoId: number) {
+    return this.http.get(`/api/payments/transfer/${pedidoId}/receipt`, { responseType: 'blob' });
   }
 }

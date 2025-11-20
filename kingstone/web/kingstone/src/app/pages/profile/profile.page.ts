@@ -7,7 +7,7 @@ import { ToastController } from '@ionic/angular';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { PedidosService, PedidoResumen, PedidoAttachment } from '../../services/pedidos.service';
-import { PaymentsService } from '../../services/payments.service';
+import { PaymentsService, TransferBankInfo } from '../../services/payments.service';
 
 @Component({
   standalone: true,
@@ -52,6 +52,18 @@ export class ProfilePage {
     currentPassword: ['', [Validators.required, Validators.minLength(6)]],
     newPassword: ['', [Validators.required, Validators.minLength(6)]],
     confirmNewPassword: ['', [Validators.required, Validators.minLength(6)]],
+  });
+  transferInfo = signal<TransferBankInfo | null>(null);
+  transferModalOpen = signal(false);
+  transferSubmitting = signal(false);
+  transferError = signal<string | null>(null);
+  transferFile = signal<File | null>(null);
+  transferTarget = signal<PedidoResumen | null>(null);
+  transferForm = this.fb.group({
+    amount: ['', [Validators.required, Validators.min(1000)]],
+    operationNumber: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
+    transferDate: [''],
+    notes: ['']
   });
 
   async ngOnInit() {
@@ -167,6 +179,15 @@ export class ProfilePage {
     }
   }
 
+  private async loadTransferInfo() {
+    try {
+      const info = await firstValueFrom(this.payments.getTransferInfo());
+      this.transferInfo.set(info);
+    } catch {
+      this.transferInfo.set(null);
+    }
+  }
+
   toggleOrder(id: number) { this.expandedId.set(this.expandedId() === id ? null : id); }
 
   private payloadOf(order: PedidoResumen): any {
@@ -263,6 +284,136 @@ export class ProfilePage {
     return order.note || this.payloadOf(order)?.note || null;
   }
 
+  operatorDecisionOf(order: PedidoResumen): { reason: string; decidedAt: string | null } | null {
+    const decision = this.payloadOf(order)?.operatorDecision;
+    if (decision?.reason) {
+      return {
+        reason: decision.reason,
+        decidedAt: decision.decidedAt ?? null
+      };
+    }
+    return null;
+  }
+
+  transferPaymentOf(order: PedidoResumen): any {
+    return this.payloadOf(order)?.transferPayment ?? null;
+  }
+
+  transferStatusLabel(status: string): string {
+    const map: Record<string, string> = {
+      pending: 'Pendiente de validación',
+      approved: 'Pago confirmado',
+      rejected: 'Comprobante rechazado'
+    };
+    return map[status] || status;
+  }
+
+  transferStatusClass(status: string): string {
+    switch (status) {
+      case 'approved':
+        return 'approved';
+      case 'rejected':
+        return 'rejected';
+      default:
+        return 'pending';
+    }
+  }
+
+  transferSubmittedAt(transfer: any): string | null {
+    const value = transfer?.submittedAt ?? transfer?.submitted_at ?? null;
+    return typeof value === 'string' ? value : null;
+  }
+
+  openTransferModal(order: PedidoResumen): void {
+    this.transferTarget.set(order);
+    const presetAmount = this.totalAmountOf(order);
+    this.transferForm.reset({
+      amount: presetAmount ? String(presetAmount) : '',
+      operationNumber: '',
+      transferDate: '',
+      notes: ''
+    });
+    this.transferFile.set(null);
+    this.transferError.set(null);
+    this.transferModalOpen.set(true);
+  }
+
+  closeTransferModal(): void {
+    this.transferModalOpen.set(false);
+    this.transferTarget.set(null);
+    this.transferFile.set(null);
+    this.transferForm.reset({
+      amount: '',
+      operationNumber: '',
+      transferDate: '',
+      notes: ''
+    });
+    this.transferError.set(null);
+  }
+
+  onTransferFileChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0] ?? null;
+    this.transferFile.set(file);
+  }
+
+  private normalizeDateTimeInput(value?: string | null): string | null {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+    return date.toISOString();
+  }
+
+  async submitTransferNotification(): Promise<void> {
+    if (this.transferForm.invalid) {
+      this.transferForm.markAllAsTouched();
+      return;
+    }
+    const order = this.transferTarget();
+    if (!order) {
+      return;
+    }
+    const value = this.transferForm.value;
+    const formData = new FormData();
+    formData.append('pedidoId', String(order.id));
+    formData.append('amount', String(value.amount));
+    if (value.operationNumber) {
+      formData.append('operationNumber', value.operationNumber);
+    }
+    const isoDate = this.normalizeDateTimeInput(value.transferDate);
+    if (isoDate) {
+      formData.append('transferDate', isoDate);
+    }
+    if (value.notes?.trim()) {
+      formData.append('notes', value.notes.trim());
+    }
+    if (this.transferFile()) {
+      formData.append('receipt', this.transferFile() as File);
+    }
+    this.transferSubmitting.set(true);
+    this.transferError.set(null);
+    try {
+      await firstValueFrom(this.payments.notifyTransfer(formData));
+      const t = await this.toast.create({
+        message: 'Gracias, estamos validando tu transferencia.',
+        duration: 2500,
+        position: 'top',
+        color: 'success'
+      });
+      await t.present();
+      this.closeTransferModal();
+      await this.refreshOrders();
+    } catch (err: any) {
+      console.error('transfer notify error', err);
+      const message = err?.error?.message || 'No pudimos registrar tu comprobante.';
+      this.transferError.set(message);
+    } finally {
+      this.transferSubmitting.set(false);
+    }
+  }
+
   formatCurrency(value?: number | null): string {
     if (value == null) return '-';
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
@@ -299,7 +450,14 @@ export class ProfilePage {
 
   canPay(order: PedidoResumen): boolean {
     const state = (order.estado || '').toUpperCase();
-    return ['POR_PAGAR', 'EN_REVISION'].includes(state);
+    if (!['POR_PAGAR', 'EN_REVISION'].includes(state)) {
+      return false;
+    }
+    const transfer = this.transferPaymentOf(order);
+    if (transfer && transfer.status === 'pending') {
+      return false;
+    }
+    return true;
   }
 
   isPaying(order: PedidoResumen): boolean {

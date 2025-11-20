@@ -246,6 +246,10 @@ export class PedidosService {
     return this.http.post<{ id: number; estado: string; notificado: boolean }>(`/api/pedidos/${id}/ack`, body);
   }
 
+  rejectPedido(id: number, reason: string): Observable<{ id: number; estado: string }> {
+    return this.http.post<{ id: number; estado: string }>(`/api/pedidos/${id}/reject`, { reason });
+  }
+
   approve(id: number, approve: boolean, reason?: string) {
     return this.http.post(`/api/pedidos/${id}/approve`, { approve, reason });
   }

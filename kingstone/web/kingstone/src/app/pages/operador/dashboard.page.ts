@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -71,7 +71,7 @@ type FrequentClientSummary = {
               <div class="alert warn" *ngIf="error()">{{ error() }}</div>
             </div>
 
-            <section class="orders-table" *ngIf="orders().length > 0; else emptyState">
+            <section class="orders-table" *ngIf="pagedOrders().length > 0; else emptyState">
               <div class="table-head">
                 <span>Nombre de usuario</span>
                 <span>Correo electr&oacute;nico</span>
@@ -80,7 +80,7 @@ type FrequentClientSummary = {
                 <span>Acciones</span>
               </div>
 
-              <div class="table-row" *ngFor="let order of orders(); trackBy: trackById" (click)="select(order)">
+              <div class="table-row" *ngFor="let order of pagedOrders(); trackBy: trackById" (click)="select(order)">
                 <div class="cell user">
                   <div class="avatar">{{ initials(order.cliente) }}</div>
                   <div>
@@ -105,6 +105,12 @@ type FrequentClientSummary = {
                 </div>
               </div>
             </section>
+
+            <div class="pagination" *ngIf="pageCount() > 1">
+              <button type="button" class="ghost" [disabled]="currentPage() === 1" (click)="prevPage()">Anterior</button>
+              <span>Pagina {{ currentPage() }} de {{ pageCount() }}</span>
+              <button type="button" class="ghost" [disabled]="currentPage() === pageCount()" (click)="nextPage()">Siguiente</button>
+            </div>
 
             <ng-template #emptyState>
               <div class="empty">
@@ -167,6 +173,14 @@ type FrequentClientSummary = {
               </ng-container>
             </ng-container>
             <footer class="detail-actions">
+              <button
+                type="button"
+                class="ghost danger"
+                *ngIf="canRejectForCopyright(selection)"
+                (click)="rejectForCopyright(selection)"
+              >
+                Rechazar por copyright
+              </button>
               <button type="button" class="ghost" (click)="openClienteModal(selection)">Historial del cliente</button>
               <button type="button" class="ghost" (click)="goToClienteInfo(selection)">Ver ficha del cliente</button>
               <button type="button" class="ghost" (click)="markSeen(selection)">Derivar a cotizaciones</button>
@@ -315,8 +329,38 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
       this.clientesResumen().find(cliente => this.normalizeEmail(cliente.email) === target) ?? null
     );
   });
+  readonly pageSize = 5;
+  readonly currentPage = signal(1);
+  readonly pageCount = computed(() => {
+    const total = this.orders().length;
+    return Math.max(1, Math.ceil(total / this.pageSize));
+  });
+  readonly pagedOrders = computed(() => {
+    const current = this.currentPage();
+    const start = (current - 1) * this.pageSize;
+    return this.orders().slice(start, start + this.pageSize);
+  });
 
   private actionTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly paginationEffect = effect(() => {
+    const totalPages = this.pageCount();
+    const current = this.currentPage();
+    if (current > totalPages) {
+      this.currentPage.set(totalPages);
+      return;
+    }
+    const selection = this.selectedOrder();
+    const orders = this.pagedOrders();
+    if (!selection && orders.length) {
+      this.selectedOrder.set(orders[0]);
+    } else if (selection && !orders.some(order => order.id === selection.id)) {
+      // preserve selection if still in overall list; otherwise fall back to first visible
+      const exists = this.orders().some(order => order.id === selection.id);
+      if (!exists && orders.length) {
+        this.selectedOrder.set(orders[0]);
+      }
+    }
+  });
 
   ngOnInit(): void {
     this.inbox.start();
@@ -373,6 +417,50 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
       });
     } else {
       this.pushActionFeedback('error', 'No pudimos mover el pedido a pagos.');
+    }
+  }
+  setPage(page: number): void {
+    const target = Math.min(Math.max(page, 1), this.pageCount());
+    if (target !== this.currentPage()) {
+      this.currentPage.set(target);
+      this.selectedOrder.set(null);
+    }
+  }
+
+  nextPage(): void {
+    this.setPage(this.currentPage() + 1);
+  }
+
+  prevPage(): void {
+    this.setPage(this.currentPage() - 1);
+  }
+
+  canRejectForCopyright(order: PedidoResumen | null): boolean {
+    if (!order || order.estado === 'RECHAZADO') {
+      return false;
+    }
+    const payload = this.orderPayload(order);
+    return !!payload?.copyright?.hasFlag;
+  }
+
+  async rejectForCopyright(order: PedidoResumen): Promise<void> {
+    const reason = prompt('Describe el motivo de rechazo por copyright');
+    if (reason === null) {
+      return;
+    }
+    const trimmed = reason.trim();
+    if (trimmed.length < 5) {
+      alert('Debes indicar un motivo de al menos 5 caracteres.');
+      return;
+    }
+    try {
+      await firstValueFrom(this.pedidos.rejectPedido(order.id, trimmed));
+      this.pushActionFeedback('success', `Pedido #${order.id} rechazado por copyright.`);
+      this.selectedOrder.set(null);
+      await this.inbox.refresh(false);
+    } catch (err) {
+      console.error('No se pudo rechazar el pedido', err);
+      this.pushActionFeedback('error', 'No pudimos rechazar la solicitud.');
     }
   }
 
