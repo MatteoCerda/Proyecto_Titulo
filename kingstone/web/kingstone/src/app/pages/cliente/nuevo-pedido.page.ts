@@ -107,14 +107,6 @@ export class NuevoPedidoPage implements OnDestroy {
   private packDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private latestPackRequest = 0;
   private readonly packResultState = signal<PackResult>({ placements: [], usedHeight: 0 });
-  private readonly brandKeywords: Record<string, string> = {
-    adidas: 'Adidas',
-    nike: 'Nike',
-    puma: 'Puma',
-    gucci: 'Gucci',
-    'north face': 'The North Face',
-    'the north face': 'The North Face'
-  };
   activeTab: 'armar' | 'subir' | 'estampado' = 'armar';
   estampadoGarment: 'polera' | 'poleron' = 'polera';
   estampadoImageUrl: string | null = null;
@@ -122,6 +114,7 @@ export class NuevoPedidoPage implements OnDestroy {
   estampadoSize = 50;
   estampadoPosX = 25;
   estampadoPosY = 15;
+  estampadoBrand: string | null = null;
   private currencyFormatter = new Intl.NumberFormat('es-CL', {
     style: 'currency',
     currency: 'CLP',
@@ -358,7 +351,7 @@ export class NuevoPedidoPage implements OnDestroy {
       : 'assets/mockups/poleron-negro.svg';
   }
 
-  onEstampadoFileChange(event: Event): void {
+  async onEstampadoFileChange(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) {
@@ -373,6 +366,7 @@ export class NuevoPedidoPage implements OnDestroy {
     this.estampadoPosX = 25;
     this.estampadoPosY = 15;
     this.estampadoSize = 50;
+    this.estampadoBrand = await this.detectBrand(file);
     input.value = '';
   }
 
@@ -382,6 +376,7 @@ export class NuevoPedidoPage implements OnDestroy {
       this.estampadoImageObjectUrl = null;
     }
     this.estampadoImageUrl = null;
+    this.estampadoBrand = null;
   }
 
   estampadoPrice(): number {
@@ -399,8 +394,16 @@ export class NuevoPedidoPage implements OnDestroy {
     event.preventDefault();
   }
 
+  combinedBrandDetections(): string[] {
+    const brands = [...this.copyrightDetections()];
+    if (this.estampadoBrand && !brands.includes(this.estampadoBrand)) {
+      brands.push(this.estampadoBrand);
+    }
+    return brands;
+  }
+
   hasCopyrightFlags(): boolean {
-    return this.copyrightDetections().length > 0;
+    return this.combinedBrandDetections().length > 0;
   }
 
   saveQuoteToCart() {
@@ -1413,36 +1416,6 @@ export class NuevoPedidoPage implements OnDestroy {
       }
     } catch (error) {
       console.warn('Fallo analizando copyright en backend', error);
-    }
-    return this.detectBrandLocally(file);
-  }
-
-  private async detectBrandLocally(file: File): Promise<string | null> {
-    const byName = this.matchBrand((file.name || '').toLowerCase());
-    if (byName) {
-      return byName;
-    }
-    const mime = file.type?.toLowerCase() ?? '';
-    if (mime.includes('svg') || mime.includes('text') || mime.includes('pdf')) {
-      try {
-        const textContent = (await file.text()).toLowerCase();
-        const byText = this.matchBrand(textContent);
-        if (byText) {
-          return byText;
-        }
-      } catch {
-        // ignore parse errors
-      }
-    }
-    return null;
-  }
-
-  private matchBrand(content: string): string | null {
-    if (!content) return null;
-    for (const keyword of Object.keys(this.brandKeywords)) {
-      if (content.includes(keyword)) {
-        return this.brandKeywords[keyword];
-      }
     }
     return null;
   }

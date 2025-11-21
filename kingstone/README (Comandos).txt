@@ -7,7 +7,7 @@ Levantar front web
 5. Front disponible en `http://localhost:8100/`.
 
 Levantar API y servicios asociados
-1. Un solo comando (levanta DB, aplica migraciones automáticamente y arranca API/worker/n8n/adminer): ``.
+1. Un solo comando (levanta DB, aplica migraciones automáticamente y arranca API/worker/n8n/adminer): `docker compose up -d`.
 2. Confirmar contenedores activos: `docker ps` o `docker compose ps`.
 3. Logs de la API: `docker compose logs -f api`. Logs del worker: `docker compose logs -f worker`.
 4. Adminer disponible en `http://localhost:8080/`.

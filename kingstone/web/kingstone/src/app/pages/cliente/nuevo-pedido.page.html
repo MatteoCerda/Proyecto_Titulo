@@ -202,7 +202,7 @@
         <strong>Advertencia de copyright</strong>
         <p>
           Detectamos posibles marcas registradas en tus archivos:
-          <span>{{ copyrightDetections().join(', ') }}</span>.
+          <span>{{ combinedBrandDetections().join(', ') }}</span>.
         </p>
         <small>El operador revisar&aacute; esta solicitud y podr&iacute;a rechazarla si no cuentas con los permisos.</small>
       </section>
@@ -303,6 +303,11 @@
                 <span>Precio estimado</span>
                 <strong>{{ formatCurrency(estampadoPrice()) }}</strong>
                 <small>El valor final puede variar tras la revisión del equipo.</small>
+              </div>
+              <div class="estampado-warning" *ngIf="estampadoBrand">
+                <strong>Advertencia de copyright</strong>
+                <p>Detectamos posible marca registrada: <span>{{ estampadoBrand }}</span>.</p>
+                <small>No podremos procesar esta cotización hasta que confirmes los permisos correspondientes.</small>
               </div>
             </div>
           </section>

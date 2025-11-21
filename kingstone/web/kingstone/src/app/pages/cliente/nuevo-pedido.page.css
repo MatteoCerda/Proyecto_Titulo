@@ -642,6 +642,20 @@
   gap:4px;
 }
 .estampado-summary strong { font-size:28px; }
+.estampado-warning {
+  margin-top:8px;
+  background:#1c2e44;
+  border:1px solid rgba(250,204,21,0.4);
+  border-radius:16px;
+  padding:16px;
+  color:#fef3c7;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.estampado-warning strong { color:#fff; font-size:18px; }
+.estampado-warning span { font-weight:700; }
+.estampado-warning small { color:#fcd34d; font-size:12px; }
 .coming-soon {
   margin-top:24px;
   padding:24px;

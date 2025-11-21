@@ -89,7 +89,14 @@ export async function detectBrandsFromFile(params: {
         brands: annotations.map(a => a.description)
       });
       for (const annotation of annotations) {
-        extractBrandsFromText(annotation.description).forEach(match => matches.add(match));
+        const normalized = annotation.description?.trim();
+        if (!normalized) continue;
+        const textMatches = extractBrandsFromText(normalized);
+        if (textMatches.length) {
+          textMatches.forEach(match => matches.add(match));
+        } else {
+          matches.add(normalized);
+        }
       }
     } catch (error) {
       console.warn('[copyright] Vision fallo detectando marcas:', error);
