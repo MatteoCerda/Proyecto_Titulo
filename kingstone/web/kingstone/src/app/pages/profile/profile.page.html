@@ -221,8 +221,6 @@
       <form [formGroup]="transferForm" (ngSubmit)="submitTransferNotification()" class="transfer-form">
         <label>Monto transferido</label>
         <input type="number" formControlName="amount" placeholder="$" />
-        <label>N&uacute;mero de operaci&oacute;n</label>
-        <input type="text" formControlName="operationNumber" placeholder="Identificador del banco" />
         <label>Fecha y hora</label>
         <input type="datetime-local" formControlName="transferDate" />
         <label>Comentarios para el operador (opcional)</label>

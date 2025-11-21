@@ -61,7 +61,6 @@ export class ProfilePage {
   transferTarget = signal<PedidoResumen | null>(null);
   transferForm = this.fb.group({
     amount: ['', [Validators.required, Validators.min(1000)]],
-    operationNumber: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
     transferDate: [''],
     notes: ['']
   });
@@ -329,7 +328,6 @@ export class ProfilePage {
     const presetAmount = this.totalAmountOf(order);
     this.transferForm.reset({
       amount: presetAmount ? String(presetAmount) : '',
-      operationNumber: '',
       transferDate: '',
       notes: ''
     });
@@ -344,7 +342,6 @@ export class ProfilePage {
     this.transferFile.set(null);
     this.transferForm.reset({
       amount: '',
-      operationNumber: '',
       transferDate: '',
       notes: ''
     });
@@ -379,9 +376,6 @@ export class ProfilePage {
     const formData = new FormData();
     formData.append('pedidoId', String(order.id));
     formData.append('amount', String(value.amount));
-    if (value.operationNumber) {
-      formData.append('operationNumber', value.operationNumber);
-    }
     const isoDate = this.normalizeDateTimeInput(value.transferDate);
     if (isoDate) {
       formData.append('transferDate', isoDate);
