@@ -68,7 +68,7 @@ import { PaymentsService } from '../../services/payments.service';
           </div>
       </div>
     </section>
-    <div class="pagination" *ngIf="view === 'pagos' && pageCount() > 1 && orders().length">
+    <div class="pagination" *ngIf="pageCount() > 1 && orders().length">
       <button type="button" class="ghost" [disabled]="currentPage() === 1" (click)="prevPage()">Anterior</button>
       <span>Pagina {{ currentPage() }} de {{ pageCount() }}</span>
       <button type="button" class="ghost" [disabled]="currentPage() === pageCount()" (click)="nextPage()">Siguiente</button>
@@ -291,6 +291,9 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
     maximumFractionDigits: 0
   });
 
+  readonly view: 'cotizaciones' | 'pagos' =
+    (this.route.snapshot.data['view'] as string) === 'pagos' ? 'pagos' : 'cotizaciones';
+
   readonly workOrderStages = [
     { value: 'cola', label: 'En cola' },
     { value: 'produccion', label: 'En produccion' },
@@ -311,20 +314,14 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
   readonly pageSize = 5;
   readonly currentPage = signal(1);
   readonly pageCount = computed(() => {
-    if (this.view !== 'pagos') {
-      return 1;
-    }
     const total = this.orders().length;
     return Math.max(1, Math.ceil(total / this.pageSize));
   });
   readonly displayedOrders = computed(() => {
-    const ordered = this.orders();
-    if (this.view !== 'pagos') {
-      return ordered;
-    }
+    const list = this.orders();
     const page = this.currentPage();
     const start = (page - 1) * this.pageSize;
-    return ordered.slice(start, start + this.pageSize);
+    return list.slice(start, start + this.pageSize);
   });
 
   readonly createWorkOrderForm = this.fb.group({
@@ -354,9 +351,6 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
   private paramsSub?: Subscription;
   private attachmentsRequestToken = 0;
 
-  readonly view: 'cotizaciones' | 'pagos' =
-    (this.route.snapshot.data['view'] as string) === 'pagos' ? 'pagos' : 'cotizaciones';
-
   readonly title = computed(() =>
     this.view === 'pagos' ? 'Pedidos por pagar' : 'Cotizaciones en revision'
   );
@@ -367,10 +361,6 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
       : 'Revisa las solicitudes tomadas por el equipo antes de enviarlas a pago.'
   );
   private readonly paginationEffect: EffectRef = effect(() => {
-    if (this.view !== 'pagos') {
-      this.currentPage.set(1);
-      return;
-    }
     const max = this.pageCount();
     if (this.currentPage() > max) {
       this.currentPage.set(max);
@@ -392,9 +382,7 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
     this.workOrderError.set(null);
     this.creatingWorkOrder.set(false);
     this.updatingWorkOrder.set(false);
-    if (this.view === 'pagos') {
-      this.currentPage.set(1);
-    }
+    this.currentPage.set(1);
     this.load();
   }
 
@@ -918,9 +906,6 @@ export class OperatorOrdersPage implements OnInit, OnDestroy {
   }
 
   private setPage(page: number): void {
-    if (this.view !== 'pagos') {
-      return;
-    }
     const target = Math.min(Math.max(page, 1), this.pageCount());
     this.currentPage.set(target);
   }

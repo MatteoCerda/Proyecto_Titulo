@@ -329,7 +329,7 @@ export class OperatorDashboardPage implements OnInit, OnDestroy {
       this.clientesResumen().find(cliente => this.normalizeEmail(cliente.email) === target) ?? null
     );
   });
-  readonly pageSize = 5;
+  readonly pageSize = 3;
   readonly currentPage = signal(1);
   readonly pageCount = computed(() => {
     const total = this.orders().length;
