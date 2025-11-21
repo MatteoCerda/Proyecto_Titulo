@@ -115,6 +115,18 @@ export class NuevoPedidoPage implements OnDestroy {
     'north face': 'The North Face',
     'the north face': 'The North Face'
   };
+  activeTab: 'armar' | 'subir' | 'estampado' = 'armar';
+  estampadoGarment: 'polera' | 'poleron' = 'polera';
+  estampadoImageUrl: string | null = null;
+  private estampadoImageObjectUrl: string | null = null;
+  estampadoSize = 50;
+  estampadoPosX = 25;
+  estampadoPosY = 15;
+  private currencyFormatter = new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0
+  });
 
   orderNote = '';
   submitting = false;
@@ -331,6 +343,57 @@ export class NuevoPedidoPage implements OnDestroy {
     const proportion = Math.max(0.2, usedHeight / 100);
     return Math.round(material.pricePerMeter * proportion);
   });
+
+  setActiveTab(tab: 'armar' | 'subir' | 'estampado'): void {
+    this.activeTab = tab;
+  }
+
+  setGarment(type: 'polera' | 'poleron'): void {
+    this.estampadoGarment = type;
+  }
+
+  garmentBaseAsset(): string {
+    return this.estampadoGarment === 'polera'
+      ? 'assets/mockups/polera-negra.svg'
+      : 'assets/mockups/poleron-negro.svg';
+  }
+
+  onEstampadoFileChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (this.estampadoImageObjectUrl) {
+      URL.revokeObjectURL(this.estampadoImageObjectUrl);
+    }
+    const objectUrl = URL.createObjectURL(file);
+    this.estampadoImageObjectUrl = objectUrl;
+    this.estampadoImageUrl = objectUrl;
+    this.estampadoPosX = 25;
+    this.estampadoPosY = 15;
+    this.estampadoSize = 50;
+    input.value = '';
+  }
+
+  clearEstampadoImage(): void {
+    if (this.estampadoImageObjectUrl) {
+      URL.revokeObjectURL(this.estampadoImageObjectUrl);
+      this.estampadoImageObjectUrl = null;
+    }
+    this.estampadoImageUrl = null;
+  }
+
+  estampadoPrice(): number {
+    const base = this.estampadoGarment === 'polera' ? 12000 : 18000;
+    const sizeFactor = this.estampadoSize / 50;
+    const adjustment = Math.max(0.8, Math.min(1.4, sizeFactor));
+    return Math.round(base * adjustment);
+  }
+
+  formatCurrency(value: number): string {
+    return this.currencyFormatter.format(Number.isFinite(value) ? value : 0);
+  }
 
   onDragOver(event: DragEvent) {
     event.preventDefault();
@@ -994,6 +1057,9 @@ export class NuevoPedidoPage implements OnDestroy {
         URL.revokeObjectURL(item.previewUrl);
       }
     });
+    if (this.estampadoImageObjectUrl) {
+      URL.revokeObjectURL(this.estampadoImageObjectUrl);
+    }
   }
 
   private clampToMaterial(item: DesignItem, material: MaterialPreset | null): DesignItem {

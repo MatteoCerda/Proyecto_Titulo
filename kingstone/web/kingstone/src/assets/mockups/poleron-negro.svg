@@ -1,0 +1,20 @@
+<svg width="640" height="760" viewBox="0 0 640 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hoodieBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d1724" />
+      <stop offset="1" stop-color="#05090f" />
+    </linearGradient>
+    <linearGradient id="hood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111f30" />
+      <stop offset="1" stop-color="#070d15" />
+    </linearGradient>
+  </defs>
+  <path d="M200 70C200 38 250 12 320 12C390 12 440 38 440 70L452 138C480 140 516 128 548 104C572 86 603 100 612 128L636 202C644 226 634 252 612 266C560 298 518 312 470 322L478 700C478 734 446 760 404 760H236C194 760 162 734 162 700L170 322C122 312 80 298 28 266C6 252 -4 226 4 202L28 128C37 100 68 86 92 104C124 128 160 140 188 138L200 70Z" fill="url(#hoodieBody)" stroke="#1a2b40" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M246 180C246 140 276 110 320 110C364 110 394 140 394 180V248C394 280 366 306 320 306C274 306 246 280 246 248V180Z" fill="url(#hood)" stroke="rgba(255,255,255,0.08)" stroke-width="6"/>
+  <path d="M180 320H460" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M246 248L232 380" stroke="rgba(255,255,255,0.08)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M394 248L408 380" stroke="rgba(255,255,255,0.08)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M28 128L56 236C22 220 6 212 2 188" fill="url(#hood)" opacity=".85"/>
+  <path d="M612 128L584 236C618 220 634 212 638 188" fill="url(#hood)" opacity=".85"/>
+  <path d="M162 700L236 760H404L478 700" stroke="rgba(255,255,255,0.15)" stroke-width="6" stroke-linecap="round"/>
+</svg>

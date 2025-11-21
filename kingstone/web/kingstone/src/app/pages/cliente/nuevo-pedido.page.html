@@ -1,22 +1,17 @@
-<ion-content class="cotiza-wrap">
+﻿<ion-content class="cotiza-wrap">
   <div class="layout">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="avatar">KS</div>
-        <span>Tu espacio</span>
-      </div>
-      <nav>
-        <a routerLink="/perfil" class="nav-btn">Datos de cuenta</a>
-        <a routerLink="/cliente/mis-pedidos" class="nav-btn">Mis pedidos</a>
-        <a routerLink="/crea-tu-diseno" class="nav-btn active">Mis cotizaciones</a>
-        <a routerLink="/carrito" class="nav-btn">Mi carrito</a>
-        <button type="button" class="nav-btn">Metodos de pago</button>
-        <button type="button" class="nav-btn">Notificaciones / Alertas</button>
-      </nav>
-      <button type="button" class="logout-btn">Cerrar sesion</button>
-    </aside>
-
     <main class="content">
+      <div class="page-subnav">
+        <button type="button" class="subnav-btn" [class.active]="activeTab === 'armar'" (click)="setActiveTab('armar')">
+          Armar tu paño
+        </button>
+        <button type="button" class="subnav-btn" disabled>Subir tu trabajo</button>
+        <button type="button" class="subnav-btn" [class.active]="activeTab === 'estampado'" (click)="setActiveTab('estampado')">
+          Cotiza tu estampado
+        </button>
+      </div>
+      <ng-container [ngSwitch]="activeTab">
+        <ng-container *ngSwitchCase="'armar'">
       <header class="header">
         <h1>Cotiza tu pedido</h1>
         <p class="intro">
@@ -181,7 +176,7 @@
                  [style.width.%]="cell.width"
                  [style.height.%]="cell.height">
               <div class="panel-piece"
-                   [attr.title]="'Ancho total: ' + (cell.width | number:'1.0-1') + ' cm · Alto total: ' + (cell.height | number:'1.0-1') + ' cm'">
+                   [attr.title]="'Ancho total: ' + (cell.width | number:'1.0-1') + ' cm Â· Alto total: ' + (cell.height | number:'1.0-1') + ' cm'">
                 <div class="panel-piece-inner"
                      [class.has-clip]="!!cell.clipPath"
                      [style.width.%]="cell.contentWidth"
@@ -247,6 +242,78 @@
           <li>Para stickers y vinilos recuerda incluir o dibujar la linea de corte.</li>
         </ul>
       </section>
+    
+        </ng-container>
+        <ng-container *ngSwitchCase="'estampado'">
+          <section class="estampado-header">
+            <h1>Cotiza tu estampado</h1>
+            <p>Elige la prenda, sube tu diseño y ajusta su posición para visualizar un valor estimado.</p>
+          </section>
+          <section class="estampado-options">
+            <div class="estampado-field">
+              <span>Prenda</span>
+              <div class="garment-group">
+                <label [class.active]="estampadoGarment === 'polera'">
+                  <input type="radio" name="garment" value="polera" [checked]="estampadoGarment === 'polera'" (change)="setGarment('polera')" />
+                  <span>Polera negra</span>
+                </label>
+                <label [class.active]="estampadoGarment === 'poleron'">
+                  <input type="radio" name="garment" value="poleron" [checked]="estampadoGarment === 'poleron'" (change)="setGarment('poleron')" />
+                  <span>Polerón negro</span>
+                </label>
+              </div>
+            </div>
+            <div class="estampado-field file-field">
+              <span>Diseño</span>
+              <label class="upload-design">
+                <input type="file" accept=".png,.jpg,.jpeg,.svg" (change)="onEstampadoFileChange($event)" />
+                <strong>{{ estampadoImageUrl ? 'Cambiar diseño' : 'Sube tu imagen' }}</strong>
+                <small>Ideal en PNG con fondo transparente.</small>
+              </label>
+              <button type="button" class="ghost remove-design" *ngIf="estampadoImageUrl" (click)="clearEstampadoImage()">Quitar diseño</button>
+            </div>
+          </section>
+          <section class="estampado-preview">
+            <div class="garment-preview" [class.poleron]="estampadoGarment === 'poleron'">
+              <img class="garment-base" [src]="garmentBaseAsset()" alt="Referencia prenda" />
+              <div class="garment-overlay">
+                <img *ngIf="estampadoImageUrl" [src]="estampadoImageUrl" alt="Diseño"
+                     [style.width.%]="estampadoSize"
+                     [style.left.%]="estampadoPosX"
+                     [style.top.%]="estampadoPosY" />
+                <span *ngIf="!estampadoImageUrl">Sube un archivo para empezar</span>
+              </div>
+            </div>
+            <div class="estampado-controls">
+              <label>
+                Tamaño del estampado
+                <input type="range" min="20" max="90" [(ngModel)]="estampadoSize" />
+              </label>
+              <div class="position-controls">
+                <label>
+                  Posición horizontal
+                  <input type="range" min="0" max="80" [(ngModel)]="estampadoPosX" />
+                </label>
+                <label>
+                  Posición vertical
+                  <input type="range" min="0" max="80" [(ngModel)]="estampadoPosY" />
+                </label>
+              </div>
+              <div class="estampado-summary">
+                <span>Precio estimado</span>
+                <strong>{{ formatCurrency(estampadoPrice()) }}</strong>
+                <small>El valor final puede variar tras la revisión del equipo.</small>
+              </div>
+            </div>
+          </section>
+        </ng-container>
+        <ng-container *ngSwitchCase="'subir'">
+          <section class="coming-soon">
+            <h3>Subir tu trabajo</h3>
+            <p>Muy pronto podrás adjuntar tus archivos finalizados para cotizarlos.</p>
+          </section>
+        </ng-container>
+      </ng-container>
     </main>
   </div>
 
@@ -255,3 +322,7 @@
     <span>Toca para cerrar</span>
   </div>
 </ion-content>
+
+
+
+

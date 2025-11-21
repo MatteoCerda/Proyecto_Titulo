@@ -1,0 +1,18 @@
+<svg width="600" height="720" viewBox="0 0 600 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shirtBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d1826" />
+      <stop offset="1" stop-color="#03070c" />
+    </linearGradient>
+    <linearGradient id="shirtSleeve" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1f30" />
+      <stop offset="1" stop-color="#050a11" />
+    </linearGradient>
+  </defs>
+  <path d="M210 60C210 40 240 20 300 20C360 20 390 40 390 60L402 120C430 120 468 108 498 88C520 72 548 86 557 112L590 208C598 230 590 254 570 266C530 290 500 302 455 310L460 650C460 684 430 712 392 712H208C170 712 140 684 140 650L145 310C100 302 70 290 30 266C10 254 2 230 10 208L43 112C52 86 80 72 102 88C132 108 170 120 198 120L210 60Z" fill="url(#shirtBody)" stroke="#1c2f45" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M140 650L208 712H392L460 650" stroke="rgba(255,255,255,0.15)" stroke-width="6" stroke-linecap="round"/>
+  <path d="M402 120L415 210" stroke="rgba(255,255,255,0.08)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M198 120L185 210" stroke="rgba(255,255,255,0.08)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M43 112L70 220C40 208 20 200 12 180" fill="url(#shirtSleeve)" opacity=".8"/>
+  <path d="M557 112L530 220C560 208 580 200 588 180" fill="url(#shirtSleeve)" opacity=".8"/>
+</svg>
