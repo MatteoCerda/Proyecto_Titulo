@@ -5,7 +5,9 @@
         <button type="button" class="subnav-btn" [class.active]="activeTab === 'armar'" (click)="setActiveTab('armar')">
           Armar tu paño
         </button>
-        <button type="button" class="subnav-btn" disabled>Subir tu trabajo</button>
+        <button type="button" class="subnav-btn" [class.active]="activeTab === 'subir'" (click)="setActiveTab('subir')">
+          Subir tu trabajo
+        </button>
         <button type="button" class="subnav-btn" [class.active]="activeTab === 'estampado'" (click)="setActiveTab('estampado')">
           Cotiza tu estampado
         </button>
@@ -243,6 +245,85 @@
         </ul>
       </section>
     
+        </ng-container>
+        <ng-container *ngSwitchCase="'subir'">
+          <section class="subir-header">
+            <h1>Sube tu paño completo</h1>
+            <p>
+              Si ya acomodaste todas tus piezas en un solo archivo, súbelo aquí. Nuestro equipo lo recibirá tal como lo preparaste,
+              revisará medidas y te enviará la cotización.
+            </p>
+          </section>
+          <section class="upload subir-upload">
+            <label class="upload-box" (drop)="onDrop($event)" (dragover)="onDragOver($event)">
+              <input type="file" accept=".png,.jpg,.jpeg,.svg,.pdf" multiple (change)="onFileSelect($event)" />
+              <strong>Sube tu paño armado</strong>
+              <span>Arrastra tu archivo o selecciónalo desde tu computador.</span>
+              <small>Formatos aceptados: PNG, JPG, SVG o PDF. Máx. 20 archivos por pedido.</small>
+            </label>
+            <div class="terms-box">
+              <label class="terms-control">
+                <input type="checkbox" [(ngModel)]="termsAccepted" (ngModelChange)="termsFeedback = null">
+                <span>
+                  Confirmo que tengo autorizaciones de uso de marcas, logos o ilustraciones dentro del paño y libero a Kingstone Estampados de cualquier responsabilidad.
+                </span>
+              </label>
+              <small *ngIf="termsFeedback" class="terms-error">{{ termsFeedback }}</small>
+            </div>
+          </section>
+          <section class="subir-files" *ngIf="items().length">
+            <article class="subir-file-card" *ngFor="let item of items(); index as idx">
+              <div class="file-thumb" (click)="openPreview(item)">
+                <div class="file-thumb-media" *ngIf="item.previewUrl; else filePlaceholder">
+                  <img [src]="item.previewUrl" [alt]="item.displayName" />
+                </div>
+                <ng-template #filePlaceholder>
+                  <div class="placeholder">Archivo</div>
+                </ng-template>
+              </div>
+              <div class="file-info">
+                <div class="file-title">
+                  <span class="badge">{{ idx + 1 }}</span>
+                  <div>
+                    <strong>{{ item.displayName }}</strong>
+                    <p>{{ item.widthCm | number:'1.0-1' }} cm x {{ item.heightCm | number:'1.0-1' }} cm &middot; {{ item.quantity }} unidad</p>
+                  </div>
+                </div>
+                <div class="file-flags">
+                  <span class="copyright-pill" *ngIf="item.copyrightBrand">
+                    Posible marca detectada: {{ item.copyrightBrand }}
+                  </span>
+                </div>
+              </div>
+              <button type="button" class="remove" (click)="removeItem(item.id)">Quitar</button>
+            </article>
+          </section>
+          <section class="summary subir-summary" *ngIf="items().length">
+            <div class="price">
+              <span>Precio estimado</span>
+              <strong>${{ totalPrice() | number:'1.0-0' }} CLP</strong>
+              <small>Calculado según el material y la altura utilizada.</small>
+            </div>
+            <div class="summary-note">
+              <label for="order-note-upload">Indicaciones para el operador</label>
+              <textarea id="order-note-upload" rows="3" [(ngModel)]="orderNote" placeholder="Cuéntanos si debemos cortar, despachar enrollado, etc."></textarea>
+              <small>Incluye detalles relevantes para producir tu paño.</small>
+            </div>
+            <div *ngIf="cartFeedback" class="submit-feedback" [class.error]="cartFeedback.type === 'error'">
+              {{ cartFeedback.message }}
+            </div>
+            <div *ngIf="submitFeedback" class="submit-feedback" [class.error]="submitFeedback.type === 'error'">
+              {{ submitFeedback.message }}
+            </div>
+            <div class="summary-actions">
+              <button type="button" class="secondary" [disabled]="items().length === 0" (click)="saveQuoteToCart()">
+                Guardar en carrito
+              </button>
+              <button type="button" class="primary" [disabled]="items().length === 0 || submitting" (click)="submitOrder()">
+                {{ submitting ? 'Enviando...' : 'Enviar paño' }}
+              </button>
+            </div>
+          </section>
         </ng-container>
         <ng-container *ngSwitchCase="'estampado'">
           <section class="estampado-header">

@@ -1,5 +1,5 @@
 .home::part(scroll) {
-  padding: 32px 16px 64px;
+  padding: calc(32px + var(--ks-header-h, 56px)) 16px 64px;
   display: flex;
   flex-direction: column;
   gap: 48px;
@@ -67,10 +67,13 @@
   /* separa claramente del bloque hero para evitar solape visual */
   margin: 24px 0 32px;
   /* más padding superior para que no se corten ascendentes del texto */
-  padding: 24px 0;
+  padding: 32px 0;
   background: #f6f8fb;
   color: #0f172a;
   overflow: hidden;
+  display:flex;
+  align-items:center;
+  min-height:72px;
   position: relative;
   z-index: 1;
   mask-image: none;
