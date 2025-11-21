@@ -829,13 +829,22 @@ export class NuevoPedidoPage implements OnDestroy {
       return;
     }
 
+    const flaggedBrands = this.copyrightDetections();
+    if (flaggedBrands.length) {
+      alert('Pedido imposible de enviar: copyright detectado.');
+      this.submitFeedback = {
+        type: 'error',
+        message: 'No podemos enviar tu pedido porque detectamos posibles marcas registradas.'
+      };
+      return;
+    }
+
     this.submitting = true;
     this.submitFeedback = null;
 
     try {
       const pack = this.packResult();
       const designItems = this.items();
-      const flaggedBrands = this.copyrightDetections();
       const manualNote = this.orderNote.trim() ? this.orderNote.trim() : null;
       const autoNote = flaggedBrands.length
         ? `AUTO: Detectamos posibles marcas registradas (${flaggedBrands.join(', ')}). El operador debe confirmar permisos antes de producir.`
