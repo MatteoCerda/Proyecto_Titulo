@@ -90,6 +90,7 @@ export class ProfilePage {
     // Cargar pedidos solo si es cliente
     if (this.isClient()) {
       this.refreshOrders();
+      this.loadTransferInfo();
     }
     // Seleccionar pestaña por query param
     this.route.queryParamMap.subscribe(q => {
