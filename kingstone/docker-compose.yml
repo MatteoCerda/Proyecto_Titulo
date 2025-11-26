@@ -46,7 +46,7 @@
         condition: service_completed_successfully
     volumes:
       - uploads_data:/app/uploads/pedidos
-      - ./backend/credentials/vision.json:/app/credentials/vision.json:ro
+      - ./backend/credentials:/app/credentials:ro
 
   worker:
     build:
@@ -63,7 +63,7 @@
     command: /bin/sh -c "npx prisma migrate deploy && node dist/workers/pedidoFileWorker.js"
     volumes:
       - uploads_data:/app/uploads/pedidos
-      - ./backend/credentials/vision.json:/app/credentials/vision.json:ro
+      - ./backend/credentials:/app/credentials:ro
 
   n8n:
     image: n8nio/n8n:latest
@@ -101,7 +101,7 @@
     command: ["/bin/sh","-c","npx prisma migrate deploy"]
     restart: "no"
     volumes:
-      - ./backend/credentials/vision.json:/app/credentials/vision.json:ro
+      - ./backend/credentials:/app/credentials:ro
 
 volumes:
   db_data:
