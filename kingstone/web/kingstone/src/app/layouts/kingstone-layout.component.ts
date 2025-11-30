@@ -223,10 +223,10 @@ addIcons({ cartOutline, searchOutline, personOutline });
         <a aria-label="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/56986412218">
           <ion-icon name="logo-whatsapp"></ion-icon>
         </a>
-        <a aria-label="Facebook" target="_blank" rel="noopener" href="https://facebook.com/tu_pagina">
+        <a aria-label="Facebook" target="_blank" rel="noopener" href="https://www.facebook.com/kingston216/?locale=es_LA">
           <ion-icon name="logo-facebook"></ion-icon>
         </a>
-        <a aria-label="Instagram" target="_blank" rel="noopener" href="https://instagram.com/tu_pagina">
+        <a aria-label="Instagram" target="_blank" rel="noopener" href="https://www.instagram.com/kingston_estampados/?hl=es">
           <ion-icon name="logo-instagram"></ion-icon>
         </a>
       </div>
@@ -387,3 +387,4 @@ export class KingstoneLayoutComponent {
     (window as any).location.href = '/login';
   }
 }
+

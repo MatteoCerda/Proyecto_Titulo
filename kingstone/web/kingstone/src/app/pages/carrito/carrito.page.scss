@@ -1,5 +1,5 @@
 .carrito::part(scroll) {
-  padding: calc(var(--ks-header-h, 56px) + 20px) 16px 50px;
+  padding: calc(var(--ks-header-h, 56px) + 40px) 16px 50px;
   display: flex;
   justify-content: center;
   background: linear-gradient(180deg, #e0f2fe 0%, #f8fafc 60%);
@@ -461,3 +461,4 @@
     font-size: 24px;
   }
 }
+

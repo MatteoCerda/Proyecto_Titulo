@@ -1,5 +1,5 @@
 .nosotros::part(scroll) {
-  padding: 64px 20px 96px;
+  padding: calc(var(--ks-header-h, 56px) + 40px) 20px 96px;
   background: radial-gradient(circle at top, #e0f2fe 0%, #f8fafc 45%, #f1f5f9 100%);
   display: flex;
   justify-content: center;
@@ -82,3 +82,4 @@
 .content h3 {
   margin: 0 0 12px;
 }
+
