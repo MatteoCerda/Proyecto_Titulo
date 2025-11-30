@@ -14,7 +14,12 @@ Levantar API y servicios asociados
 
 Notas
 - `docker-compose.yml` usa `./.env.production` por defecto. No es necesario copiar/crear `.env`.
-- El servicio `migrate` corre `npx prisma migrate deploy` automáticamente antes de `api` y `worker`.
+- El servicio `migrate` corre `npx prisma migrate deploy` autom?ticamente antes de `api` y `worker`.
+
+Google Cloud Vision
+- El detector de marcas usa Google Cloud Vision. Copia el JSON de la service account a `kingstone/backend/credentials/vision.json` y asegurate de que el archivo se llame exactamente `vision.json`.
+- Las credenciales quedan visibles dentro del repositorio porque se versionan para no perderlas, asi que mantenlas restringidas al equipo.
+
 
 Reconstruir o reiniciar servicios
 - Reconstruir API sin cache: `docker compose build api --no-cache`.
@@ -56,26 +61,6 @@ n8n en producción (workflow cotizaciones)
 5. Prueba desde una máquina con DNS apuntando a la instancia: `curl -u admin@kingstone.local:TU_PASSWORD https://n8n.kingstone.local/webhook/cotizacion-alerta -H "Content-Type: application/json" -d "{\"cotizacionId\":999,\"asignacionId\":1,\"operadorEmail\":\"ops@kingstone.local\",\"operadorNombre\":\"Operador\",\"clienteNombre\":\"Cliente\",\"enlace\":\"https://app.kingstone.local/operacion/cotizaciones/999\"}"`. Debería responder `200 OK` y verás el correo en el buzón SMTP configurado.
 6. El workflow envía automáticamente dos correos: uno al operador (`operadorEmail`) y otro al cliente (`clienteEmail`). Si ese campo no llega en el payload, la rama del cliente se omite sin afectar la notificación del operador.
 7. Para los cambios de estado de pedidos define también `N8N_PEDIDOS_WEBHOOK_URL=http://n8n:5678/webhook/pedido-estado`, importa `n8n-pedido-estado.workflow.json` y actívalo. Ese flujo lee el payload de `notifyPedidoEstado`, envía el correo al cliente y reenvía un resumen al operador que ejecutó la acción (usando su email como `reply-to`).
-
-WhatsApp Cloud + n8n (cotización/pedido)
-1. Define estas variables en `kingstone/.env.production` antes de reconstruir la API:
-   - `KINGSTONE_API_BASE=http://api:3000` (o la URL pública del backend).
-   - `KINGSTONE_OPERATOR_EMAIL` y `KINGSTONE_OPERATOR_PASSWORD` (cuenta de servicio para que n8n haga login).
-   - `WHATSAPP_CLOUD_TOKEN` (token permanente de Meta).
-   - `WHATSAPP_VERIFY_TOKEN` (texto que configurarás tanto en Meta como en n8n).
-2. Importa el workflow `n8n-whatsapp-intake.workflow.json`:
-   - `docker cp n8n-whatsapp-intake.workflow.json kingstone_n8n:/tmp/`
-   - `docker exec kingstone_n8n n8n import:workflow --input=/tmp/n8n-whatsapp-intake.workflow.json`
-   - `docker exec kingstone_n8n n8n update:workflow --id <ID> --active=true`
-3. En Meta Developers configura el Webhook en `https://<tu-n8n>/webhook/whatsapp-intake` usando `WHATSAPP_VERIFY_TOKEN`. El nodo Webhook acepta GET (verificación) y POST (mensajes). Si usas proxy/certificados, asegúrate de exponer ese path con TLS válido.
-4. Flujo implementado:
-   - Webhook recibe el JSON de WhatsApp Cloud, normaliza el texto, adjuntos y detecta la intención (`cotizacion`, `pedido` o `estado`).
-   - Intención `cotizacion`: envía `POST /api/cotizaciones` con `canal=whatsapp` y responde al cliente con un mensaje confirmando el folio.
-   - Intención `pedido`: hace login de operador (`/auth/login/operator`), crea el pedido en `/api/pedidos` y confirma el número por WhatsApp.
-   - Intención `estado`: vuelve a loguear operador, consulta `/api/pedidos/:id` (extrae el ID del texto “estado 1234”) y responde con el estado actual.
-   - Todos los mensajes de salida se envían por `https://graph.facebook.com/v17.0/{phoneNumberId}/messages` usando `WHATSAPP_CLOUD_TOKEN`.
-5. Para usar archivos, descarga el media ID desde WhatsApp Cloud en n8n (nodo HTTP GET `/{media-id}` con el mismo token) y súbelo luego a `/api/pedidos/:id/files` si necesitas adjuntarlo al pedido.
-6. Recuerda proteger n8n con Basic Auth (`N8N_BASIC_AUTH_*`) y valida las firmas (`X-Hub-Signature-256`) en el Webhook cuando muevas esto a producción.
 
 Pagos Webpay (Integracion)
 1. En `kingstone/backend` corre `npm install` para asegurarte de tener `transbank-sdk`.
