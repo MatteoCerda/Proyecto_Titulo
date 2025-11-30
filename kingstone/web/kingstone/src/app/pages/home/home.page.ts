@@ -177,8 +177,9 @@ export class HomePage {
       slidesPerView: 1,
       loop: slidesCount > 1,
       speed: 600,
+      navigation: true,
       autoplay: {
-        delay: 5000,
+        delay: 4500,
         disableOnInteraction: false
       },
       pagination: {
