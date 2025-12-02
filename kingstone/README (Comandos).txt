@@ -19,7 +19,7 @@ Notas
 Google Cloud Vision
 - El detector de marcas usa Google Cloud Vision. Copia el JSON de la service account a `kingstone/backend/credentials/vision.json` y asegurate de que el archivo se llame exactamente `vision.json`.
 - Las credenciales quedan visibles dentro del repositorio porque se versionan para no perderlas, asi que mantenlas restringidas al equipo.
-
+- Para poder iniciar la detección mediante Google Cloud, deberemos mover el archivo el cual se encuentra en la carpeta Evidencias Grupales de la fase 3 del proyecto llamado vision.json.
 
 Reconstruir o reiniciar servicios
 - Reconstruir API sin cache: `docker compose build api --no-cache`.
